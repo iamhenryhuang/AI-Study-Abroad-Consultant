@@ -85,12 +85,18 @@ def main():
             if idx + 1 < len(sys.argv):
                 school_id = sys.argv[idx + 1]
 
-        # 取出 query（排除旗標）
-        skip_keywords = {"--school", "--max-steps"}
-        args_clean = [
-            a for i, a in enumerate(sys.argv[2:])
-            if a not in skip_keywords and (i == 0 or sys.argv[i + 1] != "--school")
-        ]
+        # 取出 query（排除旗標與其參數值）
+        raw_args = sys.argv[2:]
+        args_clean = []
+        i = 0
+        while i < len(raw_args):
+            token = raw_args[i]
+            if token in {"--school", "--max-steps"}:
+                i += 2
+                continue
+            args_clean.append(token)
+            i += 1
+
         query = " ".join(args_clean).strip()
 
         if not query:

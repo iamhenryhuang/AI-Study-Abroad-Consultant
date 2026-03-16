@@ -4,7 +4,7 @@ Python-based RAG (Retrieval-Augmented Generation) system for US CS Graduate Scho
 
 ## Core Features
 - **Hybrid Search**: Combines semantic vector search (BGE-M3) with PostgreSQL full-text search (FTS), fused using **Reciprocal Rank Fusion (RRF)**.
-- **Agentic RAG**: ReAct loop via Gemini Function Calling to handle cross-school comparisons and multi-step reasoning.
+- **LangGraph Agentic RAG**: A LangGraph `StateGraph` orchestrates the Gemini-driven agent loop across model, tool, and forced-final-answer nodes.
 - **Context-Aware Chunking (v4)**:
     - Automatically injects school and page-type metadata into every chunk to prevent vector space collision.
     - Pre-processing cleans web noise (cookie notices, navigation fragments).
@@ -14,7 +14,8 @@ Python-based RAG (Retrieval-Augmented Generation) system for US CS Graduate Scho
 
 ## Tech Stack
 - API: FastAPI
-- Model: Google Gemini 1.5/2.5 Flash
+- Agent Orchestration: LangGraph
+- Model: Google Gemini 2.5 Flash
 - Database: PostgreSQL + pgvector (HNSW Indexing)
 - Embedder: BAAI/bge-m3 (1024-dim)
 - Reranker: BAAI/bge-reranker-v2-m3
@@ -48,11 +49,34 @@ BGE_RERANKER_MODEL_PATH=/path/to/bge-reranker-v2-m3
 | :--- | :--- |
 | `python backend/scripts/run.py search "QUERY"` | Test hybrid retrieval and view raw scores. |
 | `python backend/scripts/run.py rag "QUERY"` | Execute standard RAG pipeline (Search -> Rerank -> LLM). |
-| `python backend/scripts/run.py agent "QUERY"` | Execute Agentic ReAct loop (Multi-step reasoning). |
+| `python backend/scripts/run.py agent "QUERY"` | Execute the LangGraph agent workflow (multi-step reasoning with tool calls). |
 
 **Common Flags:**
 - `--school [sid]`: Filter results to a specific school (e.g., `cmu`, `mit`).
 - `--max-steps [N]`: Set max iterations for Agentic mode (Default: 5).
+
+Example:
+
+```bash
+python backend/scripts/run.py agent "MIT MSCS deadline?" --max-steps 2
+```
+
+Notes:
+- The CLI entrypoint now strips both flag names and flag values from the query string, so `--max-steps 2` will not pollute the user query.
+- This command path was smoke-tested successfully after the LangGraph migration.
+
+## Agent Event Stream
+
+The backend exposes `POST /api/chat`, which streams JSON events to the frontend.
+
+Event types:
+- `thinking`
+- `tool_call`
+- `tool_result`
+- `answer`
+- `error`
+
+This is the contract consumed by the frontend chat UI and mirrors the events emitted inside [backend/api.py](backend/api.py) and [backend/scripts/retriever/agent.py](backend/scripts/retriever/agent.py).
 
 ### Professor Fetcher
 ```bash
