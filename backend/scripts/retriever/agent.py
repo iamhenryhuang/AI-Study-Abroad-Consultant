@@ -23,6 +23,10 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Any
+
+from typing_extensions import TypedDict
+from langgraph.graph import END, START, StateGraph
 
 CURRENT_DIR = Path(__file__).resolve().parent
 SCRIPTS_DIR = CURRENT_DIR.parent
@@ -221,6 +225,175 @@ def _execute_tool(name: str, args: dict) -> str:
     return format_context_for_prompt(results)
 
 
+class AgentState(TypedDict):
+    """LangGraph state for the Agentic RAG workflow."""
+
+    query: str
+    max_steps: int
+    step: int
+    verbose: bool
+    on_event: Any
+    contents: list[types.Content]
+    pending_function_calls: list[Any]
+    final_answer: str | None
+
+
+def _agent_model_step(state: AgentState) -> AgentState:
+    """Call Gemini with tools and decide whether to continue searching."""
+    step = state["step"] + 1
+
+    if state["verbose"]:
+        print(f"\n[Agent] 第 {step} 輪推理...")
+    _emit(state["on_event"], {"type": "thinking", "step": step})
+
+    client = get_gemini_client()
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=state["contents"],
+        config=types.GenerateContentConfig(
+            system_instruction=_AGENT_SYSTEM_PROMPT,
+            tools=[_TOOLS],
+        ),
+    )
+
+    candidate = response.candidates[0]
+    function_calls = []
+    text_parts = []
+
+    for part in candidate.content.parts:
+        if part.function_call:
+            function_calls.append(part.function_call)
+        elif part.text:
+            text_parts.append(part.text)
+
+    contents = state["contents"] + [candidate.content]
+
+    # No tool calls -> final answer generated.
+    if not function_calls:
+        final_answer = "".join(text_parts).strip()
+        if state["verbose"]:
+            print(f"\n[Agent] 生成最終回答（共 {step} 輪搜尋）")
+            print(f"{'='*60}\n")
+        _emit(state["on_event"], {"type": "answer", "text": final_answer})
+        return {
+            **state,
+            "step": step,
+            "contents": contents,
+            "pending_function_calls": [],
+            "final_answer": final_answer,
+        }
+
+    return {
+        **state,
+        "step": step,
+        "contents": contents,
+        "pending_function_calls": function_calls,
+    }
+
+
+def _agent_tool_step(state: AgentState) -> AgentState:
+    """Execute requested tools and append tool responses to conversation history."""
+    tool_response_parts = []
+
+    for fc in state["pending_function_calls"]:
+        tool_name = fc.name
+        tool_args = dict(fc.args) if fc.args else {}
+
+        if state["verbose"]:
+            args_display = json.dumps(tool_args, ensure_ascii=False)
+            print(f"  → 呼叫工具：{tool_name}({args_display})")
+        _emit(state["on_event"], {"type": "tool_call", "tool": tool_name, "args": tool_args})
+
+        tool_result = _execute_tool(tool_name, tool_args)
+
+        if state["verbose"]:
+            preview = tool_result[:200].replace("\n", " ")
+            print(f"  ← 結果預覽：{preview}...")
+        _emit(
+            state["on_event"],
+            {"type": "tool_result", "tool": tool_name, "preview": tool_result[:200]},
+        )
+
+        tool_response_parts.append(
+            types.Part(
+                function_response=types.FunctionResponse(
+                    name=tool_name,
+                    response={"result": tool_result},
+                )
+            )
+        )
+
+    contents = state["contents"] + [types.Content(role="tool", parts=tool_response_parts)]
+    return {
+        **state,
+        "contents": contents,
+        "pending_function_calls": [],
+    }
+
+
+def _force_final_answer_step(state: AgentState) -> AgentState:
+    """Force a text-only final answer when max steps are reached."""
+    if state["verbose"]:
+        print(f"\n[Agent] 達到最大迭代次數 ({state['max_steps']})，強制生成回答...")
+
+    contents = state["contents"] + [
+        types.Content(
+            role="user",
+            parts=[
+                types.Part(
+                    text="請根據以上你搜尋到的所有資料，現在生成最終回答。不要再呼叫任何工具。"
+                )
+            ],
+        )
+    ]
+
+    client = get_gemini_client()
+    final_response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=contents,
+        config=types.GenerateContentConfig(
+            system_instruction=_AGENT_SYSTEM_PROMPT,
+        ),
+    )
+
+    final_answer = final_response.text.strip()
+    _emit(state["on_event"], {"type": "answer", "text": final_answer})
+
+    if state["verbose"]:
+        print(f"[Agent] 完成（共 {state['max_steps']} 輪，強制停止）")
+        print(f"{'='*60}\n")
+
+    return {
+        **state,
+        "contents": contents,
+        "final_answer": final_answer,
+    }
+
+
+def _route_after_model(state: AgentState) -> str:
+    """Route to END, tools, or forced final generation."""
+    if state.get("final_answer"):
+        return END
+    if state["step"] >= state["max_steps"]:
+        return "force_final"
+    return "tool"
+
+
+def _build_agent_graph():
+    graph = StateGraph(AgentState)
+
+    graph.add_node("model", _agent_model_step)
+    graph.add_node("tool", _agent_tool_step)
+    graph.add_node("force_final", _force_final_answer_step)
+
+    graph.add_edge(START, "model")
+    graph.add_conditional_edges("model", _route_after_model, {END: END, "tool": "tool", "force_final": "force_final"})
+    graph.add_edge("tool", "model")
+    graph.add_edge("force_final", END)
+
+    return graph.compile()
+
+
 # ── 主 Agent Loop ──────────────────────────────────────────────────
 
 def run_agent(
@@ -241,130 +414,26 @@ def run_agent(
     Returns:
         最終回答字串，或 None（失敗時）
     """
-    client = get_gemini_client()
-
     # 初始化對話歷史
-    contents: list[types.Content] = [
-        types.Content(
-            role="user",
-            parts=[types.Part(text=query)],
-        )
-    ]
-
-    step = 0
-    all_retrieved_docs: list[str] = []  # 累積所有搜尋結果，供 verbose 顯示
+    contents: list[types.Content] = [types.Content(role="user", parts=[types.Part(text=query)])]
 
     if verbose:
         print(f"\n{'='*60}")
         print(f"[Agent] 開始處理問題：{query}")
         print(f"{'='*60}")
 
-    # ── ReAct Loop ─────────────────────────────────────────────────
-    while step < max_steps:
-        step += 1
-
-        if verbose:
-            print(f"\n[Agent] 第 {step} 輪推理...")
-        _emit(on_event, {"type": "thinking", "step": step})
-
-        # 呼叫 Gemini（帶工具）
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=_AGENT_SYSTEM_PROMPT,
-                tools=[_TOOLS],
-            ),
-        )
-
-        candidate = response.candidates[0]
-        finish_reason = candidate.finish_reason
-
-        # ── 解析 response：可能是 function call 或最終文字 ──────────
-        function_calls = []
-        text_parts = []
-
-        for part in candidate.content.parts:
-            if part.function_call:
-                function_calls.append(part.function_call)
-            elif part.text:
-                text_parts.append(part.text)
-
-        # 將 model 回應加入歷史
-        contents.append(candidate.content)
-
-        # ── 情況 A：沒有工具呼叫 → 這是最終回答 ───────────────────
-        if not function_calls:
-            final_answer = "".join(text_parts).strip()
-            if verbose:
-                print(f"\n[Agent] 生成最終回答（共 {step} 輪搜尋）")
-                print(f"{'='*60}\n")
-            _emit(on_event, {"type": "answer", "text": final_answer})
-            return final_answer
-
-        # ── 情況 B：有工具呼叫 → 執行並回饋結果 ───────────────────
-        tool_response_parts = []
-
-        for fc in function_calls:
-            tool_name = fc.name
-            tool_args = dict(fc.args) if fc.args else {}
-
-            if verbose:
-                args_display = json.dumps(tool_args, ensure_ascii=False)
-                print(f"  → 呼叫工具：{tool_name}({args_display})")
-            _emit(on_event, {"type": "tool_call", "tool": tool_name, "args": tool_args})
-
-            # 執行工具
-            tool_result = _execute_tool(tool_name, tool_args)
-            all_retrieved_docs.append(
-                f"[{tool_name}({tool_args})]:\n{tool_result}"
-            )
-
-            if verbose:
-                preview = tool_result[:200].replace("\n", " ")
-                print(f"  ← 結果預覽：{preview}...")
-            _emit(on_event, {"type": "tool_result", "tool": tool_name, "preview": tool_result[:200]})
-
-            tool_response_parts.append(
-                types.Part(
-                    function_response=types.FunctionResponse(
-                        name=tool_name,
-                        response={"result": tool_result},
-                    )
-                )
-            )
-
-        # 將工具結果加入對話歷史，讓 Gemini 繼續推理
-        contents.append(
-            types.Content(role="tool", parts=tool_response_parts)
-        )
-
-    # ── 超過 max_steps → 強制生成最終回答 ────────────────────────
-    if verbose:
-        print(f"\n[Agent] 達到最大迭代次數 ({max_steps})，強制生成回答...")
-
-    force_prompt_content = types.Content(
-        role="user",
-        parts=[types.Part(
-            text="請根據以上你搜尋到的所有資料，現在生成最終回答。不要再呼叫任何工具。"
-        )],
-    )
-    contents.append(force_prompt_content)
-
-    final_response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=_AGENT_SYSTEM_PROMPT,
-            # 不傳 tools → 強制只能生成文字
-        ),
+    graph = _build_agent_graph()
+    result = graph.invoke(
+        {
+            "query": query,
+            "max_steps": max_steps,
+            "step": 0,
+            "verbose": verbose,
+            "on_event": on_event,
+            "contents": contents,
+            "pending_function_calls": [],
+            "final_answer": None,
+        }
     )
 
-    final_answer = final_response.text.strip()
-
-    if verbose:
-        print(f"[Agent] 完成（共 {max_steps} 輪，強制停止）")
-        print(f"{'='*60}\n")
-
-    _emit(on_event, {"type": "answer", "text": final_answer})
-    return final_answer
+    return result.get("final_answer")
