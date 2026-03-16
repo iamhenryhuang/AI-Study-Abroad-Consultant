@@ -1,6 +1,6 @@
 # Study Abroad RAG: North America CS Consultant
 
-> **Smart, Agent-based RAG system for North American CS Master's Admissions.**
+> LangGraph-powered RAG system for North American CS Master's admissions advising.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
@@ -11,13 +11,13 @@
 
 ## Overview
 
-Study Abroad RAG is an intelligent advisory tool designed to simplify the complex process of researching North American CS Master's programs. Instead of manually scouring hundreds of university pages, users can ask our **Agentic RAG** system specific questions about admission requirements, funding, faculty, and deadlines.
+Study Abroad RAG is an intelligent advisory tool designed to simplify the complex process of researching North American CS Master's programs. Instead of manually scouring hundreds of university pages, users can ask the system specific questions about admission requirements, funding, faculty, and deadlines.
 
-The system doesn't just "search" — it **reasons**, **compares**, and **cites** its sources accurately.
+The system does not just retrieve passages. It runs a LangGraph-based agent workflow that can decide what to search, call retrieval tools step by step, and then synthesize a cited answer in Traditional Chinese.
 
 ### Key Features
-- **Agentic Reasoning**: Uses a ReAct loop to solve multi-faceted queries (e.g., "Compare the GRE requirements of Stanford vs. CMU").
-- **Real-Time Thinking**: Watch the AI work as it plans its search, executes steps, and synthesizes the answer.
+- **LangGraph Agent Workflow**: Uses a LangGraph `StateGraph` to run the agent loop across model, tool, and forced-final-answer steps.
+- **Real-Time Thinking**: Streams agent events such as `thinking`, `tool_call`, `tool_result`, and `answer` to the frontend.
 - **High Precision**: Powered by **BGE-M3** embeddings and a **Cross-Encoder Reranker** for the best document retrieval.
 - **Contextual Chunking**: Proprietary chunking strategy that preserves metadata and FAQ structures.
 - **Verified Sources**: Every claim includes a direct source URL to the university's official page.
@@ -28,7 +28,7 @@ The system doesn't just "search" — it **reasons**, **compares**, and **cites**
 
 ```text
 .
-├── backend/                # FastAPI, Vector DB logic, Gemini Agent
+├── backend/                # FastAPI, retrieval pipeline, LangGraph agent
 │   ├── api.py              # API server with SSE support
 │   ├── scripts/            # Core RAG & Ingestion logic
 │   └── data/               # University JSON dumps (Scraped data)
@@ -42,7 +42,7 @@ The system doesn't just "search" — it **reasons**, **compares**, and **cites**
 
 ## Quick Start
 
-### 1. Prerequesites
+### 1. Prerequisites
 - **Python 3.10+**
 - **Node.js 18+**
 - **PostgreSQL** with the [pgvector](https://github.com/pgvector/pgvector) extension.
@@ -78,8 +78,18 @@ Manage the entire pipeline directly from your terminal using `backend/scripts/ru
 
 - **`search "QUERY"`**: Pure vector search results.
 - **`rag "QUERY"`**: Standard Retrieval-Augmented Generation.
-- **`agent "QUERY"`**: The advanced Agentic RAG ReAct loop.
+- **`agent "QUERY"`**: The LangGraph-based agent workflow.
 - **`verify-vdb`**: Check the pulse of your vector database.
+
+Examples:
+
+```bash
+python backend/scripts/run.py search "MIT deadline" --school mit
+python backend/scripts/run.py rag "Compare Stanford and CMU GPA requirements"
+python backend/scripts/run.py agent "MIT MSCS deadline?" --max-steps 2
+```
+
+The `agent` command and its `--max-steps` flag were smoke-tested in the current codebase.
 
 ---
 

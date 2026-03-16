@@ -39,10 +39,10 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
       - source_url     : 原始頁面 URL
       - metadata       : JSONB（school_id, page_type, source_url）
     
-    改進：隱藏每個段落前的 URL，改在答案最後統一列出所有來源。
+    改進：在答案中關鍵點直接用 Markdown 連結 + HTML small 標籤讓字變小。
     """
     formatted_docs = []
-    sources_list = []  # 收集所有來源供後續使用
+    sources_list = []  # 收集所有來源供 Gemini 參考
     
     for i, doc in enumerate(context_docs):
         univ     = doc.get("university_name", "未知學校")
@@ -51,13 +51,13 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
         url      = doc.get("source_url", "")
         text     = doc.get("chunk_text", "").strip()
 
-        # 簡化格式：只顯示學校和頁面類型，URL 放在最後統一列出
+        # 簡化格式：只顯示學校和頁面類型
         doc_block = (
             f"【{univ} {ptype}】\n{text}"
         )
         formatted_docs.append(doc_block)
         
-        # 記錄來源供 Gemini 在答案最後引用
+        # 記錄來源供 Gemini 在答案中引用
         sources_list.append({
             "index": i+1,
             "school": sid,
@@ -68,10 +68,10 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
     # 將來源清單附加在文本最後，作為 Gemini 的參考
     formatted_text = "\n\n".join(formatted_docs)
     
-    # 添加來源索引供 Gemini 使用
-    sources_section = "\n\n--- 來源索引（答案最後需附上） ---\n"
+    # 提供來源對應表供 Gemini 使用
+    sources_section = "\n\n--- 來源列表（在答案中用 Markdown 連結引用） ---\n"
     for s in sources_list:
-        sources_section += f"來源 {s['index']}: {s['school']} - {s['page_type']} ({s['url']})\n"
+        sources_section += f"[{s['school']} - {s['page_type']}]({s['url']})\n"
     
     return formatted_text + sources_section
 
@@ -85,17 +85,17 @@ _SYSTEM_PROMPT = """你是一位北美 CS 研究所申請諮詢助理。你只�
 
 【答案格式規定（重點）】：
 - 主要答案內容務必保持「流暢可讀」，不要在句子中間穿插長 URL（嚴禁）
-- 來源引用方式：僅在以下「容易誤解的關鍵點」加註「來源 X」：
+- 來源引用方式：僅在以下「容易誤解的關鍵點」直接附上小字 Markdown 連結：
   * 具體數字、截止日期、申請要求（如 GPA、TOEFL、申請人數等）
   * 硬性政策聲明（如「僅接受這些表格」、「必須完成此步驟」等）
   * 教授論文列表或研究領域總結
-- 在答案最後統一附上「來源清單」，格式為：
-  來源 1：學校 - 頁面類型 (URL)
-  來源 2：學校 - 頁面類型 (URL)
-  ...
+- 連結格式：在資訊後面直接用 HTML 包裹小字 Markdown 連結，例如：
+  GPA 要求 3.5 <span style="font-size:0.7em;">[官網](https://...)</span> 或
+  截止日期 12月15日 <span style="font-size:0.7em;">[申請頁面](https://...)</span>
+- 使用「參考資料」後面提供的「來源列表」中的 URL
 - 一般性陳述、背景資訊、分析等無需加註來源
 
-4. 教授與論文（professor_profile/paper）：若多項資訊來自同一教授，請改在段落末尾標註一次該教授的來源號即可，禁止為每一篇論文都標註。
+4. 教授與論文（professor_profile/paper）：若多項資訊來自同一教授，請改在段落末尾統一附上小字連結一次即可，禁止為每一篇論文都標註。
 5. 找不到資訊的固定回應格式：
    「根據目前取得的資料，我無法確認此問題的答案。建議您直接前往官方網站查詢：[相關 URL，若有的話]」
 
@@ -110,14 +110,14 @@ _SYSTEM_PROMPT = """你是一位北美 CS 研究所申請諮詢助理。你只�
 
 正確格式：
 ### [GPA 要求]
-- Stanford: ...
-- CMU: ...
-- MIT: ...
+- Stanford: ... <span style="font-size:0.7em;">[官網](https://...)</span>
+- CMU: ... <span style="font-size:0.7em;">[官網](https://...)</span>
+- MIT: ... <span style="font-size:0.7em;">[官網](https://...)</span>
 
 ### [截止日期]
-- Stanford: ...
-- CMU: ...
-- MIT: ...
+- Stanford: ... <span style="font-size:0.7em;">[申請頁](https://...)</span>
+- CMU: ... <span style="font-size:0.7em;">[申請頁](https://...)</span>
+- MIT: ... <span style="font-size:0.7em;">[申請頁](https://...)</span>
 
 錯誤格式（不得使用）：
 Stanford: GPA 要求...^截止日期...^其他...
@@ -130,7 +130,7 @@ CMU: GPA 要求...^截止日期...^其他...
 1. 必須以教授姓名為首：每個教授的資訊必須以 `### [教授姓名]` 作為標題開頭。
 2. 善用列表：具體分點說明其研究領域、重點實驗室、以及代表性成果。
 3. 綜整分析：總結該教授近年的研究主題，避免單純條列論文。
-4. 來源標注：在總結的最後標注來源索引（來源 X）。
+4. 來源標注：在總結的最後統一附上一個小字連結指向該教授的資料來源。
 
 【一般問題回答排版規範】：
 - 層次分明：大量使用 `-` 條列式說明，避免擠在一起的冗長段落。

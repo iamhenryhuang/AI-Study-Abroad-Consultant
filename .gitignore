@@ -30,6 +30,8 @@ wheels/
 venv/
 ENV/
 env/
+python-version
+.python-version
 
 # IDE / 編輯器
 .idea/
@@ -47,9 +49,16 @@ desktop.ini
 *.log
 *.tmp
 .cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.hypothesis/
 
-# 專案：匯出檔可選
+# 專案：匯出檔與資料庫
 db/exported_data.sql
+*.db
+*.sqlite
+*.sqlite3
 
 # Node / Frontend
 node_modules/

@@ -1,74 +1,100 @@
 # Study Abroad Consultant — Backend
 
-This is the Python-based backend for the Study Abroad RAG Consultant project. It leverages **FastAPI**, **PostgreSQL (pgvector)**, and **Google Gemini** to provide a highly capable, student-centric advisory system.
+Python-based RAG (Retrieval-Augmented Generation) system for US CS Graduate School admissions consulting. Built with FastAPI, PostgreSQL (pgvector), and Google Gemini.
 
-## Key Features
-
-- **Agentic RAG (ReAct Loop)**: Uses Gemini Function Calling to perform multi-step reasoning, allowing it to search for, compare, and synthesize information across multiple university sources.
-- **Dynamic Chunking (v4)**: Context-aware text splitting that injects school and page metadata into every chunk, significantly improving retrieval accuracy.
-- **High-Performance Retrieval**: Implements **BGE-M3** embeddings and **HNSW** indexing via `pgvector` for fast and semantic document search.
-- **Cross-Encoder Reranking**: Utilizes `bge-reranker-v2-m3` to refine search results, ensuring the most relevant content is prioritized for the LLM.
-- **Real-Time SSE**: Streams the agent's thought process and step-by-step tool executions to the frontend via Server-Sent Events.
+## Core Features
+- **Hybrid Search**: Combines semantic vector search (BGE-M3) with PostgreSQL full-text search (FTS), fused using **Reciprocal Rank Fusion (RRF)**.
+- **LangGraph Agentic RAG**: A LangGraph `StateGraph` orchestrates the Gemini-driven agent loop across model, tool, and forced-final-answer nodes.
+- **Context-Aware Chunking (v4)**:
+    - Automatically injects school and page-type metadata into every chunk to prevent vector space collision.
+    - Pre-processing cleans web noise (cookie notices, navigation fragments).
+    - FAQ-specific splitting keeps Q&A pairs intact using regex synchronization.
+- **Professor Intelligence**: Integrated SerpAPI tool for fetching researcher interests and papers from Google Scholar.
+- **Reranking**: Secondary ranking via BGE-Reranker-v2-m3 (Cross-Encoder) for precision.
 
 ## Tech Stack
+- API: FastAPI
+- Agent Orchestration: LangGraph
+- Model: Google Gemini 2.5 Flash
+- Database: PostgreSQL + pgvector (HNSW Indexing)
+- Embedder: BAAI/bge-m3 (1024-dim)
+- Reranker: BAAI/bge-reranker-v2-m3
 
-- **API Framework**: [FastAPI](https://fastapi.tiangolo.com/)
-- **LLM**: [Google Gemini 1.5/2.5 Flash](https://aistudio.google.com/)
-- **Database**: [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector)
-- **Embedding Model**: [BGE-M3](https://huggingface.co/BAAI/bge-m3)
-- **Reranker**: [BGE-Reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3)
-- **Task Runner/CLI**: Custom `run.py` manager
-
-## Project Structure
-
-```text
-backend/
-├── api.py              # FastAPI main file & SSE streaming logic
-├── requirements.txt    # Python dependencies
-├── data/               # Raw university data (JSON format)
-└── scripts/            # Core system logic
-    ├── run.py          # Unified CLI entry point for all operations
-    ├── db/             # Database connection and schema operations
-    ├── embedder/       # The ingestion pipeline (Clean -> Chunk -> Embed -> Store)
-    ├── retriever/      # Logic for Search, RAG, and the ReAct Agent
-    └── generator/      # Gemini prompting and answer generation
-```
-
-## Getting Started
-
-### 1. Environment Setup
-Create a `.env` file in the `backend/` directory with the following keys:
+## Setup
+Create `.env` in the `backend/` directory:
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/study_abroad_rag
-GOOGLE_API_KEY=your_gemini_api_key_here
+DATABASE_URL=postgresql://user:password@localhost:5432/db_name
+GOOGLE_API_KEY=your_gemini_key
+SERPAPI_KEY=your_serpapi_key
+
+# Optional: Local model paths
+BGE_EMBED_MODEL_PATH=/path/to/bge-m3
+BGE_RERANKER_MODEL_PATH=/path/to/bge-reranker-v2-m3
 ```
 
-### 2. Install Dependencies
-```bash
-pip install -r backend/requirements.txt
-```
+## CLI Usage (Run from project root)
 
-### 3. Initialize Data & Database
-Run the unified "init-all" command to set up the DB, create tables, and process all university data in `data/`:
-```bash
-python backend/scripts/run.py init-all
-```
-
-### 4. Start the API Server
-```bash
-uvicorn backend.api:app --reload --port 8000
-```
-
-## CLI Reference
-
-The backend provides a powerful CLI via `run.py`. All commands should be run from the **project root**.
-
-| Command | Description |
+### Database Management
+| Command | Action |
 | :--- | :--- |
-| `python backend/scripts/run.py setup` | Create the database if it doesn't exist. |
-| `python backend/scripts/run.py import` | Re-build schema and re-import all JSON data. |
-| `python backend/scripts/run.py rag "QUERY"` | Test the standard RAG pipeline in the terminal. |
-| `python backend/scripts/run.py agent "QUERY"` | Test the Agentic RAG (steps & reasoning) in the terminal. |
-| `python backend/scripts/run.py verify-vdb` | Check vector counts and index health. |
+| `python backend/scripts/run.py init-all` | Run setup + full import (Resets all tables). |
+| `python backend/scripts/run.py setup` | Check connection and create database. |
+| `python backend/scripts/run.py import` | Rebuild schema and re-import all JSON files in `data/`. |
+| `python backend/scripts/run.py embed` | Incremental import: Chunk and embed data without resetting tables. |
+| `python backend/scripts/run.py verify-db` | Check database stats and school distribution. |
+| `python backend/scripts/run.py verify-vdb` | Check vector counts and HNSW index health. |
 
----
+### Retrieval & RAG
+| Command | Action |
+| :--- | :--- |
+| `python backend/scripts/run.py search "QUERY"` | Test hybrid retrieval and view raw scores. |
+| `python backend/scripts/run.py rag "QUERY"` | Execute standard RAG pipeline (Search -> Rerank -> LLM). |
+| `python backend/scripts/run.py agent "QUERY"` | Execute the LangGraph agent workflow (multi-step reasoning with tool calls). |
+
+**Common Flags:**
+- `--school [sid]`: Filter results to a specific school (e.g., `cmu`, `mit`).
+- `--max-steps [N]`: Set max iterations for Agentic mode (Default: 5).
+
+Example:
+
+```bash
+python backend/scripts/run.py agent "MIT MSCS deadline?" --max-steps 2
+```
+
+Notes:
+- The CLI entrypoint now strips both flag names and flag values from the query string, so `--max-steps 2` will not pollute the user query.
+- This command path was smoke-tested successfully after the LangGraph migration.
+
+## Agent Event Stream
+
+The backend exposes `POST /api/chat`, which streams JSON events to the frontend.
+
+Event types:
+- `thinking`
+- `tool_call`
+- `tool_result`
+- `answer`
+- `error`
+
+This is the contract consumed by the frontend chat UI and mirrors the events emitted inside [backend/api.py](backend/api.py) and [backend/scripts/retriever/agent.py](backend/scripts/retriever/agent.py).
+
+### Professor Fetcher
+```bash
+# Basic fetch
+python -m backend.scripts.professor_fetcher.run_fetch --name "Ming-Feng Tsai" --school "NCCU"
+
+# Fetch + Immediate Embedding
+python -m backend.scripts.professor_fetcher.run_fetch --name "Andrew Ng" --school "Stanford" --embed
+```
+
+## Chunking Strategy
+Chunks are dynamically sized based on identified URL path types:
+
+| Page Type | Chunk Size | Overlap | Strategy |
+| :--- | :--- | :--- | :--- |
+| **FAQ** | 1800 | 360 | Regex-based QA pair alignment. |
+| **Admission** | 1500 | 300 | Process-focused context preservation. |
+| **Checklist** | 1000 | 200 | Granular attribute extraction. |
+| **Prof Profile**| 1800 | 360 | Researcher bio preservation. |
+| **Prof Paper** | 800 | 160 | Abstract-centric windowing. |
+| **General** | 1400 | 280 | Fallback default. |
