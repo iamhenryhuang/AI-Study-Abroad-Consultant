@@ -8,6 +8,7 @@ System prompt 核心原則：
 """
 
 import os
+import re
 from dotenv import load_dotenv
 from google import genai
 
@@ -39,7 +40,7 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
       - source_url     : 原始頁面 URL
       - metadata       : JSONB（school_id, page_type, source_url）
     
-    改進：在答案中關鍵點直接用 Markdown 連結 + HTML small 標籤讓字變小。
+    改進：在答案中關鍵點直接用 Markdown 連結標註來源。
     """
     formatted_docs = []
     sources_list = []  # 收集所有來源供 Gemini 參考
@@ -85,17 +86,17 @@ _SYSTEM_PROMPT = """你是一位北美 CS 研究所申請諮詢助理。你只�
 
 【答案格式規定（重點）】：
 - 主要答案內容務必保持「流暢可讀」，不要在句子中間穿插長 URL（嚴禁）
-- 來源引用方式：僅在以下「容易誤解的關鍵點」直接附上小字 Markdown 連結：
+- 來源引用方式：僅在以下「容易誤解的關鍵點」直接附上 Markdown 連結：
   * 具體數字、截止日期、申請要求（如 GPA、TOEFL、申請人數等）
   * 硬性政策聲明（如「僅接受這些表格」、「必須完成此步驟」等）
   * 教授論文列表或研究領域總結
-- 連結格式：在資訊後面直接用 HTML 包裹小字 Markdown 連結，例如：
-  GPA 要求 3.5 <span style="font-size:0.7em;">[官網](https://...)</span> 或
-  截止日期 12月15日 <span style="font-size:0.7em;">[申請頁面](https://...)</span>
+- 連結格式：在資訊後面直接附上 Markdown 連結，例如：
+    GPA 要求 3.5 [官網](https://...)
+    截止日期 12月15日 [申請頁面](https://...)
 - 使用「參考資料」後面提供的「來源列表」中的 URL
 - 一般性陳述、背景資訊、分析等無需加註來源
 
-4. 教授與論文（professor_profile/paper）：若多項資訊來自同一教授，請改在段落末尾統一附上小字連結一次即可，禁止為每一篇論文都標註。
+4. 教授與論文（professor_profile/paper）：若多項資訊來自同一教授，請改在段落末尾統一附上連結一次即可，禁止為每一篇論文都標註。
 5. 找不到資訊的固定回應格式：
    「根據目前取得的資料，我無法確認此問題的答案。建議您直接前往官方網站查詢：[相關 URL，若有的話]」
 
@@ -110,14 +111,14 @@ _SYSTEM_PROMPT = """你是一位北美 CS 研究所申請諮詢助理。你只�
 
 正確格式：
 ### [GPA 要求]
-- Stanford: ... <span style="font-size:0.7em;">[官網](https://...)</span>
-- CMU: ... <span style="font-size:0.7em;">[官網](https://...)</span>
-- MIT: ... <span style="font-size:0.7em;">[官網](https://...)</span>
+- Stanford: ... [官網](https://...)
+- CMU: ... [官網](https://...)
+- MIT: ... [官網](https://...)
 
 ### [截止日期]
-- Stanford: ... <span style="font-size:0.7em;">[申請頁](https://...)</span>
-- CMU: ... <span style="font-size:0.7em;">[申請頁](https://...)</span>
-- MIT: ... <span style="font-size:0.7em;">[申請頁](https://...)</span>
+- Stanford: ... [申請頁](https://...)
+- CMU: ... [申請頁](https://...)
+- MIT: ... [申請頁](https://...)
 
 錯誤格式（不得使用）：
 Stanford: GPA 要求...^截止日期...^其他...
@@ -130,7 +131,7 @@ CMU: GPA 要求...^截止日期...^其他...
 1. 必須以教授姓名為首：每個教授的資訊必須以 `### [教授姓名]` 作為標題開頭。
 2. 善用列表：具體分點說明其研究領域、重點實驗室、以及代表性成果。
 3. 綜整分析：總結該教授近年的研究主題，避免單純條列論文。
-4. 來源標注：在總結的最後統一附上一個小字連結指向該教授的資料來源。
+4. 來源標注：在總結的最後統一附上一個連結指向該教授的資料來源。
 
 【一般問題回答排版規範】：
 - 層次分明：大量使用 `-` 條列式說明，避免擠在一起的冗長段落。
@@ -176,8 +177,18 @@ def generate_answer(
             model=model_name,
             contents=prompt,
         )
+        text = (response.text or "")
         # 清除殘留星號（使用者要求不使用粗體）
-        return response.text.replace("**", "").strip()
+        text = text.replace("**", "")
+        # 兼容舊輸出：若模型仍產生 <span> 包裹連結，轉回純 Markdown
+        text = re.sub(
+            r"<span[^>]*>\s*(\[[^\]]+\]\([^\)]+\))\s*</span>",
+            r"\1",
+            text,
+            flags=re.IGNORECASE,
+        )
+        text = re.sub(r"</?span[^>]*>", "", text, flags=re.IGNORECASE)
+        return text.strip()
     except Exception as e:
         print(f"[Gemini] 生成回答時發生錯誤: {e}")
         return None
