@@ -3,7 +3,7 @@ rag_pipeline.py — RAG 完整流程（v2）
 
 檢索 → 重排序 → 生成回答
 或
-Agentic RAG： Gemini Function Calling ReAct Loop
+Agentic RAG：LangGraph Planner-Tool Loop
 
 v2 改動：
   - 回傳結果包含 source_url，讓 Gemini 可以在回答中引用網頁來源
@@ -75,7 +75,7 @@ def run_agent_pipeline(
     verbose: bool = True,
 ) -> bool:
     """
-    執行 Agentic RAG 流程（ReAct Loop）。
+    執行 Agentic RAG 流程（LangGraph Planner-Tool Loop）。
 
     Args:
         query:     使用者問題
@@ -84,7 +84,7 @@ def run_agent_pipeline(
     """
     answer = run_agent(query, max_steps=max_steps, verbose=verbose)
     if answer:
-        print("\n" + "=" * 30 + " Gemini Agent 回答 " + "=" * 30)
+        print("\n" + "=" * 30 + " LangGraph Agent 回答 " + "=" * 30)
         print(answer)
         print("=" * 73 + "\n")
         return True
@@ -96,7 +96,7 @@ def run_agent_pipeline(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="執行 RAG 流程")
     parser.add_argument("query", nargs="?", help="使用者問題")
-    parser.add_argument("--agent", action="store_true", help="使用 Agentic RAG（ReAct Loop）")
+    parser.add_argument("--agent", action="store_true", help="使用 Agentic RAG（LangGraph Loop）")
     parser.add_argument("--max-steps", type=int, default=5, help="Agent 最大迭代次數")
     parser.add_argument("--school", type=str, default=None, help="限定學校 e.g. cmu, caltech")
     parser.add_argument("--top-k", type=int, default=7, help="檢索數量")

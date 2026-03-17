@@ -9,7 +9,7 @@
   python backend/scripts/run.py export     # 匯出摘要至 db/exported_data.sql
   python backend/scripts/run.py search [query] [--school cmu|caltech]
   python backend/scripts/run.py rag [query] [--school cmu|caltech]
-  python backend/scripts/run.py agent [query] [--max-steps N]   # Agentic RAG (ReAct Loop)
+    python backend/scripts/run.py agent [query] [--max-steps N]   # Agentic RAG (LangGraph Loop)
   python backend/scripts/run.py init-all   # 一次完成 setup + import
 """
 import os
@@ -51,7 +51,7 @@ COMMANDS = {
     "embed":     ("切片 + 向量化並寫入 document_chunks",     run_pipeline),
     "search":    ("執行向量檢索測試 [query] [--school]",      None),  # 特殊處理
     "rag":       ("執行完整 RAG 流程 [query] [--school]",    None),  # 特殊處理
-    "agent":     ("Agentic RAG ReAct Loop [query] [--max-steps N]", None),  # 特殊處理
+    "agent":     ("Agentic RAG LangGraph Loop [query] [--max-steps N]", None),  # 特殊處理
     "init-all":  ("一次完成 setup + import",                 lambda: (setup_db() and import_json())),
 }
 
