@@ -16,7 +16,7 @@ Study Abroad RAG is an intelligent advisory tool designed to simplify the comple
 The system does not just retrieve passages. It runs a LangGraph-based agent workflow that can decide what to search, call retrieval tools step by step, and then synthesize a cited answer in Traditional Chinese.
 
 ### Key Features
-- **LangGraph Agent Workflow**: Uses a LangGraph `StateGraph` to run the agent loop across model, tool, and forced-final-answer steps.
+- **LangGraph Agent Workflow**: Uses a LangGraph `StateGraph` to run the agent loop across planner, tool, and finalizer steps.
 - **Real-Time Thinking**: Streams agent events such as `thinking`, `tool_call`, `tool_result`, and `answer` to the frontend.
 - **High Precision**: Powered by **BGE-M3** embeddings and a **Cross-Encoder Reranker** for the best document retrieval.
 - **Contextual Chunking**: Proprietary chunking strategy that preserves metadata and FAQ structures.

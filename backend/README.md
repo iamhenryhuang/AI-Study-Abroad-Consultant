@@ -4,7 +4,7 @@ Python-based RAG (Retrieval-Augmented Generation) system for US CS Graduate Scho
 
 ## Core Features
 - **Hybrid Search**: Combines semantic vector search (BGE-M3) with PostgreSQL full-text search (FTS), fused using **Reciprocal Rank Fusion (RRF)**.
-- **LangGraph Agentic RAG**: A LangGraph `StateGraph` orchestrates the Gemini-driven agent loop across model, tool, and forced-final-answer nodes.
+- **LangGraph Agentic RAG**: A LangGraph `StateGraph` orchestrates the Gemini-driven agent loop across planner, tool, and finalizer nodes.
 - **Context-Aware Chunking (v4)**:
     - Automatically injects school and page-type metadata into every chunk to prevent vector space collision.
     - Pre-processing cleans web noise (cookie notices, navigation fragments).
