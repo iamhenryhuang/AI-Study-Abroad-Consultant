@@ -34,31 +34,19 @@ from embedder.vectorize import embed_texts
 
 
 # ── 學校識別對照表 ─────────────────────────────────────────────
-# 根據 URL domain 自動對應學校資訊
+# 只保留 backend/data 目前使用到的學校（依 URL domain 對應）
 SCHOOL_MAP: dict[str, dict] = {
     "cmu.edu": {
         "school_id": "cmu",
         "name": "Carnegie Mellon University",
     },
-    "caltech.edu": {
-        "school_id": "caltech",
-        "name": "California Institute of Technology",
-    },
     "stanford.edu": {
         "school_id": "stanford",
         "name": "Stanford University",
     },
-    "berkeley.edu": {
-        "school_id": "berkeley",
-        "name": "UC Berkeley",
-    },
     "mit.edu": {
         "school_id": "mit",
         "name": "MIT",
-    },
-    "gatech.edu": {
-        "school_id": "gatech",
-        "name": "Georgia Tech",
     },
     "illinois.edu": {
         "school_id": "uiuc",
@@ -96,15 +84,21 @@ SCHOOL_MAP: dict[str, dict] = {
         "school_id": "ucsd",
         "name": "UC San Diego",
     },
-    "washington.edu": {
-        "school_id": "uw",
-        "name": "University of Washington",
-    },
     "nccu.edu.tw": {
         "school_id": "nccu",
         "name": "National Chengchi University",
     },
 }
+
+# 檔名提示別名（例如 ut_austin.json）對應到 SCHOOL_MAP 的 school_id
+FILENAME_HINT_ALIASES: dict[str, str] = {
+    "ut_austin": "utexas",
+}
+
+
+def _normalize_filename_hint(filename_hint: str) -> str:
+    hint = filename_hint.lower().replace("_professors", "").replace("_professor", "")
+    return FILENAME_HINT_ALIASES.get(hint, hint)
 
 
 def identify_school(url: str, filename_hint: str | None = None) -> dict | None:
@@ -126,9 +120,7 @@ def identify_school(url: str, filename_hint: str | None = None) -> dict | None:
     # 例如 stanford_professors.json → filename_hint = "stanford_professors" → school_id = "stanford"
     if "scholar.google.com" in hostname:
         if filename_hint:
-            hint_lower = filename_hint.lower()
-            # 支援 "{school_id}_professors" 格式的 filename
-            hint_clean = hint_lower.replace("_professors", "").replace("_professor", "")
+            hint_clean = _normalize_filename_hint(filename_hint)
             for domain, info in SCHOOL_MAP.items():
                 if (
                     info["school_id"] == hint_clean
@@ -145,8 +137,7 @@ def identify_school(url: str, filename_hint: str | None = None) -> dict | None:
 
     # 2. 回退到 filename_hint 識別
     if filename_hint:
-        hint_lower = filename_hint.lower()
-        hint_clean = hint_lower.replace("_professors", "").replace("_professor", "")
+        hint_clean = _normalize_filename_hint(filename_hint)
         for domain, info in SCHOOL_MAP.items():
             if (
                 info["school_id"] == hint_clean
@@ -247,7 +238,7 @@ def upsert_chunks(
     return len(chunks)
 
 
-# ── 主流水線 ─────────────────────────────────────────────────
+# ── 主線 ─────────────────────────────────────────────────
 
 def run_pipeline(data_dirname: str = "data") -> bool:
     """讀取 school_info.json → 切片 → 向量化 → 寫入 DB。"""
