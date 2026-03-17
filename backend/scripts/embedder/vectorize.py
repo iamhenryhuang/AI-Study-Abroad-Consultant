@@ -14,19 +14,6 @@ from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
-# 修復 Windows SSL 證書驗證問題：移除指向不存在檔案的 SSL_CERT_FILE 環境變數
-if 'SSL_CERT_FILE' in os.environ:
-    cert_file = os.environ.get('SSL_CERT_FILE', '')
-    if not os.path.exists(cert_file):
-        del os.environ['SSL_CERT_FILE']
-        
-# 禁用 SSL 驗證
-import ssl
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-ssl._create_default_https_context = ssl._create_unverified_context
-os.environ['HF_HUB_VERIFY_SSL'] = '0'
-
 # 從 .env 讀取路徑；若未設定則使用預設 D 槽路徑
 _MODEL_PATH = Path(
     os.getenv("BGE_EMBED_MODEL_PATH", r"D:\DforDownload\BAAI\bge-m3")
