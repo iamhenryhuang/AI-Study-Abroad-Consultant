@@ -9,6 +9,7 @@ System prompt 核心原則：
 
 import os
 import re
+from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
 
@@ -17,10 +18,24 @@ load_dotenv()
 _client = None
 
 
+def _sanitize_ssl_env() -> None:
+    """Ignore broken SSL env vars that point to non-existent cert paths."""
+    cert_file = os.getenv("SSL_CERT_FILE")
+    if cert_file and not Path(cert_file).exists():
+        print(f"[gemini] SSL_CERT_FILE 無效，已忽略：{cert_file}")
+        os.environ.pop("SSL_CERT_FILE", None)
+
+    cert_dir = os.getenv("SSL_CERT_DIR")
+    if cert_dir and not Path(cert_dir).exists():
+        print(f"[gemini] SSL_CERT_DIR 無效，已忽略：{cert_dir}")
+        os.environ.pop("SSL_CERT_DIR", None)
+
+
 def get_gemini_client():
     """取得 Gemini GenAI Client。"""
     global _client
     if _client is None:
+        _sanitize_ssl_env()
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise ValueError("未在 .env 中找到 GOOGLE_API_KEY")
