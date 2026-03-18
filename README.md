@@ -47,20 +47,47 @@ The system does not just retrieve passages. It runs a LangGraph-based agent work
 - **Node.js 18+**
 - **PostgreSQL** with the [pgvector](https://github.com/pgvector/pgvector) extension.
 
-### 2. Initialization (The Easy Way)
+### 2. Python Virtual Environment (`.venv`)
+The `.venv` folder is only used when you explicitly activate it in your terminal.
+It does **not** activate by itself just because the folder exists.
+
+From the project root:
+
+Activate it based on your shell:
+
+```bash
+# Git Bash (Windows) / macOS / Linux
+source .venv/Scripts/activate
+```
+
+After activation, your prompt usually shows `(.venv)`.
+Use `deactivate` to leave the virtual environment.
+
+### 3. Initialization (The Easy Way)
 From the **root directory**, run the one-command setup:
 ```bash
 # Setup DB and import all data (approx. 2-5 mins)
 python backend/scripts/run.py init-all
 ```
 
-### 3. Start Services
+### 4. Start Services
 Open two terminals:
 
 **Terminal A: Backend**
 ```bash
-pip install -r backend/requirements.txt
-uvicorn backend.api:app --reload --port 8000
+python -m pip install -r backend/requirements.txt
+python -m uvicorn backend.api:app --reload --port 8000
+```
+
+If you see `ModuleNotFoundError: No module named 'pydantic_core._pydantic_core'`,
+your virtual environment likely has incompatible cached binaries (for example, Python version changed after `.venv` was created).
+
+```bash
+rm -rf .venv
+python -m venv .venv
+source .venv/Scripts/activate  # Git Bash (Windows)
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r backend/requirements.txt
 ```
 
 **Terminal B: Frontend**
