@@ -44,7 +44,7 @@ export function MessageBubble({ message, isLast }: Props) {
             </div>
           ) : (
             <div
-              className={`text-[15px] leading-relaxed tracking-normal prose prose-sm max-w-none prose-p:my-3 prose-p:leading-7 prose-a:text-blue-600 prose-a:font-medium hover:prose-a:underline prose-a:no-underline prose-li:my-1 prose-headings:font-semibold prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:text-gray-800 wrap-break-word ${message.error ? 'text-red-500' : 'text-gray-800'
+              className={`font-sans text-[15px] leading-relaxed tracking-normal prose max-w-none prose-p:my-3 prose-p:text-[15px] prose-p:leading-7 prose-li:my-1 prose-li:text-[15px] prose-ul:text-[15px] prose-ol:text-[15px] prose-headings:text-[15px] prose-headings:font-semibold prose-strong:text-[15px] prose-code:text-[15px] prose-pre:text-[15px] prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:text-gray-800 prose-a:text-[13px] prose-a:text-blue-600 prose-a:font-medium prose-a:break-all hover:prose-a:underline prose-a:no-underline wrap-break-word ${message.error ? 'text-red-500' : 'text-gray-800'
                 }`}
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
