@@ -146,7 +146,12 @@ def search_core(
 
         # 4. 重排序（精篩）
         if use_rerank and len(candidates) > top_k:
-            results = rerank(query, candidates, top_n=top_k)
+            try:
+                results = rerank(query, candidates, top_n=top_k)
+            except Exception as e:
+                # 若重排序模型不可用，退回向量/關鍵字融合初篩結果，避免整體查詢失敗。
+                print(f"[search] 重排序失敗，改用初篩結果：{e}")
+                results = candidates[:top_k]
         else:
             results = candidates[:top_k]
 
