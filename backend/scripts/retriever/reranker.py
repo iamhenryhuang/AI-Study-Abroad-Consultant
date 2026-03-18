@@ -21,9 +21,18 @@ _MODEL_NAME = _MODEL_PATH.name
 
 _model: CrossEncoder | None = None
 
+
+def _sanitize_ssl_env() -> None:
+    """Avoid crashes when SSL cert env points to a non-existent file."""
+    cert_file = os.getenv("SSL_CERT_FILE")
+    if cert_file and not Path(cert_file).exists():
+        print(f"[reranker] SSL_CERT_FILE 無效，已忽略：{cert_file}")
+        os.environ.pop("SSL_CERT_FILE", None)
+
 def _get_model() -> CrossEncoder:
     global _model
     if _model is None:
+        _sanitize_ssl_env()
         model_id = str(_MODEL_PATH) if _MODEL_PATH.exists() else f"BAAI/{_MODEL_NAME}"
         if not _MODEL_PATH.exists():
             print(

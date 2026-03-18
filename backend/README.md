@@ -21,6 +21,29 @@ Python-based RAG (Retrieval-Augmented Generation) system for US CS Graduate Scho
 - Reranker: BAAI/bge-reranker-v2-m3
 
 ## Setup
+
+### When should I enter `.venv`?
+Activate `.venv` whenever you are going to run backend Python commands, for example:
+- Installing packages (`pip install -r backend/requirements.txt`)
+- Running CLI (`python backend/scripts/run.py ...`)
+- Running API server (`python backend/api.py`)
+
+If your terminal prompt already shows `(.venv)`, you are already inside the virtual environment.
+
+### Open project and enter `.venv`
+Run these commands from the project root.
+
+```bash
+# Git Bash (Windows)
+source .venv/Scripts/activate
+```
+
+Exit the virtual environment with:
+
+```bash
+deactivate
+```
+
 Create `.env` in the `backend/` directory:
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/db_name
