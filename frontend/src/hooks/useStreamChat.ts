@@ -8,7 +8,16 @@ export function useStreamChat() {
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
-      return saved ? JSON.parse(saved) : []
+      if (!saved) return []
+      const parsed: ChatSession[] = JSON.parse(saved)
+      // Ensure events exists on all messages
+      return parsed.map(s => ({
+        ...s,
+        messages: s.messages.map(m => ({
+          ...m,
+          events: m.events || []
+        }))
+      }))
     } catch {
       return []
     }
