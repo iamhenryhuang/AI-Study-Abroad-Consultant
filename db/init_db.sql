@@ -1,9 +1,3 @@
--- ============================================================
--- Study Abroad Consultant — Database Schema
--- 資料格式: school_info.json = { "url": "純文字", ... }
--- 學校透過 URL domain 自動識別
--- ============================================================
-
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
@@ -12,9 +6,7 @@ DROP TABLE IF EXISTS document_chunks CASCADE;
 DROP TABLE IF EXISTS web_pages CASCADE;
 DROP TABLE IF EXISTS universities CASCADE;
 
--- ============================================================
--- 1. universities
--- ============================================================
+
 CREATE TABLE universities (
     id          SERIAL PRIMARY KEY,
     school_id   VARCHAR(100) UNIQUE NOT NULL,
@@ -25,9 +17,7 @@ CREATE TABLE universities (
 
 CREATE INDEX idx_uni_name_trgm ON universities USING gin (name gin_trgm_ops);
 
--- ============================================================
--- 2. web_pages
--- ============================================================
+
 CREATE TABLE web_pages (
     id            SERIAL PRIMARY KEY,
     university_id INTEGER REFERENCES universities(id) ON DELETE CASCADE,
@@ -41,9 +31,7 @@ CREATE TABLE web_pages (
 CREATE INDEX idx_web_pages_university ON web_pages(university_id);
 CREATE INDEX idx_web_pages_page_type  ON web_pages(page_type);
 
--- ============================================================
--- 3. document_chunks (優化版)
--- ============================================================
+
 CREATE TABLE document_chunks (
     id            SERIAL PRIMARY KEY,
     university_id INTEGER REFERENCES universities(id) ON DELETE CASCADE,
