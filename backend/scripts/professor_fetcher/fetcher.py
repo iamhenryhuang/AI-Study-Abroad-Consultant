@@ -1,16 +1,10 @@
 """
-fetcher.py — SerpAPI Google Scholar 教授資料抓取模組
-
-搜尋策略（已簡化）：
+搜尋策略：
   1. search_professor_id()       — 用 google_scholar engine 搜尋 "{name}" "{school}"，
                                    從論文結果的 publication_info.authors[].link 中取出 author_id
   2. fetch_recent_papers()       — 搜尋該教授的近兩年論文，過濾年份
   3. fetch_author_profile()      — 返回基本的 author_id metadata（節省 API 配額）
   4. fetch_school_cs_professors() — 搜尋學校全體教授（不限定學科）
-
-環境變數：
-  SERPAPI_KEY — SerpAPI 的 API Key（必填）
-  申請：https://serpapi.com（每月 100 次免費試用額度）
 """
 
 from __future__ import annotations
@@ -24,7 +18,6 @@ from typing import Any, Dict, List, Optional
 import requests
 from dotenv import load_dotenv
 
-# 載入環境變數
 load_dotenv()
 
 SERPAPI_KEY: str = os.environ.get("SERPAPI_KEY", "").strip()

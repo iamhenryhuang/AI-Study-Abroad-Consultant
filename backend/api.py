@@ -1,11 +1,4 @@
-"""
-api.py — FastAPI 後端入口
-
-使用 Server-Sent Events (SSE) 串流 Agent 推理過程給前端。
-
-啟動方式：
-    uvicorn backend.api:app --reload --port 8000
-"""
+# FastAPI 後端入口
 
 from __future__ import annotations
 

@@ -1,23 +1,12 @@
-"""
-rag_pipeline.py — RAG 完整流程（v2）
-
-檢索 → 重排序 → 生成回答
-或
-Agentic RAG：LangGraph Planner-Tool Loop
-
-v2 改動：
-  - 回傳結果包含 source_url，讓 Gemini 可以在回答中引用網頁來源
-  - run_rag_pipeline 新增 school_id 參數，支援指定學校限定搜尋
-"""
+# 檢索 → 重排序 → 生成回答或 Agentic RAG：LangGraph Planner-Tool Loop
 
 import sys
 import argparse
 from pathlib import Path
 
-CURRENT_DIR = Path(__file__).resolve().parent
-SCRIPTS_DIR = CURRENT_DIR.parent
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
+_SCRIPTS_DIR = Path(__file__).resolve().parent.parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from retriever.search import search_core
 from retriever.agent import run_agent

@@ -1,4 +1,3 @@
-"""共用：專案根目錄、載入 .env、取得連線。"""
 import os
 from pathlib import Path
 
