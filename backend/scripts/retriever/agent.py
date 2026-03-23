@@ -1,47 +1,37 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-agent.py — Agentic RAG（LangGraph 實作）
-
 流程：
   1. Decomposer  — 規則式拆解（無 LLM）：
                    - 偵測到 N 所學校 → 拆成 N 個子問題（每問題對應一所學校）
-                   - 偵測不到多所學校 → 使用原始問題（單一問題）
-  2. Searcher    — 每個子問題依自己的 school_id 直接向資料庫檢索（略過 page_type）
+                   - 偵測不到多所學校 → 使用原始問題
+  2. Searcher    — 每個子問題依自己的 school_id 向資料庫檢索（略過 page_type）
   3. Planner     — 判斷目前收集的資料是否夠（最多 3 輪）
                    若不夠，產生補充子問題繼續搜尋
   4. Finalizer   — 彙整所有文件，呼叫 Gemini 生成最終答案
-
-特點：
-  - Decomposer 完全無 LLM call，快速且可預期
-  - Planner 補充問題才使用 LLM，聚焦在真正缺失的資訊
-  - 略過 page_type 過濾，讓向量相似度自然篩選最相關內容
 """
 
 from __future__ import annotations
 
-import sys
 import json
 import re
+import sys
 from pathlib import Path
-from typing import Annotated, TypedDict, Callable, Optional
+from typing import Annotated, Callable, Optional, TypedDict
 import operator
 
-# ─── path 修正 ────────────────────────────────────────────────────────────────
-CURRENT_DIR = Path(__file__).resolve().parent
-SCRIPTS_DIR = CURRENT_DIR.parent
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
+_SCRIPTS_DIR = Path(__file__).resolve().parent.parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
 
-# ─── 外部依賴 ─────────────────────────────────────────────────────────────────
 from dotenv import load_dotenv
 load_dotenv()
 
 from langgraph.graph import StateGraph, END
 from retriever.search import search_core
-from generator.gemini import get_gemini_client, format_context_for_prompt, _SYSTEM_PROMPT
+from generator.gemini import get_gemini_client, generate_answer
 
-# ─── 已知學校 ID 對照表（用於自動偵測） ──────────────────────────────────────
+
+# ─── 學校別名對照表 ───────────────────────────────────────────────────────────
+
 _SCHOOL_ALIASES: dict[str, list[str]] = {
     "cmu":       ["cmu", "carnegie mellon", "卡內基梅隆"],
     "mit":       ["mit", "massachusetts institute", "麻省理工"],
@@ -66,12 +56,28 @@ _SCHOOL_ALIASES: dict[str, list[str]] = {
     "uw":        ["uw", "university of washington", "華盛頓大學"],
 }
 
-MAX_ROUNDS = 3          # Planner 最多重試幾輪
-TOP_K_PER_QUERY = 5    # 每個子問題檢索幾筆
+MAX_ROUNDS      = 2   # Planner 最多重試幾輪
+TOP_K_PER_QUERY = 5   # 每個子問題檢索幾筆
 
-# ─── 模組層級的 on_event callback（執行期間設定）────────────────────────────
+# 模組層級的 on_event callback（執行期間設定）
 _current_on_event: Optional[Callable[[dict], None]] = None
 
+
+# ─── State ───────────────────────────────────────────────────────────────────
+
+class AgentState(TypedDict):
+    original_query:   str
+    sub_queries:      list[str]
+    extra_queries:    Annotated[list[str], operator.add]
+    pending_queries:  list[str]
+    collected_docs:   Annotated[list[dict], operator.add]
+    searched_queries: Annotated[list[str], operator.add]
+    is_sufficient:    bool
+    round_count:      int
+    final_answer:     str
+
+
+# ─── 工具函式 ─────────────────────────────────────────────────────────────────
 
 def _emit(event: dict) -> None:
     """安全地呼叫目前的 on_event callback（若有設定）。"""
@@ -82,74 +88,20 @@ def _emit(event: dict) -> None:
             pass
 
 
-# State 定義
-class AgentState(TypedDict):
-    # 輸入
-    original_query: str
-
-    # Decomposer 產出
-    sub_queries: list[str]          # 初始子問題
-
-    # Planner 補充問題（逐輪累加）
-    extra_queries: Annotated[list[str], operator.add]
-
-    # 目前這輪要搜尋的問題列表
-    pending_queries: list[str]
-
-    # 所有已收集的文件（去重）
-    collected_docs: Annotated[list[dict], operator.add]
-
-    # 已搜尋過的問題（避免重複）
-    searched_queries: Annotated[list[str], operator.add]
-
-    # Planner 判斷 & 輪次
-    is_sufficient: bool
-    round_count: int
-
-    # 最終答案
-    final_answer: str
-
-
-# 工具函式
 def _detect_school_ids(text: str) -> list[str]:
-    """從文字中偵測提到的學校 ID 列表（可能多所）。"""
+    """從文字中偵測提到的學校 ID 列表。"""
     text_lower = text.lower()
-    found = []
-    for school_id, aliases in _SCHOOL_ALIASES.items():
-        if any(alias in text_lower for alias in aliases):
-            found.append(school_id)
-    return found
-
-
-def _call_llm(prompt: str, model_name: str = "gemini-2.5-flash") -> str:
-    """呼叫 Gemini，回傳純文字。"""
-    client = get_gemini_client()
-    response = client.models.generate_content(
-        model=model_name,
-        contents=prompt,
-    )
-    return (response.text or "").strip()
-
-
-def _parse_json_list(text: str) -> list[str]:
-    """從 LLM 輸出中安全地解析出字串列表。"""
-    # 嘗試找 JSON 陣列
-    match = re.search(r"\[.*?\]", text, re.DOTALL)
-    if match:
-        try:
-            result = json.loads(match.group())
-            return [str(x).strip() for x in result if str(x).strip()]
-        except json.JSONDecodeError:
-            pass
-    # fallback：逐行解析（去除數字前綴）
-    lines = [re.sub(r"^[\d\.\-\*\s]+", "", ln).strip() for ln in text.splitlines()]
-    return [ln for ln in lines if ln]
+    return [
+        school_id
+        for school_id, aliases in _SCHOOL_ALIASES.items()
+        if any(alias in text_lower for alias in aliases)
+    ]
 
 
 def _deduplicate_docs(docs: list[dict]) -> list[dict]:
     """以 chunk_text 前 200 字去重複文件。"""
-    seen = set()
-    result = []
+    seen: set[str] = set()
+    result: list[dict] = []
     for doc in docs:
         key = doc.get("chunk_text", "")[:200]
         if key not in seen:
@@ -158,8 +110,16 @@ def _deduplicate_docs(docs: list[dict]) -> list[dict]:
     return result
 
 
-# Node 1：Decomposer
-# 對應表：school_id → 問題中常見的顯示名稱（取第一個作為規則替換用）
+def _call_llm(prompt: str, model_name: str = "gemini-2.5-flash") -> str:
+    """呼叫 Gemini，回傳純文字。"""
+    client = get_gemini_client()
+    response = client.models.generate_content(model=model_name, contents=prompt)
+    return (response.text or "").strip()
+
+
+# ─── Node 1：Decomposer ───────────────────────────────────────────────────────
+
+# 學校 ID → 問題中常見的顯示名稱（取第一個 alias）
 _SCHOOL_DISPLAY_NAME: dict[str, str] = {
     k: aliases[0] for k, aliases in _SCHOOL_ALIASES.items()
 }
@@ -169,28 +129,19 @@ def _make_school_query(original_query: str, target_school_id: str, all_school_id
     """
     從原始問題製作「只提到 target_school」的子問題。
 
-    做法：
-    1. 把原始問題中所有其他學校的 alias 刪除（連帶清理連接詞 and/跟/和/與/、）
-    2. 若原始問題完全沒有包含 target_school 的文字，在開頭加上學校名稱
-    3. 最後做空白清理
+    1. 把其他學校的 alias 從問題中移除（含連接詞清理）
+    2. 若目標學校名稱完全不在結果中，在開頭補上
     """
     query = original_query
-    text_lower = query.lower()
-
-    # 移除「其他學校」的所有 alias
-    other_ids = [sid for sid in all_school_ids if sid != target_school_id]
-    for sid in other_ids:
+    for sid in all_school_ids:
+        if sid == target_school_id:
+            continue
         for alias in _SCHOOL_ALIASES[sid]:
-            # case-insensitive 替換
-            pattern = re.compile(re.escape(alias), re.IGNORECASE)
-            query = pattern.sub("", query)
+            query = re.compile(re.escape(alias), re.IGNORECASE).sub("", query)
 
-    # 清理殘留的連接詞與多餘空白
     query = re.sub(r"[,，、]?\s*(and|跟|和|與|&|or|以及)\s*", " ", query, flags=re.IGNORECASE)
-    query = re.sub(r"\s{2,}", " ", query).strip()
-    query = query.strip(",，、 ")
+    query = re.sub(r"\s{2,}", " ", query).strip().strip(",，、 ")
 
-    # 若目標學校的名稱完全不在結果中，在前面補上（保底）
     target_aliases = _SCHOOL_ALIASES[target_school_id]
     if not any(a in query.lower() for a in target_aliases):
         display = _SCHOOL_DISPLAY_NAME[target_school_id].title()
@@ -202,8 +153,8 @@ def _make_school_query(original_query: str, target_school_id: str, all_school_id
 def decomposer_node(state: AgentState) -> dict:
     """
     規則式拆解（無 LLM）：
-    - 偵測到 N 所學校 → 拆成 N 個子問題，每個問題對應一所學校
-    - 偵測不到多所學校 → 使用原始問題（單一問題，不拆）
+    - 偵測到 2+ 所學校 → 拆成 N 個子問題
+    - 否則 → 使用原始問題
     """
     query = state["original_query"]
     print(f"\n[Decomposer] 原始問題：{query}")
@@ -211,14 +162,9 @@ def decomposer_node(state: AgentState) -> dict:
     school_ids = _detect_school_ids(query)
 
     if len(school_ids) >= 2:
-        # 多校：每所學校生成一個子問題
-        sub_queries = [
-            _make_school_query(query, sid, school_ids)
-            for sid in school_ids
-        ]
+        sub_queries = [_make_school_query(query, sid, school_ids) for sid in school_ids]
         print(f"[Decomposer] 偵測到 {len(school_ids)} 所學校，拆解為 {len(sub_queries)} 個子問題：")
     else:
-        # 單校或無學校：直接使用原始問題
         sub_queries = [query]
         label = f"（學校：{school_ids[0]}）" if school_ids else "（無特定學校）"
         print(f"[Decomposer] 單一問題 {label}：")
@@ -227,32 +173,57 @@ def decomposer_node(state: AgentState) -> dict:
         print(f"  Q{i}: {q}")
 
     return {
-        "sub_queries": sub_queries,
-        "pending_queries": sub_queries,
-        "extra_queries": [],
-        "collected_docs": [],
+        "sub_queries":      sub_queries,
+        "pending_queries":  sub_queries,
+        "extra_queries":    [],
+        "collected_docs":   [],
         "searched_queries": [],
-        "is_sufficient": False,
-        "round_count": 0,
-        "final_answer": "",
+        "is_sufficient":    False,
+        "round_count":      0,
+        "final_answer":     "",
     }
 
 
-# Node 2：Searcher
+# ─── Node 2：Searcher ─────────────────────────────────────────────────────────
+
+def _search_one_query(q: str, original_query: str) -> tuple[list[dict], str | None]:
+    """
+    對單一子問題執行混合搜尋，自動偵測 school_id。
+
+    Returns:
+        (results, school_id)
+    """
+    school_ids = _detect_school_ids(q) or _detect_school_ids(original_query)
+    school_id = school_ids[0] if school_ids else None
+
+    _emit({
+        "type": "tool_call",
+        "tool": "search_school" if school_id else "search_general",
+        "args": {"query": q, **({"school_id": school_id} if school_id else {})},
+    })
+
+    results = search_core(query=q, top_k=TOP_K_PER_QUERY, use_rerank=True, school_id=school_id)
+
+    _emit({
+        "type": "tool_result",
+        "tool": "search_school" if school_id else "search_general",
+        "preview": f"找到 {len(results)} 筆相關文獻",
+    })
+
+    return results, school_id
+
+
 def searcher_node(state: AgentState) -> dict:
     """
     對 pending_queries 中的每個子問題執行向量 + 關鍵字混合檢索。
-    自動偵測 school_id，略過 page_type 過濾。
     每次搜尋都發送 thinking / tool_call / tool_result 事件。
     """
-    pending = state.get("pending_queries", [])
+    pending        = state.get("pending_queries", [])
     already_searched = state.get("searched_queries", [])
     original_query = state["original_query"]
-    round_num = state.get("round_count", 0) + 1
+    round_num      = state.get("round_count", 0) + 1
 
     print(f"\n[Searcher] 第 {round_num} 輪搜尋，共 {len(pending)} 個問題")
-
-    # 發送「思考中」事件
     _emit({"type": "thinking", "step": round_num})
 
     new_docs: list[dict] = []
@@ -263,92 +234,34 @@ def searcher_node(state: AgentState) -> dict:
             print(f"  ⏭ 略過（已搜尋）：{q}")
             continue
 
-        # 偵測此子問題對應的學校（Decomposer 已保證多校時每問題只對應一所）
-        # 若子問題偵測不到學校，退回用原始問題偵測
-        school_ids = _detect_school_ids(q)
-        if not school_ids:
-            school_ids = _detect_school_ids(original_query)
+        results, school_id = _search_one_query(q, original_query)
+        print(f"     搜尋：{q}  學校過濾：{school_id or '（全域）'}  取得 {len(results)} 筆")
 
-        # 取第一個 school_id（子問題應已是單一學校）
-        school_id = school_ids[0] if school_ids else None
-
-        print(f"     搜尋：{q}")
-        print(f"     學校過濾：{school_id or '（全域）'}")
-
-        # 發送 tool_call 事件
-        tool_args: dict = {"query": q}
-        if school_id:
-            tool_args["school_id"] = school_id
-
-        _emit({
-            "type": "tool_call",
-            "tool": "search_school" if school_id else "search_general",
-            "args": tool_args,
-        })
-
-        results = search_core(
-            query=q,
-            top_k=TOP_K_PER_QUERY,
-            use_rerank=True,
-            school_id=school_id,
-            page_type=None,   # 略過 page_type 過濾
-        )
-        print(f"     取得 {len(results)} 筆")
         new_docs.extend(results)
         newly_searched.append(q)
-
-        # 發送 tool_result 事件
-        _emit({
-            "type": "tool_result",
-            "tool": "search_school" if school_id else "search_general",
-            "preview": f"找到 {len(results)} 筆相關文獻",
-        })
 
     print(f"[Searcher] 本輪新增 {len(new_docs)} 筆文件")
 
     return {
-        "collected_docs": new_docs,
+        "collected_docs":   new_docs,
         "searched_queries": newly_searched,
-        "round_count": round_num,
-        "pending_queries": [],   # 清空，等 Planner 決定下一步
+        "round_count":      round_num,
+        "pending_queries":  [],
     }
 
 
-# Node 3：Planner
-def planner_node(state: AgentState) -> dict:
-    """
-    判斷目前收集的資料是否足夠回答原始問題。
-    - 若足夠 → is_sufficient = True
-    - 若不夠且輪次 < MAX_ROUNDS → 產生 1~3 個補充子問題
-    - 若達到最大輪次 → 強制標記 is_sufficient = True
-    """
-    query = state["original_query"]
-    docs = _deduplicate_docs(state.get("collected_docs", []))
-    round_count = state.get("round_count", 0)
-    searched = state.get("searched_queries", [])
+# ─── Node 3：Planner ──────────────────────────────────────────────────────────
 
-    print(f"\n[Planner] 第 {round_count} 輪判斷，目前收集 {len(docs)} 筆去重文件")
-
-    # 強制結束條件
-    if round_count >= MAX_ROUNDS:
-        print(f"[Planner] 已達最大輪次（{MAX_ROUNDS}），強制結束")
-        return {"is_sufficient": True, "pending_queries": []}
-
-    if not docs:
-        print(f"[Planner] 無文件，結束搜尋")
-        return {"is_sufficient": True, "pending_queries": []}
-
-    # 摘要已收集的內容（避免 prompt 太長）
-    context_preview = ""
-    for i, doc in enumerate(docs[:10]):  # 只取前 10 筆給 Planner 看
-        school = doc.get("school_id", "?")
-        ptype  = doc.get("page_type", "?")
-        text   = doc.get("chunk_text", "")[:300]
-        context_preview += f"\n[{i+1}] {school}/{ptype}: {text}\n"
-
+def _build_planner_prompt(query: str, docs: list[dict], searched: list[str]) -> str:
+    """組合 Planner 用的 prompt。"""
+    context_preview = "".join(
+        f"\n[{i+1}] {doc.get('school_id', '?')}/{doc.get('page_type', '?')}: "
+        f"{doc.get('chunk_text', '')[:300]}\n"
+        for i, doc in enumerate(docs[:10])
+    )
     searched_str = "\n".join(f"- {q}" for q in searched)
 
-    prompt = f"""你是一位資料充足性評估專家。請根據以下資訊判斷目前的資料是否足夠回答使用者問題。
+    return f"""你是一位資料充足性評估專家。請根據以下資訊判斷目前的資料是否足夠回答使用者問題。
 
 【使用者原始問題】
 {query}
@@ -366,59 +279,89 @@ def planner_node(state: AgentState) -> dict:
 {{
   "is_sufficient": true 或 false,
   "reason": "簡短說明為何足夠/不夠（1-2句）",
-  "extra_queries": ["補充問題1", "補充問題2"]  // 若 is_sufficient=false 才填，最多 2 個
+  "extra_queries": ["English follow-up query 1", "English follow-up query 2"]  // 若 is_sufficient=false 才填，最多 2 個
 }}
 
 規則：
 1. 若資料已涵蓋問題的主要面向，即使不完美，也可標記 sufficient=true
 2. 若明顯缺少某個關鍵面向（例如問了 GPA 要求但完全沒有 GPA 相關資料），才標記 false
 3. 補充問題必須是全新的問法，不得重複已搜尋的問題
-4. 只輸出 JSON，不要有其他文字
+4. 補充問題（extra_queries）必須用英文撰寫，以提升向量檢索效果
+5. 只輸出 JSON，不要有其他文字
 
 你的判斷："""
 
-    # 發送 Gemini API 呼叫事件
-    _emit({"type": "llm_call", "purpose": "planner", "round": round_count})
-    raw = _call_llm(prompt)
 
-    # 解析 JSON 回應
+def _parse_planner_response(raw: str) -> tuple[bool, str, list[str]]:
+    """
+    解析 Planner 的 JSON 回應。
+
+    Returns:
+        (is_sufficient, reason, extra_queries)
+    """
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if not match:
+        raise ValueError("無法找到 JSON")
+    parsed = json.loads(match.group())
+
+    is_sufficient = bool(parsed.get("is_sufficient", True))
+    reason        = parsed.get("reason", "")
+    extra_queries = [str(q).strip() for q in parsed.get("extra_queries", []) if str(q).strip()]
+    return is_sufficient, reason, extra_queries[:2]
+
+
+def planner_node(state: AgentState) -> dict:
+    """
+    判斷目前收集的資料是否足夠回答原始問題。
+    - 足夠 → is_sufficient = True
+    - 不夠且輪次 < MAX_ROUNDS → 產生 1-2 個補充子問題
+    - 達到最大輪次 → 強制標記 is_sufficient = True
+    """
+    query       = state["original_query"]
+    docs        = _deduplicate_docs(state.get("collected_docs", []))
+    round_count = state.get("round_count", 0)
+    searched    = state.get("searched_queries", [])
+
+    print(f"\n[Planner] 第 {round_count} 輪判斷，目前收集 {len(docs)} 筆去重文件")
+
+    if round_count >= MAX_ROUNDS:
+        print(f"[Planner] 已達最大輪次（{MAX_ROUNDS}），強制結束")
+        return {"is_sufficient": True, "pending_queries": []}
+
+    if not docs:
+        print("[Planner] 無文件，結束搜尋")
+        return {"is_sufficient": True, "pending_queries": []}
+
+    _emit({"type": "llm_call", "purpose": "planner", "round": round_count})
+    raw = _call_llm(_build_planner_prompt(query, docs, searched))
+
     try:
-        match = re.search(r"\{.*\}", raw, re.DOTALL)
-        if match:
-            parsed = json.loads(match.group())
-        else:
-            raise ValueError("無法找到 JSON")
+        is_sufficient, reason, extra_queries = _parse_planner_response(raw)
     except Exception as e:
         print(f"[Planner] JSON 解析失敗：{e}，預設為 sufficient=true")
         return {"is_sufficient": True, "pending_queries": []}
 
-    is_sufficient: bool = bool(parsed.get("is_sufficient", True))
-    reason: str = parsed.get("reason", "")
-    extra_queries: list[str] = [str(q).strip() for q in parsed.get("extra_queries", []) if str(q).strip()]
-    extra_queries = extra_queries[:2]
-
-    print(f"[Planner] 是否充足：{is_sufficient}")
-    print(f"[Planner] 理由：{reason}")
-
+    print(f"[Planner] 是否充足：{is_sufficient}  理由：{reason}")
     if not is_sufficient and extra_queries:
         print(f"[Planner] 補充問題：")
         for q in extra_queries:
             print(f"  → {q}")
 
     return {
-        "is_sufficient": is_sufficient,
-        "extra_queries": extra_queries if not is_sufficient else [],
+        "is_sufficient":  is_sufficient,
+        "extra_queries":  extra_queries if not is_sufficient else [],
         "pending_queries": extra_queries if not is_sufficient else [],
     }
 
 
-# Node 4：Finalizer
+# ─── Node 4：Finalizer ────────────────────────────────────────────────────────
+
 def finalizer_node(state: AgentState) -> dict:
     """
     彙整所有收集到的文件，呼叫 Gemini 生成最終答案，並發送 answer 事件。
     """
     query = state["original_query"]
-    docs = _deduplicate_docs(state.get("collected_docs", []))
+    docs  = _deduplicate_docs(state.get("collected_docs", []))
 
     print(f"\n[Finalizer] 共 {len(docs)} 筆去重文件，開始生成回答...")
 
@@ -427,62 +370,33 @@ def finalizer_node(state: AgentState) -> dict:
         _emit({"type": "answer", "text": answer})
         return {"final_answer": answer}
 
-    # 重新排序：優先展示 rerank_score 高的
     docs_sorted = sorted(
         docs,
         key=lambda d: d.get("rerank_score", d.get("rrf_score", 0)),
         reverse=True,
     )
 
-    context_text = format_context_for_prompt(docs_sorted)
-
-    prompt = f"""{_SYSTEM_PROMPT}
-
---- 參考資料（共 {len(docs_sorted)} 筆） ---
-{context_text}
-
---- 使用者問題 ---
-{query}
-
---- 你的回答 ---
-（請嚴格遵守以上規則，若資料不足請直接說不知道並引導查官網）
-"""
-
-    # 發送 Gemini API 呼叫事件
     _emit({"type": "llm_call", "purpose": "finalizer"})
-    client = get_gemini_client()
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-        )
-        text = (response.text or "").strip()
-        text = text.replace("**", "")
-        text = re.sub(
-            r"<span[^>]*>\s*(\[[^\]]+\]\([^\)]+\))\s*</span>",
-            r"\1",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = re.sub(r"</?span[^>]*>", "", text, flags=re.IGNORECASE)
-        _emit({"type": "answer", "text": text})
-        return {"final_answer": text}
-    except Exception as e:
-        print(f"[Finalizer] Gemini 呼叫失敗：{e}")
-        _emit({"type": "error", "message": str(e)})
+    answer = generate_answer(query, docs_sorted)
+
+    if answer:
+        _emit({"type": "answer", "text": answer})
+        return {"final_answer": answer}
+    else:
+        msg = "Gemini 生成失敗"
+        print(f"[Finalizer] {msg}")
+        _emit({"type": "error", "message": msg})
         return {"final_answer": None}
 
 
-# 路由函式
+# ─── 路由 & 圖建構 ────────────────────────────────────────────────────────────
+
 def should_continue(state: AgentState) -> str:
     """Planner 結束後的路由：繼續搜尋 or 直接 Finalize。"""
-    if state.get("is_sufficient", True):
-        return "finalize"
-    return "search"
+    return "finalize" if state.get("is_sufficient", True) else "search"
 
 
-# 建構 LangGraph
-def _build_graph() -> "CompiledGraph":
+def _build_graph():
     builder = StateGraph(AgentState)
 
     builder.add_node("decompose", decomposer_node)
@@ -496,10 +410,7 @@ def _build_graph() -> "CompiledGraph":
     builder.add_conditional_edges(
         "plan",
         should_continue,
-        {
-            "search":   "search",
-            "finalize": "finalize",
-        },
+        {"search": "search", "finalize": "finalize"},
     )
     builder.add_edge("finalize", END)
 
@@ -516,7 +427,8 @@ def _get_graph():
     return _graph
 
 
-# 公開 API
+# ─── 公開 API ─────────────────────────────────────────────────────────────────
+
 def run_agent(
     query: str,
     max_steps: int = 10,
@@ -530,14 +442,13 @@ def run_agent(
         query:     使用者問題
         max_steps: LangGraph 最大步驟數（安全閥）
         verbose:   是否顯示詳細日誌
-        on_event:  SSE 事件 callback，每次 agent 有動作時呼叫
-                   事件格式：{"type": "thinking"|"tool_call"|"tool_result"|"answer"|"error", ...}
+        on_event:  SSE 事件 callback，格式：{"type": "thinking"|"tool_call"|..., ...}
 
     Returns:
         最終回答字串，或 None
     """
     global _current_on_event
-    _current_on_event = on_event  # 設定模組層級 callback
+    _current_on_event = on_event
 
     try:
         if verbose:
@@ -546,8 +457,6 @@ def run_agent(
             print(f"   問題：{query}")
             print(f"   最大搜尋輪次：{MAX_ROUNDS}")
             print(f"{'='*60}")
-
-        graph = _get_graph()
 
         initial_state: AgentState = {
             "original_query":  query,
@@ -561,11 +470,11 @@ def run_agent(
             "final_answer":    "",
         }
 
-        result_state = graph.invoke(initial_state, {"recursion_limit": max_steps * 4})
+        result_state = _get_graph().invoke(initial_state, {"recursion_limit": max_steps * 4})
 
         if verbose:
             total_docs = len(_deduplicate_docs(result_state.get("collected_docs", [])))
-            rounds = result_state.get("round_count", 0)
+            rounds     = result_state.get("round_count", 0)
             print(f"\n{'='*60}")
             print(f"完成！共搜尋 {rounds} 輪，彙整 {total_docs} 筆去重文件")
             print(f"{'='*60}")
@@ -573,10 +482,11 @@ def run_agent(
         return result_state.get("final_answer") or None
 
     finally:
-        _current_on_event = None  # 執行完畢後清除 callback
+        _current_on_event = None
 
 
-# CLI 入口
+# ─── CLI 入口 ─────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     import argparse
     import io
@@ -585,7 +495,7 @@ if __name__ == "__main__":
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
     parser = argparse.ArgumentParser(description="Agentic RAG（LangGraph）")
-    parser.add_argument("query", nargs="?", help="使用者問題")
+    parser.add_argument("query",       nargs="?", help="使用者問題")
     parser.add_argument("--max-steps", type=int, default=20, help="最大 LangGraph 步驟數")
     args = parser.parse_args()
 
