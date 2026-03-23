@@ -71,12 +71,12 @@ def _execute_hybrid_search(
         keyword_matches AS (
             SELECT
                 id,
-                ts_rank_cd(fts_vector, websearch_to_tsquery('english', %s)) AS fts_score,
+                ts_rank_cd(fts_vector, websearch_to_tsquery('simple', %s)) AS fts_score,
                 ROW_NUMBER() OVER (
-                    ORDER BY ts_rank_cd(fts_vector, websearch_to_tsquery('english', %s)) DESC
+                    ORDER BY ts_rank_cd(fts_vector, websearch_to_tsquery('simple', %s)) DESC
                 ) AS rank
             FROM document_chunks dc
-            WHERE fts_vector @@ websearch_to_tsquery('english', %s)
+            WHERE fts_vector @@ websearch_to_tsquery('simple', %s)
             {and_where_clause}
             LIMIT {initial_k}
         )
