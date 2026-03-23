@@ -33,7 +33,7 @@ from retriever.reranker import rerank
 
 def search_core(
     query: str,
-    top_k: int = 5,
+    top_k: int = 7,
     use_rerank: bool = True,
     school_id: str | None = None,
     page_type: str | None = None,

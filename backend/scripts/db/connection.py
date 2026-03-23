@@ -6,9 +6,11 @@ import psycopg
 from dotenv import load_dotenv
 
 # 專案路徑
+# __file__是當前檔案path
 BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
 PROJECT_ROOT = BACKEND_ROOT.parent
 
+# backend/.env要自己建立
 load_dotenv(BACKEND_ROOT / ".env")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
