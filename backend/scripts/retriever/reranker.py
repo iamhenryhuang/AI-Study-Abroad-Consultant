@@ -23,21 +23,33 @@ def _sanitize_ssl_env() -> None:
         print(f"[reranker] SSL_CERT_FILE 無效，已忽略：{cert_file}")
         os.environ.pop("SSL_CERT_FILE", None)
 
+def _resolve_model_id() -> str:
+    """
+    解析模型路徑。若指向 HuggingFace hub 快取目錄（含 snapshots/），
+    自動找到 snapshot 資料夾裡的實際模型；否則直接使用該路徑。
+    本地路徑不存在時改用 HuggingFace model ID 線上下載。
+    """
+    if not _MODEL_PATH.exists():
+        print(f"[reranker] 找不到本地模型 {_MODEL_PATH}，改從 HuggingFace 下載 ...")
+        return f"BAAI/{_MODEL_NAME}"
+
+    snapshots_dir = _MODEL_PATH / "snapshots"
+    if snapshots_dir.exists():
+        snapshots = sorted(snapshots_dir.iterdir())
+        if snapshots:
+            resolved = snapshots[-1]
+            print(f"[reranker] 偵測到 HF hub 快取，使用 snapshot：{resolved}")
+            return str(resolved)
+
+    print(f"[reranker] 載入本地重排序模型：{_MODEL_PATH}")
+    return str(_MODEL_PATH)
+
+
 def _get_model() -> CrossEncoder:
     global _model
     if _model is None:
         _sanitize_ssl_env()
-        model_id = str(_MODEL_PATH) if _MODEL_PATH.exists() else f"BAAI/{_MODEL_NAME}"
-        if not _MODEL_PATH.exists():
-            print(
-                f"[reranker] 找不到本地模型 {_MODEL_PATH}，"
-                f"改從 HuggingFace 下載 {_MODEL_NAME} ..."
-            )
-        else:
-            print(f"[reranker] 載入本地重排序模型：{model_id}")
-        
-        # trust_remote_code=True 以前是必要的，現在 BGE v2 最好也帶著
-        _model = CrossEncoder(model_id, trust_remote_code=True)
+        _model = CrossEncoder(_resolve_model_id(), trust_remote_code=True)
     return _model
 
 def rerank(query: str, documents: list[dict], top_n: int = 5) -> list[dict]:
