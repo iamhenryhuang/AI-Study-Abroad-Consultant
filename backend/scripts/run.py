@@ -1,17 +1,3 @@
-#!/usr/bin/env python3
-"""
-資料庫腳本統一入口（v2）。請在專案根目錄執行：
-
-  python backend/scripts/run.py setup      # 檢查連線，必要時建立 study_abroad 資料庫
-  python backend/scripts/run.py import     # 建表 + 切片 + 向量化並匯入 data/*.json
-  python backend/scripts/run.py verify-db  # 檢查 SQL 資料是否已寫入
-  python backend/scripts/run.py verify-vdb # 檢查向量資料庫狀態（chunk 數量、向量維度）
-  python backend/scripts/run.py export     # 匯出摘要至 db/exported_data.sql
-  python backend/scripts/run.py search [query] [--school cmu|caltech]
-  python backend/scripts/run.py rag [query] [--school cmu|caltech]
-    python backend/scripts/run.py agent [query] [--max-steps N]   # Agentic RAG (LangGraph Loop)
-  python backend/scripts/run.py init-all   # 一次完成 setup + import
-"""
 import os
 import sys
 from pathlib import Path
@@ -36,7 +22,7 @@ SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from db.operations import export_sql, import_json, setup_db, verify
+from db.operations import import_json, setup_db, verify
 from embedder.pipeline import run_pipeline
 from embedder.verifier import verify_embeddings
 from retriever.search import run_search
@@ -47,7 +33,6 @@ COMMANDS = {
     "import":    ("建表 + 切片 + 向量化並匯入 data/*.json",  import_json),
     "verify-db": ("檢查 SQL 資料是否已寫入",                 verify),
     "verify-vdb":("檢查向量資料庫狀態",                      verify_embeddings),
-    "export":    ("匯出摘要至 db/exported_data.sql",         export_sql),
     "embed":     ("切片 + 向量化並寫入 document_chunks",     run_pipeline),
     "search":    ("執行向量檢索測試 [query] [--school]",      None),  # 特殊處理
     "rag":       ("執行完整 RAG 流程 [query] [--school]",    None),  # 特殊處理
@@ -70,7 +55,6 @@ def main():
     # search / rag 需要特殊處理（自訂 query 與旗標）
     if cmd in ["search", "rag", "agent"]:
         # 解析旗標
-        evaluate  = False
         max_steps = 5
         school_id = None
         if "--max-steps" in sys.argv:

@@ -1,14 +1,4 @@
-"""
-run_fetch.py — 教授 Google Scholar 資料抓取 CLI 入口
-
-功能：
-  抓取單一教授的 Google Scholar 資料：研究領域與近兩年論文
-  格式化成與 /data/*.json 完全相容的格式：{ "url": "純文字" }
-  可選擇直接跑 embedding pipeline 寫入資料庫
-
-使用方式：
-  python -m backend.scripts.professor_fetcher.run_fetch --name "Andrew Ng" --school "Stanford"
-"""
+# Google Scholar 資料抓取 CLI 入口
 
 from __future__ import annotations
 
@@ -105,7 +95,7 @@ def save_result(data: Dict[str, str], school_id: str) -> Path:
     if out_path.exists():
         try:
             existing = json.loads(out_path.read_text(encoding="utf-8"))
-        except:
+        except Exception:
             pass
     
     existing.update(data)

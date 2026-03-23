@@ -1,15 +1,4 @@
-"""
-formatter.py — 將 SerpAPI Google Scholar 資料格式化為 /data/*.json 相容格式
-
-目標格式（與現有 data/stanford.json 等完全一致）：
-    {
-        "https://scholar.google.com/citations?user={author_id}":
-            "純文字：教授個人資訊 + 研究領域 + 近兩年論文摘要",
-
-        "https://scholar.google.com/citations?view_op=view_citation&...":
-            "純文字：單篇論文詳細資訊",
-    }
-"""
+# 將 SerpAPI Google Scholar 資料格式化為 /data/*.json 相容格式
 
 from __future__ import annotations
 

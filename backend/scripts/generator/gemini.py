@@ -1,12 +1,3 @@
-"""
-gemini.py — Gemini 2.5 Flash 回答生成模組（v2）
-
-System prompt 核心原則：
-  - 嚴格依賴提供的 context，不得自行腦補
-  - 若 context 不足以回答，明確說不知道並引導使用者查官網
-  - 輸出格式：繁體中文，善用 Markdown 排版以確保版面整潔
-"""
-
 import os
 import re
 from pathlib import Path

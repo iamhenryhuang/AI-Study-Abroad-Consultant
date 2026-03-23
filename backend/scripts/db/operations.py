@@ -1,33 +1,6 @@
-"""
-ops.py — 資料庫操作集合（v2）
-
-配合新的資料庫 schema：
-  - universities  (school_id, name, domain)
-  - web_pages     (university_id, url, page_type, raw_text)
-  - document_chunks (page_id, school_id, source_url, chunk_text, embedding, metadata)
-
-給 scripts/run.py 呼叫的指令集。
-"""
-
-import json
-from datetime import datetime
-
 import psycopg
 
 from .connection import DATABASE_URL, BACKEND_ROOT, PROJECT_ROOT, get_connection
-
-
-# ── 工具函式 ──────────────────────────────────────────────────
-
-def _escape_sql(s):
-    if s is None:
-        return "NULL"
-    if isinstance(s, bool):
-        return "TRUE" if s else "FALSE"
-    if isinstance(s, (int, float)):
-        return str(s)
-    s = str(s).replace("\\", "\\\\").replace("'", "''")
-    return f"'{s}'"
 
 
 # ── setup_db ─────────────────────────────────────────────────
@@ -163,75 +136,4 @@ def verify():
         return False
     except Exception as e:
         print(f"連線或查詢錯誤: {e}")
-        return False
-
-
-# ── export_sql ───────────────────────────────────────────────
-
-def export_sql():
-    """將 universities 與 web_pages 摘要匯出成 db/exported_data.sql。"""
-    if not DATABASE_URL:
-        print("錯誤: 未設定 DATABASE_URL（.env）。")
-        return False
-    out_path = PROJECT_ROOT / "db" / "exported_data.sql"
-    try:
-        conn = get_connection()
-        if not conn:
-            return False
-        cur = conn.cursor()
-        lines = [
-            "-- 從資料庫匯出的資料（v2 schema）",
-            f"-- 匯出時間: {datetime.now().isoformat()}",
-            "",
-        ]
-
-        # universities
-        cur.execute("SELECT id, school_id, name, domain, created_at FROM universities ORDER BY id")
-        rows = cur.fetchall()
-        if rows:
-            lines.append("-- ========== universities ==========")
-            for id_, sid, name, domain, created_at in rows:
-                ts = f"'{created_at}'" if created_at else "NULL"
-                lines.append(
-                    f"INSERT INTO universities (id, school_id, name, domain, created_at) VALUES "
-                    f"({id_}, {_escape_sql(sid)}, {_escape_sql(name)}, {_escape_sql(domain)}, {ts});"
-                )
-            lines.append(f"SELECT setval(pg_get_serial_sequence('universities', 'id'), {max(r[0] for r in rows)});")
-            lines.append("")
-
-        # web_pages（只匯出 metadata，不含 raw_text 以節省空間）
-        cur.execute("""
-            SELECT id, university_id, url, page_type, char_count, created_at
-            FROM web_pages ORDER BY id
-        """)
-        rows = cur.fetchall()
-        if rows:
-            lines.append("-- ========== web_pages (metadata only, raw_text excluded) ==========")
-            for id_, uid, url, ptype, char_cnt, created_at in rows:
-                ts = f"'{created_at}'" if created_at else "NULL"
-                lines.append(
-                    f"-- page_id={id_}, university_id={uid}, page_type={_escape_sql(ptype)}, "
-                    f"chars={char_cnt}: {_escape_sql(url)}"
-                )
-            lines.append("")
-
-        # document_chunks 統計
-        cur.execute("""
-            SELECT school_id, page_type, COUNT(*) as cnt
-            FROM document_chunks
-            GROUP BY school_id, page_type
-            ORDER BY school_id, page_type
-        """)
-        rows = cur.fetchall()
-        lines.append("-- ========== document_chunks 統計 ==========")
-        for sid, ptype, cnt in rows:
-            lines.append(f"-- [{sid}][{ptype}] {cnt} chunks")
-
-        cur.close()
-        conn.close()
-        out_path.write_text("\n".join(lines), encoding="utf-8")
-        print(f"已匯出至 {out_path}")
-        return True
-    except Exception as e:
-        print(f"匯出失敗: {e}")
         return False
