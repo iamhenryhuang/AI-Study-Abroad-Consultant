@@ -30,10 +30,11 @@ def _print_school_stats(cur) -> None:
 
 def _print_chunk_type_stats(cur) -> None:
     cur.execute("""
-        SELECT school_id, page_type, COUNT(*) AS cnt
-        FROM document_chunks
-        GROUP BY school_id, page_type
-        ORDER BY school_id, page_type
+        SELECT dc.school_id, pt->>'type' AS ptype, COUNT(*) AS cnt
+        FROM document_chunks dc,
+             jsonb_array_elements(dc.passed_types) AS pt
+        GROUP BY dc.school_id, pt->>'type'
+        ORDER BY dc.school_id, pt->>'type'
     """)
     print(f"\n{'學校':<12} {'頁面類型':<20} {'chunk數'}")
     print("-" * 45)
@@ -45,18 +46,19 @@ def _print_chunk_preview(cur) -> None:
     cur.execute("""
         SELECT
             dc.school_id,
-            dc.page_type,
+            dc.passed_types,
             dc.chunk_index,
             dc.source_url,
             LEFT(dc.chunk_text, 80) AS preview,
             dc.embedding IS NOT NULL AS has_vector
         FROM document_chunks dc
-        ORDER BY dc.school_id, dc.page_type, dc.chunk_index
+        ORDER BY dc.school_id, dc.chunk_index
         LIMIT 10
     """)
     print("\n--- 抽查前 10 筆 chunk ---")
-    for sid, ptype, idx, url, preview, has_vec in cur.fetchall():
-        print(f"  [{sid}][{ptype}] chunk#{idx} vec={has_vec}")
+    for sid, passed_types, idx, url, preview, has_vec in cur.fetchall():
+        types_str = ", ".join(pt["type"] for pt in (passed_types or []))
+        print(f"  [{sid}][{types_str}] chunk#{idx} vec={has_vec}")
         print(f"    URL: {url[-60:]}")
         print(f"    預覽: {preview!r}")
 

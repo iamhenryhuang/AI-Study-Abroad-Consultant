@@ -19,25 +19,16 @@ from retriever.reranker import rerank
 
 # ── 內部工具 ────────────────────────────────────────────────────────────────
 
-def _build_filter_clauses(school_id: str | None, page_type: str | None) -> tuple[str, str, list]:
+def _build_filter_clauses(school_id: str | None) -> tuple[str, str, list]:
     """
-    依 school_id / page_type 建立 WHERE 與 AND 子句及對應參數列表。
+    依 school_id 建立 WHERE 與 AND 子句及對應參數列表。
 
     Returns:
         (where_clause, and_where_clause, params)
     """
-    clauses = []
-    params: list = []
     if school_id:
-        clauses.append("dc.school_id = %s")
-        params.append(school_id)
-    if page_type:
-        clauses.append("dc.page_type = %s")
-        params.append(page_type)
-
-    where     = ("WHERE "     + " AND ".join(clauses)) if clauses else ""
-    and_where = ("AND "       + " AND ".join(clauses)) if clauses else ""
-    return where, and_where, params
+        return "WHERE dc.school_id = %s", "AND dc.school_id = %s", [school_id]
+    return "", "", []
 
 
 def _execute_hybrid_search(
@@ -83,9 +74,8 @@ def _execute_hybrid_search(
         SELECT
             dc.chunk_text,
             dc.source_url,
-            dc.page_type,
+            dc.passed_types,
             dc.school_id,
-            dc.metadata,
             u.name AS university_name,
             COALESCE(vm.vector_score, 0) AS vector_score,
             COALESCE(km.fts_score, 0)   AS fts_score,
@@ -121,7 +111,6 @@ def search_core(
     top_k: int = 5,
     use_rerank: bool = True,
     school_id: str | None = None,
-    page_type: str | None = None,
 ) -> list[dict]:
     """
     執行向量 + 關鍵字混合檢索，回傳排序後的文件列表。
@@ -131,11 +120,10 @@ def search_core(
         top_k:      最終返回筆數
         use_rerank: 是否啟用 Cross-Encoder 重排序
         school_id:  若指定則只搜尋該學校（e.g. 'cmu'）
-        page_type:  若指定則只搜尋該類型頁面（e.g. 'faq'）
 
     Returns:
-        list of dict，每筆包含 chunk_text、source_url、page_type、
-        school_id、university_name、vector_score、rerank_score、metadata。
+        list of dict，每筆包含 chunk_text、source_url、passed_types、
+        school_id、university_name、vector_score、rerank_score。
     """
     query_vector = embed_texts([query])
     if not query_vector:
@@ -147,7 +135,7 @@ def search_core(
 
     try:
         initial_k = top_k * 4 if use_rerank else top_k * 2
-        where_clause, and_where_clause, filter_params = _build_filter_clauses(school_id, page_type)
+        where_clause, and_where_clause, filter_params = _build_filter_clauses(school_id)
 
         candidates = _execute_hybrid_search(
             conn, query_vector[0], query,
@@ -200,10 +188,13 @@ def run_search(
         score_str = f"向量分數: {res['vector_score']:.4f}"
         if "rerank_score" in res:
             score_str += f"  Re-rank: {res['rerank_score']:.4f}"
+        types_str = ", ".join(
+            f"{pt['type']}({pt['score']})" for pt in res.get("passed_types") or []
+        )
         print(
             f"【結果 {i}】 {score_str}\n"
             f"  學校: {res['university_name']} ({res['school_id']})\n"
-            f"  頁面類型: {res.get('page_type', 'unknown')}\n"
+            f"  類型: {types_str or 'unknown'}\n"
             f"  來源 URL: {res.get('source_url', 'N/A')}\n"
             f"  內容摘要: {res['chunk_text'].strip()[:500]}...\n"
             + "-" * 80

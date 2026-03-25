@@ -44,27 +44,37 @@ def setup_db():
 
 # ── import_json ──────────────────────────────────────────────
 
-def import_json(data_dirname: str = "data"):
+def import_json(data_dirname: str = "crawler/school_data"):
     """
     依 db/init_db.sql 建表，並啟動 embedder/pipeline.py 的 run_pipeline。
-    
-    新格式的 JSON 匯入邏輯完全由 pipeline.py 處理，
-    此函式負責：
-      1. 建立/重置資料表（執行 init_db.sql）
-      2. 呼叫 pipeline.run_pipeline()
+
+    1. 建立/重置資料表（執行 init_db.sql）
+    2. 呼叫 pipeline.run_pipeline()，資料來源預設為 crawler/school_data/
     """
     conn = get_connection()
     if not conn:
         print("請在 .env 設定 DATABASE_URL。")
         return False
     try:
-        # 1. 建表
+        # 1. 建表：psycopg3 不支援 execute() 執行多條 SQL，逐一執行各 statement
         sql_path = PROJECT_ROOT / "db" / "init_db.sql"
         if not sql_path.is_file():
             print(f"找不到 {sql_path}")
             return False
+        statements = [
+            s.strip()
+            for s in sql_path.read_text(encoding="utf-8").split(";")
+            if s.strip()
+        ]
         with conn.cursor() as cur:
-            cur.execute(sql_path.read_text(encoding="utf-8"))
+            for stmt in statements:
+                try:
+                    cur.execute(stmt)
+                except Exception as e:
+                    conn.rollback()
+                    conn.close()
+                    print(f"建表失敗，SQL：\n{stmt[:200]}\n錯誤：{e}")
+                    return False
         conn.commit()
         conn.close()
         print("已依 init_db.sql 建立/重置資料表。")
@@ -106,23 +116,24 @@ def verify():
             cur.execute("SELECT COUNT(*) FROM web_pages")
             print(f"\nweb_pages 筆數: {cur.fetchone()[0]}")
             cur.execute("""
-                SELECT u.school_id, wp.page_type, COUNT(*) 
+                SELECT u.school_id, COUNT(*)
                 FROM web_pages wp
                 JOIN universities u ON wp.university_id = u.id
-                GROUP BY u.school_id, wp.page_type
-                ORDER BY u.school_id, wp.page_type
+                GROUP BY u.school_id
+                ORDER BY u.school_id
             """)
-            for sid, ptype, cnt in cur.fetchall():
-                print(f"   [{sid}][{ptype}] {cnt} 頁")
+            for sid, cnt in cur.fetchall():
+                print(f"   [{sid}] {cnt} 頁")
 
             # document_chunks
             cur.execute("SELECT COUNT(*) FROM document_chunks")
             print(f"\ndocument_chunks 筆數: {cur.fetchone()[0]}")
             cur.execute("""
-                SELECT school_id, page_type, COUNT(*)
-                FROM document_chunks
-                GROUP BY school_id, page_type
-                ORDER BY school_id, page_type
+                SELECT dc.school_id, pt->>'type' AS ptype, COUNT(*) AS cnt
+                FROM document_chunks dc,
+                     jsonb_array_elements(dc.passed_types) AS pt
+                GROUP BY dc.school_id, pt->>'type'
+                ORDER BY dc.school_id, pt->>'type'
             """)
             for sid, ptype, cnt in cur.fetchall():
                 print(f"   [{sid}][{ptype}] {cnt} chunks")

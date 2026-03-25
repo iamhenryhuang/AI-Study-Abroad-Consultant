@@ -16,11 +16,12 @@ Study Abroad RAG is an intelligent advisory tool designed to simplify the comple
 The system does not just retrieve passages. It runs a LangGraph-based agent workflow that can decide what to search, call retrieval tools step by step, and then synthesize a cited answer in Traditional Chinese.
 
 ### Key Features
-- **LangGraph Agent Workflow**: Uses a LangGraph `StateGraph` to run the agent loop across planner, tool, and finalizer steps.
+- **LangGraph Agent Workflow**: Uses a LangGraph `StateGraph` to run the agent loop across decomposer, searcher, planner, and finalizer steps.
 - **Real-Time Thinking**: Streams agent events such as `thinking`, `tool_call`, `tool_result`, and `answer` to the frontend.
 - **High Precision**: Powered by **BGE-M3** embeddings and a **Cross-Encoder Reranker** for the best document retrieval.
-- **Contextual Chunking**: Proprietary chunking strategy that preserves metadata and FAQ structures.
+- **Contextual Chunking**: Chunking strategy that preserves metadata and FAQ structures, sized by content type via `passed_types`.
 - **Verified Sources**: Every claim includes a direct source URL to the university's official page.
+- **Web Crawler**: Playwright-based crawler that scores and classifies pages by type before ingestion.
 
 ---
 
@@ -30,12 +31,24 @@ The system does not just retrieve passages. It runs a LangGraph-based agent work
 .
 ├── backend/                # FastAPI, retrieval pipeline, LangGraph agent
 │   ├── api.py              # API server with SSE support
-│   ├── scripts/            # Core RAG & Ingestion logic
-│   └── data/               # University JSON dumps (Scraped data)
+│   └── scripts/            # Core RAG & ingestion logic
+│       ├── db/             # DB connection & operations
+│       ├── embedder/       # Chunking, vectorization, pipeline
+│       ├── retriever/      # Search, reranker, agent
+│       ├── generator/      # Gemini answer generation
+│       └── professor_fetcher/  # SerpAPI Google Scholar fetcher
+├── crawler/                # Playwright-based web crawler
+│   ├── run_crawler.py      # Crawler entry point
+│   ├── url_crawler.py      # URL discovery & page fetching
+│   ├── score.py            # Page scoring & classification
+│   ├── save_result.py      # Write results to school_data/
+│   ├── clean_json_data.py  # Post-crawl data cleaning
+│   └── school_data/        # Crawled data ([{school_id, url, passed_types, data}])
 ├── frontend/               # React + Tailwind v4 + Vite
-│   ├── src/components/     # Modern UI components
+│   ├── src/components/     # UI components
 │   └── src/hooks/          # Real-time streaming hooks
-└── db/                     # SQL schema & PostgreSQL migrations
+├── db/                     # PostgreSQL schema (init_db.sql)
+└── requirements.txt        # All Python dependencies (backend + crawler)
 ```
 
 ---
@@ -45,52 +58,70 @@ The system does not just retrieve passages. It runs a LangGraph-based agent work
 ### 1. Prerequisites
 - **Python 3.10+**
 - **Node.js 18+**
-- **PostgreSQL** with the [pgvector](https://github.com/pgvector/pgvector) extension.
+- **PostgreSQL** with the [pgvector](https://github.com/pgvector/pgvector) extension
 
-### 2. Python Virtual Environment (`.venv`)
-The `.venv` folder is only used when you explicitly activate it in your terminal.
-It does **not** activate by itself just because the folder exists.
+### 2. Python Virtual Environment
 
 From the project root:
 
-Activate it based on your shell:
-
 ```bash
-# Git Bash (Windows) / macOS / Linux
-source .venv/Scripts/activate
+python -m venv .venv
+source .venv/Scripts/activate   # Git Bash (Windows)
+# source .venv/bin/activate     # macOS / Linux
 ```
 
-After activation, your prompt usually shows `(.venv)`.
-Use `deactivate` to leave the virtual environment.
+After activation your prompt shows `(.venv)`. Use `deactivate` to exit.
 
-### 3. Initialization (The Easy Way)
-From the **root directory**, run the one-command setup:
+### 3. Install Dependencies
+
 ```bash
-# Setup DB and import all data (approx. 2-5 mins)
-python backend/scripts/run.py init-all
+pip install -r requirements.txt
+playwright install chromium
 ```
 
-### 4. Start Services
-Open two terminals:
-
-**Terminal A: Backend**
-```bash
-python -m pip install -r backend/requirements.txt
-python -m uvicorn backend.api:app --reload --port 8000
-```
-
-If you see `ModuleNotFoundError: No module named 'pydantic_core._pydantic_core'`,
-your virtual environment likely has incompatible cached binaries (for example, Python version changed after `.venv` was created).
+If you see `ModuleNotFoundError: No module named 'pydantic_core._pydantic_core'`, recreate the venv:
 
 ```bash
 rm -rf .venv
 python -m venv .venv
-source .venv/Scripts/activate  # Git Bash (Windows)
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install -r backend/requirements.txt
+source .venv/Scripts/activate
+pip install -r requirements.txt
 ```
 
-**Terminal B: Frontend**
+### 4. Environment Variables
+
+Create `backend/.env`:
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/study_abroad_rag
+GOOGLE_API_KEY=your_gemini_api_key
+SERPAPI_KEY=your_serpapi_key          # only needed for professor_fetcher
+BGE_EMBED_MODEL_PATH=path/to/bge-m3   # local model path (optional)
+BGE_RERANKER_MODEL_PATH=path/to/bge-reranker-v2-m3
+```
+
+### 5. Crawl & Import Data
+
+**Step 1 — Crawl university pages:**
+```bash
+cd crawler
+python run_crawler.py
+```
+Output saved to `crawler/school_data/*.json`.
+
+**Step 2 — Import into DB (init schema + embed + store):**
+```bash
+python backend/scripts/run.py import
+```
+
+### 6. Start Services
+
+**Terminal A — Backend:**
+```bash
+python -m uvicorn backend.api:app --reload --port 8000
+```
+
+**Terminal B — Frontend:**
 ```bash
 cd frontend
 npm install
@@ -99,30 +130,40 @@ npm run dev
 
 ---
 
-## CLI Power Tools
+## CLI Tools
 
-Manage the entire pipeline directly from your terminal using `backend/scripts/run.py`:
+Manage the pipeline from `backend/scripts/run.py`:
 
-- **`search "QUERY"`**: Pure vector search results.
-- **`rag "QUERY"`**: Standard Retrieval-Augmented Generation.
-- **`agent "QUERY"`**: The LangGraph-based agent workflow.
-- **`verify-vdb`**: Check the pulse of your vector database.
-
-Examples:
+| Command | Description |
+|---------|-------------|
+| `setup` | Check DB connection, create DB if missing |
+| `import` | Init schema + chunk + embed + store `crawler/school_data/` |
+| `verify-db` | Check DB contents |
+| `search "QUERY"` | Hybrid vector + keyword search |
+| `agent "QUERY"` | Full LangGraph agent workflow |
 
 ```bash
 python backend/scripts/run.py search "MIT deadline" --school mit
-python backend/scripts/run.py rag "Compare Stanford and CMU GPA requirements"
-python backend/scripts/run.py agent "MIT MSCS deadline?" --max-steps 2
+python backend/scripts/run.py agent "Compare Stanford and CMU GPA requirements"
 ```
 
-The `agent` command and its `--max-steps` flag were smoke-tested in the current codebase.
+---
+
+## Professor Data Fetcher
+
+Fetch individual professor data from Google Scholar via SerpAPI:
+
+```bash
+python backend/scripts/professor_fetcher/run_fetch.py \
+  --name "Andrew Ng" \
+  --school "Stanford" \
+  --embed
+```
+
+Results are saved to `crawler/school_data/{school_id}_professors.json` and optionally embedded into the DB with `--embed`.
 
 ---
 
 ## Documentation
-For detailed information on specific modules, please refer to:
 - [Backend Documentation](backend/README.md)
 - [Frontend Documentation](frontend/README.md)
-
----

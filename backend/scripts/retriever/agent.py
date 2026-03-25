@@ -3,9 +3,9 @@
   1. Decomposer  — 規則式拆解（無 LLM）：
                    - 偵測到 N 所學校 → 拆成 N 個子問題（每問題對應一所學校）
                    - 偵測不到多所學校 → 使用原始問題
-  2. Searcher    — 每個子問題依自己的 school_id 向資料庫檢索（略過 page_type）
-  3. Planner     — 判斷目前收集的資料是否夠（最多 3 輪）
-                   若不夠，產生補充子問題繼續搜尋
+  2. Searcher    — 每個子問題依自己的 school_id 向資料庫檢索
+  3. Planner     — 判斷目前收集的資料是否夠（最多 2 輪）
+                   若不夠，產生英文補充子問題繼續搜尋
   4. Finalizer   — 彙整所有文件，呼叫 Gemini 生成最終答案
 """
 
@@ -33,27 +33,19 @@ from generator.gemini import get_gemini_client, generate_answer
 # ─── 學校別名對照表 ───────────────────────────────────────────────────────────
 
 _SCHOOL_ALIASES: dict[str, list[str]] = {
-    "cmu":       ["cmu", "carnegie mellon", "卡內基梅隆"],
-    "mit":       ["mit", "massachusetts institute", "麻省理工"],
-    "stanford":  ["stanford", "史丹佛", "斯坦福"],
-    "caltech":   ["caltech", "california institute", "加州理工"],
-    "harvard":   ["harvard", "哈佛"],
-    "columbia":  ["columbia", "哥倫比亞"],
-    "yale":      ["yale", "耶魯"],
-    "princeton": ["princeton", "普林斯頓"],
-    "cornell":   ["cornell", "康乃爾"],
-    "gatech":    ["georgia tech", "gatech", "喬治亞理工"],
-    "ucsd":      ["ucsd", "uc san diego", "加州聖地牙哥"],
-    "ucla":      ["ucla", "uc los angeles", "加州洛杉磯"],
-    "berkeley":  ["berkeley", "uc berkeley", "柏克萊"],
-    "uiuc":      ["uiuc", "illinois", "伊利諾"],
-    "umich":     ["umich", "michigan", "密西根"],
-    "nyu":       ["nyu", "new york university", "紐約大學"],
-    "purdue":    ["purdue", "普渡"],
-    "utaustin":  ["ut austin", "university of texas", "德州大學"],
-    "upenn":     ["upenn", "penn", "pennsylvania", "賓州"],
-    "duke":      ["duke", "杜克"],
-    "uw":        ["uw", "university of washington", "華盛頓大學"],
+    # ── 資料庫現有學校（school_data/ 來源） ──
+    "cmu":      ["cmu", "carnegie mellon", "卡內基梅隆"],
+    "mit":      ["mit", "massachusetts institute", "麻省理工"],
+    "stanford": ["stanford", "史丹佛", "斯坦福"],
+    "caltech":  ["caltech", "california institute", "加州理工"],
+    "gatech":   ["georgia tech", "gatech", "喬治亞理工"],
+    "ucla":     ["ucla", "uc los angeles", "加州洛杉磯"],
+    "ucsd":     ["ucsd", "uc san diego", "加州聖地牙哥"],
+    "uci":      ["uci", "uc irvine", "加州爾灣"],
+    "umass":    ["umass", "amherst", "麻州大學"],
+    "purdue":   ["purdue", "purdure", "普渡"],
+    "washu":    ["washu", "wustl", "washington university", "聖路易斯華盛頓"],
+    "utoronto": ["utoronto", "toronto", "多倫多"],
 }
 
 MAX_ROUNDS      = 2   # Planner 最多重試幾輪
@@ -139,7 +131,9 @@ def _make_school_query(original_query: str, target_school_id: str, all_school_id
         for alias in _SCHOOL_ALIASES[sid]:
             query = re.compile(re.escape(alias), re.IGNORECASE).sub("", query)
 
-    query = re.sub(r"[,，、]?\s*(and|跟|和|與|&|or|以及)\s*", " ", query, flags=re.IGNORECASE)
+    # \b 確保 and/or 只匹配完整單詞，不會誤切 "georgia" 裡的 "or"
+    query = re.sub(r"\b(and|or)\b", " ", query, flags=re.IGNORECASE)
+    query = re.sub(r"[,，、]|(跟|和|與|&|以及)", " ", query, flags=re.IGNORECASE)
     query = re.sub(r"\s{2,}", " ", query).strip().strip(",，、 ")
 
     target_aliases = _SCHOOL_ALIASES[target_school_id]
@@ -254,8 +248,12 @@ def searcher_node(state: AgentState) -> dict:
 
 def _build_planner_prompt(query: str, docs: list[dict], searched: list[str]) -> str:
     """組合 Planner 用的 prompt。"""
+    def _primary_type(doc: dict) -> str:
+        pts = doc.get("passed_types") or []
+        return max(pts, key=lambda x: x.get("score", 0))["type"] if pts else "?"
+
     context_preview = "".join(
-        f"\n[{i+1}] {doc.get('school_id', '?')}/{doc.get('page_type', '?')}: "
+        f"\n[{i+1}] {doc.get('school_id', '?')}/{_primary_type(doc)}: "
         f"{doc.get('chunk_text', '')[:300]}\n"
         for i, doc in enumerate(docs[:10])
     )
@@ -273,21 +271,22 @@ def _build_planner_prompt(query: str, docs: list[dict], searched: list[str]) -> 
 {context_preview}
 
 【評估任務】
-請判斷：目前的資料是否已足夠全面地回答使用者的原始問題？
+請判斷：目前的資料是否已足夠回答使用者的原始問題？
 
 輸出格式（JSON）：
 {{
   "is_sufficient": true 或 false,
   "reason": "簡短說明為何足夠/不夠（1-2句）",
-  "extra_queries": ["English follow-up query 1", "English follow-up query 2"]  // 若 is_sufficient=false 才填，最多 2 個
+  "extra_queries": ["English follow-up query 1", ..., "English follow-up query 5"]  // 若 is_sufficient=false 才填，最多 5 個
 }}
 
-規則：
-1. 若資料已涵蓋問題的主要面向，即使不完美，也可標記 sufficient=true
-2. 若明顯缺少某個關鍵面向（例如問了 GPA 要求但完全沒有 GPA 相關資料），才標記 false
-3. 補充問題必須是全新的問法，不得重複已搜尋的問題
-4. 補充問題（extra_queries）必須用英文撰寫，以提升向量檢索效果
-5. 只輸出 JSON，不要有其他文字
+規則（請嚴格遵守）：
+1. 預設為 sufficient=true。只要有找到相關資料，無論是否完整，都應標記 true。
+2. 只有在某所學校或某個面向完全沒有任何文件時，才標記 false 並補問。
+3. 不要因為「想找更多資訊」就標記 false，資料不完美是正常的。
+4. 補充問題只針對完全空白的學校或面向，不得重複已搜尋的問題。
+5. 補充問題（extra_queries）必須用英文撰寫，以提升向量檢索效果。
+6. 只輸出 JSON，不要有其他文字。
 
 你的判斷："""
 
@@ -307,7 +306,7 @@ def _parse_planner_response(raw: str) -> tuple[bool, str, list[str]]:
     is_sufficient = bool(parsed.get("is_sufficient", True))
     reason        = parsed.get("reason", "")
     extra_queries = [str(q).strip() for q in parsed.get("extra_queries", []) if str(q).strip()]
-    return is_sufficient, reason, extra_queries[:2]
+    return is_sufficient, reason, extra_queries[:5]
 
 
 def planner_node(state: AgentState) -> dict:
