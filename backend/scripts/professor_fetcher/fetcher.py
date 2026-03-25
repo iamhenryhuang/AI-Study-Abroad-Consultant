@@ -1,10 +1,9 @@
 """
 搜尋策略：
-  1. search_professor_id()       — 用 google_scholar engine 搜尋 "{name}" "{school}"，
-                                   從論文結果的 publication_info.authors[].link 中取出 author_id
-  2. fetch_recent_papers()       — 搜尋該教授的近兩年論文，過濾年份
-  3. fetch_author_profile()      — 返回基本的 author_id metadata（節省 API 配額）
-  4. fetch_school_cs_professors() — 搜尋學校全體教授（不限定學科）
+  1. search_professor_id()  — 用 google_scholar engine 搜尋 "{name}" "{school}"，
+                              從論文結果的 publication_info.authors[].link 中取出 author_id
+  2. fetch_recent_papers()  — 搜尋該教授的近兩年論文，過濾年份
+  3. fetch_author_profile() — 返回基本的 author_id metadata（節省 API 配額）
 """
 
 from __future__ import annotations
@@ -13,7 +12,6 @@ import os
 import re
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 import requests
 from dotenv import load_dotenv
@@ -43,7 +41,7 @@ def _validate_key() -> None:
         )
 
 
-def _get(params: dict[str, Any]) -> dict[str, Any]:
+def _get(params: dict) -> dict:
     """
     呼叫 SerpAPI 並處理重試與報錯。
     
@@ -94,7 +92,7 @@ def _get(params: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def _extract_author_id_from_url(url: str) -> Optional[str]:
+def _extract_author_id_from_url(url: str) -> str | None:
     """從 Google Scholar URL 提取 user= 參數（author_id）。"""
     if not url:
         return None
@@ -102,7 +100,7 @@ def _extract_author_id_from_url(url: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
-def _extract_year_from_snippet(snippet: str, publication: str) -> Optional[int]:
+def _extract_year_from_snippet(snippet: str, publication: str) -> int | None:
     """從 snippet 或 publication 字串中找年份（4 位數字）。"""
     for text in (publication, snippet):
         if not text:
@@ -115,7 +113,7 @@ def _extract_year_from_snippet(snippet: str, publication: str) -> Optional[int]:
 
 # ── 主要功能：搜尋 author_id ─────────────────────────────────────────────────
 
-def search_professor_id(name: str, affiliation: str = "") -> Optional[str]:
+def search_professor_id(name: str, affiliation: str = "") -> str | None:
     """
     透過 google_scholar engine 搜尋教授論文，從論文的 author 連結提取 author_id。
 
@@ -144,7 +142,7 @@ def search_professor_id(name: str, affiliation: str = "") -> Optional[str]:
         return None
 
     name_parts = name.lower().split()
-    candidates: List[Dict[str, Any]] = []
+    candidates: list[dict] = []
 
     for result in organic:
         authors = result.get("publication_info", {}).get("authors", [])
@@ -194,46 +192,7 @@ def search_professor_id(name: str, affiliation: str = "") -> Optional[str]:
     return best["id"]
 
 
-def fetch_school_cs_professors(school: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
-    """
-    搜尋指定學校的教授列表。
-    """
-    query = f'site:scholar.google.com/citations?user= "{school}"'
-    print(f"  搜尋 {school} 的教授：{query!r}")
-
-    professors = []
-    try:
-        params = {
-            "engine": "google",
-            "q": query,
-            "hl": "en",
-            "num": limit if limit and limit <= 100 else 100,
-        }
-        data = _get(params)
-    except Exception as e:
-        print(f"學校教授搜尋失敗：{e}")
-        return []
-
-    for result in data.get("organic_results", []):
-        title = result.get("title", "")
-        name = title.split(" -")[0].strip()
-        author_id = _extract_author_id_from_url(result.get("link", ""))
-        
-        if author_id:
-            professors.append({
-                "name": name,
-                "author_id": author_id,
-                "snippet": result.get("snippet", ""),
-            })
-        
-        if limit and len(professors) >= limit:
-            break
-            
-    print(f"  找到 {len(professors)} 位教授。")
-    return professors
-
-
-def fetch_author_profile(author_id: str) -> Dict[str, Any]:
+def fetch_author_profile(author_id: str) -> dict:
     """
     取得教授 profile 基準資訊。
     由於 SerpAPI 免費方案限制，此處僅建立 metadata 容器。
@@ -246,10 +205,8 @@ def fetch_papers_by_search(
     author_id: str,
     cutoff_year: int,
     max_papers: int = 20,
-) -> List[Dict[str, Any]]:
-    """
-    精確搜尋教授近年論文。
-    """
+) -> list[dict]:
+    """精確搜尋教授近年論文。"""
     params = {
         "engine": "google_scholar",
         "q": f'author:"{name}"',
@@ -296,9 +253,9 @@ def fetch_papers_by_search(
 def fetch_recent_papers(
     author_id: str,
     professor_name: str = "",
-    cutoff_year: Optional[int] = None,
+    cutoff_year: int | None = None,
     max_papers: int = 20,
-) -> List[Dict[str, Any]]:
+) -> list[dict]:
     """
     抓取教授近兩年發表的論文。
     """

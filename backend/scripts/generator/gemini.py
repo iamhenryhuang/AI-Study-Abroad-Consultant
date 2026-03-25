@@ -34,41 +34,40 @@ def get_gemini_client():
     return _client
 
 
+def _primary_type(doc: dict) -> str:
+    """從 passed_types 取得主要類型。"""
+    passed = doc.get("passed_types") or []
+    if not passed:
+        return "general"
+    return max(passed, key=lambda x: x.get("score", 0))["type"]
+
+
 def format_context_for_prompt(context_docs: list[dict]) -> str:
     """
-    將檢索到的文件列表格式化為 LLM 易讀的字串（v2 schema）。
+    將檢索到的文件列表格式化為 LLM 易讀的字串。
 
     每筆 doc 包含：
       - chunk_text     : 段落文字
       - university_name: 學校全名
       - school_id      : 學校識別碼
-      - page_type      : 頁面類型（admissions / faq / checklist…）
+      - passed_types   : [{type, score}, ...] 頁面類型列表
       - source_url     : 原始頁面 URL
-      - metadata       : JSONB（school_id, page_type, source_url）
-    
-    改進：在答案中關鍵點直接用 Markdown 連結標註來源。
     """
     formatted_docs = []
-    sources_list = []  # 收集所有來源供 Gemini 參考
-    
-    for i, doc in enumerate(context_docs):
-        univ     = doc.get("university_name", "未知學校")
-        sid      = doc.get("school_id", "")
-        ptype    = doc.get("page_type", "unknown")
-        url      = doc.get("source_url", "")
-        text     = doc.get("chunk_text", "").strip()
+    sources_list = []
 
-        # 簡化格式：只顯示學校和頁面類型
-        doc_block = (
-            f"【{univ} {ptype}】\n{text}"
-        )
-        formatted_docs.append(doc_block)
-        
-        # 記錄來源供 Gemini 在答案中引用
+    for i, doc in enumerate(context_docs):
+        univ  = doc.get("university_name", "未知學校")
+        sid   = doc.get("school_id", "")
+        ptype = _primary_type(doc)
+        url   = doc.get("source_url", "")
+        text  = doc.get("chunk_text", "").strip()
+
+        formatted_docs.append(f"【{univ} {ptype}】\n{text}")
         sources_list.append({
-            "index": i+1,
+            "index": i + 1,
             "school": sid,
-            "page_type": ptype,
+            "type": ptype,
             "url": url,
         })
 
@@ -78,7 +77,7 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
     # 提供來源對應表供 Gemini 使用
     sources_section = "\n\n--- 來源列表（在答案中用 Markdown 連結引用） ---\n"
     for s in sources_list:
-        sources_section += f"[{s['school']} - {s['page_type']}]({s['url']})\n"
+        sources_section += f"[{s['school']} - {s['type']}]({s['url']})\n"
     
     return formatted_text + sources_section
 

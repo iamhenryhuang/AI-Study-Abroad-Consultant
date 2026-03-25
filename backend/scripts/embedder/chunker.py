@@ -9,17 +9,14 @@
 from __future__ import annotations
 
 import re
-from typing import List
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-_PAGE_TYPE_SIZES: dict[str, int] = {
-    "faq":               1800,   # FAQ 通常較長，但需控制在 Token 限制內
-    "checklist":         1000,   # 條列式，較小 chunk 以免混雜無關項目
-    "requirements":      1000,
-    "admissions":        1500,
-    "apply":             1500,
-    "accepting":         1400,
+_TYPE_SIZES: dict[str, int] = {
+    "faq":               1800,   # FAQ 通常較長，保留完整問答對
+    "admissions":        1500,   # 招生資訊
+    "program":           1400,   # 課程與專案說明
+    "tuition":           1200,   # 學費資訊，通常較短
     "professor_profile": 1800,   # 保留完整個人資訊
     "professor_paper":   800,    # 短 chunk 適合單篇論文
     "general":           1400,
@@ -89,7 +86,7 @@ def _split_faq_pairs(text: str) -> list[str]:
       2. 合併過短的碎片（< 80 字元）到前一個 pair
       3. 若單個 pair 超過 FAQ chunk_size 上限，再用通用 splitter 二次切分
     """
-    faq_chunk_size = _PAGE_TYPE_SIZES["faq"]
+    faq_chunk_size = _TYPE_SIZES["faq"]
     raw_pairs = _FAQ_SPLIT_RE.split(text)
 
     pairs: list[str] = []
@@ -109,7 +106,7 @@ def _split_faq_pairs(text: str) -> list[str]:
         pairs.append(buffer)
 
     # 若單個 pair 仍太長，二次切分
-    fallback_splitter = _make_splitter("faq", secondary=True)
+    fallback_splitter = _make_splitter("faq")
     result: list[str] = []
     for pair in pairs:
         if len(pair) > faq_chunk_size:
@@ -120,40 +117,9 @@ def _split_faq_pairs(text: str) -> list[str]:
     return result
 
 
-# ── 核心工具函式 ────────────────────────────────────────────────────
-
-def infer_page_type(url: str) -> str:
-    """
-    從 URL 路徑推斷頁面類型。
-
-    回傳 page_type 字串，例如 'faq', 'admissions', 'professor_profile', 'general'。
-    """
-    url_lower = url.lower()
-    # Google Scholar 教授相關頁面
-    if "scholar.google.com" in url_lower:
-        if "view_op=view_citation" in url_lower:
-            return "professor_paper"    # 單篇論文 citation 頁面
-        return "professor_profile"      # 教授 profile 頁面
-    if "faq" in url_lower or "frequently-asked" in url_lower:
-        return "faq"
-    if "checklist" in url_lower or "requirements" in url_lower:
-        return "checklist"
-    if "admissions" in url_lower or "graduate-admissions" in url_lower:
-        return "admissions"
-    if "apply" in url_lower:
-        return "apply"
-    if "accepting" in url_lower or "acceptance" in url_lower:
-        return "accepting"
-    return "general"
-
-
-def _make_splitter(page_type: str, secondary: bool = False) -> RecursiveCharacterTextSplitter:
-    """
-    根據 page_type 建立對應的 splitter。
-
-    secondary=True 時用於 FAQ 二次切分，採用固定大小而不遞迴推斷。
-    """
-    size = _PAGE_TYPE_SIZES.get(page_type, _DEFAULT_CHUNK_SIZE)
+def _make_splitter(primary_type: str) -> RecursiveCharacterTextSplitter:
+    """根據 primary_type 建立對應的 splitter。"""
+    size = _TYPE_SIZES.get(primary_type, _DEFAULT_CHUNK_SIZE)
     overlap = max(_MIN_OVERLAP, int(size * 0.20))
     return RecursiveCharacterTextSplitter(
         chunk_size=size,
@@ -163,19 +129,17 @@ def _make_splitter(page_type: str, secondary: bool = False) -> RecursiveCharacte
 
 
 def chunk_text(
-    text: str, 
-    page_type: str = "general",
-    url: str = "",
-    school_name: str = ""
+    text: str,
+    primary_type: str = "general",
+    school_name: str = "",
 ) -> list[str]:
     """
-    將長文字依 page_type 切成多個 chunk，並注入背景資訊。
+    將長文字依 primary_type 切成多個 chunk，並注入背景資訊。
 
     Args:
-        text:        原始純文字
-        page_type:   頁面類型
-        url:         來源 URL（用於 context 注入，選填）
-        school_name: 學校名稱（用於 context 注入，選填）
+        text:         原始純文字
+        primary_type: passed_types 中分數最高的類型（admissions / faq / program 等）
+        school_name:  學校名稱（用於 context 注入）
 
     Returns:
         切分後的字串列表，過濾掉過短的內容。
@@ -189,17 +153,17 @@ def chunk_text(
         return []
 
     # 2. 執行切分
-    if page_type == "faq":
+    if primary_type == "faq":
         chunks = _split_faq_pairs(text)
     else:
-        splitter = _make_splitter(page_type)
+        splitter = _make_splitter(primary_type)
         chunks = splitter.split_text(text)
 
     # 3. 注入上下文前綴 & 過濾
     final_chunks = []
     prefix = ""
-    if school_name or page_type != "general":
-        label = f"{school_name} | {page_type.replace('_', ' ').title()}".strip(" |")
+    if school_name or primary_type != "general":
+        label = f"{school_name} | {primary_type.replace('_', ' ').title()}".strip(" |")
         prefix = f"[{label}]\n"
 
     for c in chunks:
