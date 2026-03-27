@@ -8,7 +8,7 @@ from url_crawler import crawl_one_school
 from setting.parameter import THRESHOLDS, PAGE_HINTS, MINUS_KEYWORDS, URL_PATH_HINTS
 
 
-MAX_FULL_TEXT_CHARS = 200_000
+MAX_FULL_TEXT_CHARS = 2_000_000
 MAX_RETRY           = 2
 RETRY_WAIT_MS       = 2000
 NUM_THREADS         = 3          # ← 依機器調整
@@ -20,8 +20,6 @@ DENSITY_MIN_COUNT  = 3
 DENSITY_BONUS      = 1
 DENSITY_MAX_BONUS  = 2
 NAV_WEIGHT         = 0.3
-
-
 
 
 # ──────────────────────────────────────────────
@@ -60,70 +58,323 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
         except PlaywrightTimeoutError:
             pass
         page.wait_for_timeout(extra_wait_ms)
-        page.evaluate("() => { window.scrollTo(0, document.body.scrollHeight); }")
-        page.wait_for_timeout(1500)
-        page.evaluate("() => { window.scrollTo(0, 0); }")
-        page.wait_for_timeout(500)
+
+        # ── STEP 1：慢速捲動全頁，觸發 lazy-load / scroll-reveal ──────────
+        page.evaluate("""async () => {
+            await new Promise(resolve => {
+                const distance = 300;          // 每次捲動距離 px
+                const delay    = 300;          // 每步間隔 ms
+                let current    = 0;
+                const total    = document.body.scrollHeight;
+                const timer = setInterval(() => {
+                    window.scrollBy(0, distance);
+                    current += distance;
+                    if (current >= total) {
+                        clearInterval(timer);
+                        resolve();
+                    }
+                }, delay);
+            });
+        }""")
+        page.wait_for_timeout(1000)
+
+        # ── STEP 2：逐一捲動到每個可展開觸發元素後點擊 ───────────────────
+        #    每個元素先 scrollIntoView 到視窗中央，再 click()
+        #    確保不論元素在頁面哪個位置都能觸發
+        page.evaluate("""() => {
+            const CLICK_SELECTORS = [
+                // ARIA 語意：未展開的可互動元素
+                '[aria-expanded="false"]',
+                '[aria-selected="false"]',
+                '[aria-checked="false"]',
+
+                // Bootstrap / 常見 class-based accordion
+                'button.accordion-button',
+                '.accordion-header button',
+                '.accordion-item .accordion-button',
+                '[data-bs-toggle="collapse"]',
+                '[data-toggle="collapse"]',
+                '[data-bs-toggle="tab"]',
+                '[data-toggle="tab"]',
+                '[data-bs-toggle="pill"]',
+
+                // 通用展開按鈕 class 關鍵字
+                'button[class*="accordion"]',
+                'button[class*="toggle"]',
+                'button[class*="collapse"]',
+                'button[class*="expand"]',
+                'button[class*="show"]',
+                'button[class*="open"]',
+                '[class*="toggle-btn"]',
+                '[class*="collapsible"]',
+                '[class*="expand-btn"]',
+                '[class*="read-more"]',
+                '[class*="readmore"]',
+                '[class*="show-more"]',
+                '[class*="load-more"]',
+
+                // <details><summary>
+                'summary',
+
+                // role=button 未展開
+                '[role="button"][aria-expanded="false"]',
+                '[role="tab"]',
+                '[role="treeitem"]',
+
+                // FAQ / 問答常見模式
+                '.faq-question',
+                '.faq-title',
+                '.faq-toggle',
+                '.question',
+                '.q-item',
+                '[class*="faq"] button',
+                '[class*="faq"] [role="button"]',
+
+                // 其他雜項
+                '[data-target]',
+                '[href="#"]',
+            ];
+
+            // 用 Set 去重，避免同一元素被多個 selector 重複點擊
+            const clicked = new WeakSet();
+
+            CLICK_SELECTORS.forEach(sel => {
+                let els;
+                try { els = document.querySelectorAll(sel); } catch(e) { return; }
+                els.forEach(el => {
+                    if (clicked.has(el)) return;
+                    clicked.add(el);
+                    try {
+                        el.scrollIntoView({ behavior: 'instant', block: 'center' });
+                        el.click();
+                    } catch(e) {}
+                });
+            });
+
+            // 點完後回到頂部
+            window.scrollTo(0, 0);
+        }""")
+        page.wait_for_timeout(1200)   # 等所有展開動畫完成
+
+        # ── STEP 3：強制把所有殘留隱藏節點打開 ───────────────────────────
+        #    先用 class 名稱模式批次處理，再全域掃描計算樣式
+        page.evaluate("""() => {
+            // 3-a：原生 <details> 全展開
+            document.querySelectorAll('details').forEach(el => el.open = true);
+
+            // 3-b：依 class 關鍵字批次強制顯示
+            const SHOW_SELECTORS = [
+                '[class*="dropdown"]',  '[class*="collapse"]', '[class*="accordion"]',
+                '[class*="menu"]',      '[class*="submenu"]',  '[class*="panel"]',
+                '[class*="tab-pane"]',  '[class*="content"]',  '[class*="toggle"]',
+                '[class*="drawer"]',    '[class*="modal"]',    '[class*="dialog"]',
+                '[class*="popover"]',   '[class*="tooltip"]',  '[class*="overlay"]',
+                '[class*="offcanvas"]', '[class*="sidebar"]',  '[class*="flyout"]',
+                '[class*="expand"]',    '[class*="reveal"]',   '[class*="hidden"]',
+                '[class*="hide"]',      '[class*="inactive"]', '[class*="closed"]',
+                '[hidden]',
+                '[aria-hidden="true"]',
+            ];
+            SHOW_SELECTORS.forEach(sel => {
+                let els;
+                try { els = document.querySelectorAll(sel); } catch(e) { return; }
+                els.forEach(el => {
+                    el.style.setProperty('display',     'block',   'important');
+                    el.style.setProperty('visibility',  'visible', 'important');
+                    el.style.setProperty('opacity',     '1',       'important');
+                    el.style.setProperty('max-height',  'none',    'important');
+                    el.style.setProperty('height',      'auto',    'important');
+                    el.style.setProperty('overflow',    'visible', 'important');
+                    el.removeAttribute('hidden');
+                    el.removeAttribute('aria-hidden');
+                });
+            });
+
+            // 3-c：全域掃描所有節點，對計算樣式為隱藏的元素強制顯示
+            //      只掃 Element 節點，跳過 script / style / svg 等無文字容器
+            const SKIP_TAGS = new Set(['SCRIPT','STYLE','SVG','NOSCRIPT','TEMPLATE','HEAD']);
+            document.querySelectorAll('*').forEach(el => {
+                if (SKIP_TAGS.has(el.tagName)) return;
+                const s = window.getComputedStyle(el);
+                if (
+                    s.display     === 'none'    ||
+                    s.visibility  === 'hidden'  ||
+                    s.visibility  === 'collapse'||
+                    s.opacity     === '0'       ||
+                    s.height      === '0px'     ||
+                    s.maxHeight   === '0px'     ||
+                    s.overflow    === 'hidden' && (parseFloat(s.height) === 0)
+                ) {
+                    el.style.setProperty('display',     'block',   'important');
+                    el.style.setProperty('visibility',  'visible', 'important');
+                    el.style.setProperty('opacity',     '1',       'important');
+                    el.style.setProperty('max-height',  'none',    'important');
+                    el.style.setProperty('height',      'auto',    'important');
+                    el.style.setProperty('overflow',    'visible', 'important');
+                }
+            });
+        }""")
+        page.wait_for_timeout(600)   # 等 DOM reflow 完成
+        # ──────────────────────────────────────────────────────────────────
+
+        # ── STEP 4：擷取所有文字節點 ──────────────────────────────────────
 
         title    = page.title() or ""
         h1_list  = [normalize_spaces(x) for x in page.locator("h1").all_inner_texts() if normalize_spaces(x)]
         h2_list  = [normalize_spaces(x) for x in page.locator("h2").all_inner_texts() if normalize_spaces(x)]
         h3_list  = [normalize_spaces(x) for x in page.locator("h3").all_inner_texts() if normalize_spaces(x)]
 
-        visible_text  = normalize_spaces(page.evaluate("""
+        # body.innerText（已展開後的可見文字，最主要來源）
+        visible_text = normalize_spaces(page.evaluate("""
+            () => document.body.innerText || ''
+        """) or "")
+
+        # body.textContent（補抓 innerText 漏掉的非渲染文字節點）
+        all_text_content = normalize_spaces(page.evaluate("""
+            () => document.body.textContent || ''
+        """) or "")
+
+        # <p> 標籤（段落正文，獨立保留方便下游使用）
+        p_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('p'))
+                       .map(el => el.innerText || el.textContent || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # <li> 條列
+        li_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('li'))
+                       .map(el => el.innerText || el.textContent || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # 表格 td / th
+        table_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('td, th'))
+                       .map(el => el.innerText || el.textContent || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # <div> 全掃（包含展開後才出現的內容）
+        div_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('div'))
+                       .map(el => el.innerText || el.textContent || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # <span> 獨立補抓（常見於 badge / tag / label）
+        span_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('span'))
+                       .map(el => el.innerText || el.textContent || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # <a> 連結文字（anchor text 常含重要關鍵詞）
+        a_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('a'))
+                       .map(el => el.innerText || el.textContent || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # <button> 文字（accordion 按鈕本身的標題）
+        button_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('button, [role="button"]'))
+                       .map(el => el.innerText || el.textContent || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # <label> 表單標籤
+        label_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('label'))
+                       .map(el => el.innerText || el.textContent || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # <input> placeholder / value
+        input_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('input, textarea'))
+                       .map(el => [el.placeholder || '', el.value || '', el.getAttribute('aria-label') || ''].join(' '))
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # <select><option> 下拉選單選項
+        option_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('option'))
+                       .map(o => o.textContent || o.value || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # <img alt> 圖片替代文字
+        alt_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('img[alt]'))
+                       .map(img => img.getAttribute('alt') || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # aria-label / aria-describedby / title 屬性（無障礙標注常含資訊）
+        aria_texts = normalize_spaces(page.evaluate("""
+            () => Array.from(document.querySelectorAll('[aria-label],[aria-describedby],[title]'))
+                       .flatMap(el => [
+                           el.getAttribute('aria-label')       || '',
+                           el.getAttribute('aria-describedby') || '',
+                           el.getAttribute('title')            || '',
+                       ])
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
+        """) or "")
+
+        # data-* 屬性中常見的文字欄位（data-content / data-text / data-label 等）
+        data_attr_texts = normalize_spaces(page.evaluate("""
             () => {
-                function isVisible(el) {
-                    const style = window.getComputedStyle(el);
-                    return style.display !== 'none'
-                        && style.visibility !== 'hidden'
-                        && style.opacity !== '0';
-                }
-                function walk(el) {
-                    let text = '';
-                    for (const child of el.childNodes) {
-                        if (child.nodeType === Node.TEXT_NODE) {
-                            text += ' ' + child.textContent;
-                        } else if (child.nodeType === Node.ELEMENT_NODE && isVisible(child)) {
-                            text += ' ' + walk(child);
-                        }
-                    }
-                    return text;
-                }
-                return walk(document.body);
+                const DATA_KEYS = ['data-content','data-text','data-label',
+                                   'data-title','data-description','data-tooltip',
+                                   'data-value','data-name'];
+                return Array.from(document.querySelectorAll('*'))
+                    .flatMap(el => DATA_KEYS.map(k => el.getAttribute(k) || ''))
+                    .filter(t => t.trim().length > 0)
+                    .join(' ');
             }
         """) or "")
 
-        nav_text      = normalize_spaces(page.evaluate("""
+        # <meta> description / keywords
+        meta_desc = normalize_spaces(page.evaluate("""
+            () => {
+                const desc = document.querySelector('meta[name="description"]');
+                const kw   = document.querySelector('meta[name="keywords"]');
+                return [
+                    desc ? (desc.getAttribute('content') || '') : '',
+                    kw   ? (kw.getAttribute('content')   || '') : '',
+                ].join(' ');
+            }
+        """) or "")
+
+        # nav / header 導覽列
+        nav_text = normalize_spaces(page.evaluate("""
             () => Array.from(document.querySelectorAll('nav, [role="navigation"], header'))
                        .map(el => el.innerText || el.textContent || '').join(' ')
         """) or "")
 
-        alt_texts     = normalize_spaces(page.evaluate("""
-            () => Array.from(document.querySelectorAll('img[alt]'))
-                       .map(img => img.getAttribute('alt') || '').join(' ')
-        """) or "")
-
+        # strong / em / b 強調文字
         emphasis_text = normalize_spaces(page.evaluate("""
-            () => Array.from(document.querySelectorAll('strong, em, b'))
-                       .map(el => el.innerText || el.textContent || '').join(' ')
+            () => Array.from(document.querySelectorAll('strong, em, b, mark, cite'))
+                       .map(el => el.innerText || el.textContent || '')
+                       .filter(t => t.trim().length > 0)
+                       .join(' ')
         """) or "")
 
-        meta_desc     = normalize_spaces(page.evaluate("""
-            () => { const el = document.querySelector('meta[name="description"]');
-                    return el ? el.getAttribute('content') || '' : ''; }
-        """) or "")
-
-        li_texts      = normalize_spaces(page.evaluate("""
-            () => Array.from(document.querySelectorAll('li'))
-                       .map(li => li.innerText || li.textContent || '').join(' ')
-        """) or "")
-
-        table_texts   = normalize_spaces(page.evaluate("""
-            () => Array.from(document.querySelectorAll('td, th'))
-                       .map(el => el.innerText || el.textContent || '').join(' ')
-        """) or "")
-
-        shadow_texts  = normalize_spaces(page.evaluate("""
+        # Shadow DOM 深層文字
+        shadow_texts = normalize_spaces(page.evaluate("""
             () => {
                 function extractShadow(root) {
                     let text = '';
@@ -137,6 +388,7 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
             }
         """) or "")
 
+        # 同源 iframe 文字
         iframe_texts = ""
         try:
             iframe_texts = normalize_spaces(page.evaluate("""
@@ -154,23 +406,81 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
         except Exception:
             pass
 
+        # ── TreeWalker：逐一走訪所有 TEXT_NODE，不漏任何文字節點 ──────────
+        #    這是最底層的保險網：不管元素結構怎麼包，只要有文字就抓到
+        walker_texts = normalize_spaces(page.evaluate("""
+            () => {
+                const SKIP_TAGS = new Set(['SCRIPT','STYLE','NOSCRIPT','TEMPLATE']);
+                const parts = [];
+                const walker = document.createTreeWalker(
+                    document.body,
+                    NodeFilter.SHOW_TEXT,
+                    {
+                        acceptNode(node) {
+                            // 跳過 script/style 內的文字
+                            let p = node.parentElement;
+                            while (p) {
+                                if (SKIP_TAGS.has(p.tagName)) return NodeFilter.FILTER_REJECT;
+                                p = p.parentElement;
+                            }
+                            return node.nodeValue && node.nodeValue.trim()
+                                ? NodeFilter.FILTER_ACCEPT
+                                : NodeFilter.FILTER_SKIP;
+                        }
+                    }
+                );
+                let node;
+                while ((node = walker.nextNode())) {
+                    const t = node.nodeValue.trim();
+                    if (t) parts.push(t);
+                }
+                return parts.join(' ');
+            }
+        """) or "")
+        # ──────────────────────────────────────────────────────────────────
+
+        # ── 合併所有來源 ───────────────────────────────────────────────────
         full_text = normalize_spaces(" ".join([
-            visible_text, meta_desc, alt_texts,
-            li_texts, table_texts, shadow_texts, iframe_texts,
+            visible_text,       # body.innerText（主力）
+            all_text_content,   # body.textContent（補漏）
+            walker_texts,       # TreeWalker 逐節點（終極保險）
+            p_texts,            # <p>
+            li_texts,           # <li>
+            table_texts,        # <td><th>
+            div_texts,          # <div>
+            span_texts,         # <span>
+            a_texts,            # <a>
+            button_texts,       # <button>
+            label_texts,        # <label>
+            input_texts,        # <input> placeholder/value
+            option_texts,       # <option>
+            alt_texts,          # img[alt]
+            aria_texts,         # aria-label / title 屬性
+            data_attr_texts,    # data-content / data-text 等
+            meta_desc,          # <meta description/keywords>
+            shadow_texts,       # Shadow DOM
+            iframe_texts,       # 同源 iframe
         ]))
         if len(full_text) > MAX_FULL_TEXT_CHARS:
             full_text = full_text[:MAX_FULL_TEXT_CHARS]
 
         return {
-            "title": title, "h1_list": h1_list, "h2_list": h2_list, "h3_list": h3_list,
-            "full_text": full_text, "nav_text": nav_text, "emphasis_text": emphasis_text,
-            "error": None,
+            "title":         title,
+            "h1_list":       h1_list,
+            "h2_list":       h2_list,
+            "h3_list":       h3_list,
+            "full_text":     full_text,
+            "nav_text":      nav_text,
+            "emphasis_text": emphasis_text,
+            "p_texts":       p_texts,   # 單獨保留，下游可直接使用
+            "error":         None,
         }
 
     except Exception as e:
         return {
             "title": "", "h1_list": [], "h2_list": [], "h3_list": [],
-            "full_text": "", "nav_text": "", "emphasis_text": "", "error": str(e),
+            "full_text": "", "nav_text": "", "emphasis_text": "",
+            "p_texts": "", "error": str(e),
         }
 
 
@@ -288,7 +598,7 @@ def classify_url_with_browser(page, url, thresholds=THRESHOLDS, school_id=""):
         "best_type": best_type, "best_score": best_score,
         "matched_types": matched_types, "scores": scores,
         "title": title, "h1_list": h1_list, "h2_list": h2_list, "h3_list": h3_list,
-        "full_text": full_text,  
+        "full_text": full_text,
         "text_preview": full_text[:1000], "error": None,
         "timestamp": datetime.now().isoformat(),
     }
@@ -303,14 +613,12 @@ def print_result(result, thresholds=THRESHOLDS):
     url   = result["url"]
     title = result.get("title", "")
 
-    # 第一行：school / url / title
     print(f"[{sid}] {url}  |  {title}")
 
     if result.get("error"):
         print(f"  ERROR: {result['error']}")
         return
 
-    # 第二行：h1 / h2 / h3（各取前 3 個）
     h1 = " / ".join(result["h1_list"][:3])
     h2 = " / ".join(result["h2_list"][:3])
     h3 = " / ".join(result["h3_list"][:3])
@@ -321,7 +629,6 @@ def print_result(result, thresholds=THRESHOLDS):
     if heads:
         print("  " + "  |  ".join(heads))
 
-    # 第三行：最終分類 + 各類別分數
     scores_str = "  ".join(
         f"{pt}={sc}" for pt, sc in
         sorted(result["scores"].items(), key=lambda x: x[1], reverse=True)
@@ -334,11 +641,11 @@ def print_result(result, thresholds=THRESHOLDS):
 # 單一 thread 的工作單元
 # ──────────────────────────────────────────────
 
-def worker(school_urls_batch):  # ← 移除 playwright_instance
+def worker(school_urls_batch):
     from playwright.sync_api import sync_playwright
 
-    with sync_playwright() as p:  # ← 每個 thread 自己開
-        browser = p.chromium.launch(headless=True)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
         context = browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -367,17 +674,15 @@ def worker(school_urls_batch):  # ← 移除 playwright_instance
 # 主程式
 # ──────────────────────────────────────────────
 
-def score_one_school(school_id: str):
+def score_one_school(school_id: str, path: str):
     print(f"\n=== Batch Classification for school={school_id} ===\n")
 
-    DATA_DIR_PATH = "url_result" + "/" + school_id + "/"
-    FILE_PATH = DATA_DIR_PATH + school_id + "_keep.json"
+    file = school_id + "_keep.json"
+    FILE_PATH = path / school_id / file
 
-    # 讀取 JSON 檔
     with open(FILE_PATH, "r", encoding="utf-8") as f:
         school = json.load(f)
 
-    # 展平成 (school_id, url) 列表
     flat = [
         (school["school_id"], url)
         for url in school["urls"]
@@ -387,13 +692,11 @@ def score_one_school(school_id: str):
         print("⚠️  沒有找到任何 URL，結束")
         return []
 
-    # 切分成 NUM_THREADS 份，移除空 chunk
     chunks = [flat[i::NUM_THREADS] for i in range(NUM_THREADS)]
     chunks = [c for c in chunks if c]
 
     all_results = []
 
-    # ❗ 移除 sync_playwright（每個 thread 自己開）
     with ThreadPoolExecutor(max_workers=len(chunks)) as executor:
         futures = {
             executor.submit(worker, chunk): i

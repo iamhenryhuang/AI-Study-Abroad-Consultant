@@ -15,6 +15,7 @@ def save_school_results(results: List[Dict[str, Any]], school_id: str, output_di
     - 檔案命名為 {school_id}_data.json
     - 只保留通過門檻（matched_types 不為空）且 type != "other" 的網頁
     - 每筆記錄包含：school_id、url、passed_types、data（可見文字）
+    - 每次執行都直接覆蓋舊檔
     """
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -25,7 +26,6 @@ def save_school_results(results: List[Dict[str, Any]], school_id: str, output_di
             continue
 
         matched_types = result.get("matched_types", [])
-
         if not matched_types:
             continue
 
@@ -40,10 +40,10 @@ def save_school_results(results: List[Dict[str, Any]], school_id: str, output_di
         visible_text = result.get("full_text") or result.get("text_preview", "")
 
         records.append({
-            "school_id":    school_id,
-            "url":          result.get("url", ""),
+            "school_id": school_id,
+            "url": result.get("url", ""),
             "passed_types": passed_types,
-            "data":         visible_text,
+            "data": visible_text,
         })
 
     if not records:
@@ -52,23 +52,10 @@ def save_school_results(results: List[Dict[str, Any]], school_id: str, output_di
 
     output_path = Path(output_dir) / f"{school_id}_data.json"
 
-    # 若檔案已存在，合併舊資料（避免重複 URL）
-    existing: List[Dict] = []
-    if output_path.exists():
-        try:
-            with open(output_path, "r", encoding="utf-8") as f:
-                existing = json.load(f)
-        except (json.JSONDecodeError, IOError):
-            existing = []
-
-    existing_urls = {r["url"] for r in existing}
-    new_records   = [r for r in records if r["url"] not in existing_urls]
-    merged        = existing + new_records
-
     with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(merged, f, ensure_ascii=False, indent=2)
+        json.dump(records, f, ensure_ascii=False, indent=2)
 
-    print(f"💾 [{school_id}] 儲存 {len(new_records)} 筆（共 {len(merged)} 筆）→ {output_path}")
+    print(f"💾 [{school_id}] 覆蓋儲存 {len(records)} 筆 → {output_path}")
 
 
 def save_single_result(result: Dict[str, Any], output_dir: str = OUTPUT_DIR) -> None:

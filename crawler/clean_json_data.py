@@ -2,6 +2,7 @@ import json
 import os
 import glob
 import re
+from pathlib import Path
 
 # ============================================================
 # 在這裡自由新增要刪除的字眼
@@ -55,14 +56,15 @@ KEYWORDS_TO_REMOVE = [
     "Search",
     "Check your email to complete the gradSERU survey for a chance to win one of seven $3,000 bursaries! ",
     "Skip to main  =\"https://www.googletagmanager.com/ns.html?id=GTM-N7QFGH2P\" =\"0\" =\"0\" =\"display:;",
-    ":\"/ Graduate Education Office of Graduate and Postdoctoral Education Audience Information For: Prospective Students New Students Current Students Faculty & Staff Main About Tech Program Information Cost & Funding Admissions Professional Development News & Events Quick Actions Apply FAQs Request Info Give "
+    ":\"/ Graduate Education Office of Graduate and Postdoctoral Education Audience Information For: Prospective Students New Students Current Students Faculty & Staff Main About Tech Program Information Cost & Funding Admissions Professional Development News & Events Quick Actions Apply FAQs Request Info Give ",
+    "=\"https://www.googletagmanager.com/ns.html?id=GTM-5LK9HJ2\" =\"0\" =\"0\" =\"display:;:",
 ]
 
 # ============================================================
 # 設定要掃描的資料夾路徑（預設為目前目錄）
 # Set the folder path to scan (default: current directory)
 # ============================================================
-SCAN_FOLDER = "./school_data"
+SCAN_FOLDER = Path(__file__).resolve().parent / "school_data"
 
 
 def remove_keywords(text: str, keywords: list[str]) -> str:

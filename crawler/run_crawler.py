@@ -20,6 +20,7 @@ for 讀取url :
 """ 
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 from url_crawler import crawl_one_school
 from score import score_one_school
@@ -29,20 +30,22 @@ from clean_json_data import clean
 from setting.root_url import SCHOOLS
 from setting.parameter import CONFIG
 
-update_table = ["ucsd","mit","uci","caltech","gatech","WashU","standford","ucla","utoronto","perdure"]
+PATH_DATA = Path(__file__).resolve().parent / "school_data"
+PATH_URL = Path(__file__).resolve().parent / "url_result"
+update_table = ["caltech"]#,"mit","uci","caltech","gatech","WashU","standford","ucla","utoronto","perdure"]
 
 # 每間學校的步驟
 def crawl_school(school):
     school_id = school.get("school_id")
     print(f"[START] {school_id}")
     # 第一步驟 爬完url存入json檔案
-    crawl_one_school(school, CONFIG.MAX_DEPTH)
+    #crawl_one_school(school, CONFIG.MAX_DEPTH,PATH_URL)
     
     # 第二步驟 評分
-    result = score_one_school(school_id)
+    result = score_one_school(school_id,PATH_URL)
     
     # 第三步驟 儲存
-    save_school_results(result,school_id)
+    save_school_results(result,school_id,PATH_DATA)
     
     # 第四步驟 清洗
     clean()
