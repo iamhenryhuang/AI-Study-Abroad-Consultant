@@ -49,7 +49,7 @@ _SCHOOL_ALIASES: dict[str, list[str]] = {
 }
 
 MAX_ROUNDS      = 2   # Planner 最多重試幾輪
-TOP_K_PER_QUERY = 5   # 每個子問題檢索幾筆
+TOP_K_PER_QUERY = 15   # 每個子問題檢索幾筆
 
 # 模組層級的 on_event callback（執行期間設定）
 _current_on_event: Optional[Callable[[dict], None]] = None
@@ -177,7 +177,13 @@ def decomposer_node(state: AgentState) -> dict:
         "final_answer":     "",
     }
 
-
+def _test():
+    q = "Provide detailed information about English test and GRE requirements(including min score) for applying to Caltech's CS master’s program."
+    q2 = "Caltech english min score requrement"
+    q3 = "Caltech cs master apply deadline"
+    q4 = "Caltech cs master Eligibility and min gpa"
+    q5 = "Caltech cs master min gpa"
+    _search_one_query(q2,q)
 # ─── Node 2：Searcher ─────────────────────────────────────────────────────────
 
 def _search_one_query(q: str, original_query: str) -> tuple[list[dict], str | None]:
@@ -197,6 +203,13 @@ def _search_one_query(q: str, original_query: str) -> tuple[list[dict], str | No
     })
 
     results = search_core(query=q, top_k=TOP_K_PER_QUERY, use_rerank=True, school_id=school_id)
+    
+    for v in results:
+        k = v.get("chunk_text")
+        print("chunck長度:  ",len(k))
+        print(v.get("passed_types"))
+        print(v.get("source_url"))
+        print("內容",k)
 
     _emit({
         "type": "tool_result",
@@ -259,7 +272,7 @@ def _build_planner_prompt(query: str, docs: list[dict], searched: list[str]) -> 
     )
     searched_str = "\n".join(f"- {q}" for q in searched)
 
-    return f"""你是一位資料充足性評估專家。請根據以下資訊判斷目前的資料是否足夠回答使用者問題。
+    return f"""你是的任務是評估資料充足性。請根據以下資訊判斷目前的資料是否足夠回答使用者問題。
 
 【使用者原始問題】
 {query}
@@ -287,6 +300,10 @@ def _build_planner_prompt(query: str, docs: list[dict], searched: list[str]) -> 
 4. 補充問題只針對完全空白的學校或面向，不得重複已搜尋的問題。
 5. 補充問題（extra_queries）必須用英文撰寫，以提升向量檢索效果。
 6. 只輸出 JSON，不要有其他文字。
+7. 第一輪時除非問題真的太短，否則盡量拆解問題
+8. 拆解問題時，盡量用 學校 + 需求問題 的形式
+9. 問題請用英文，作答時也用英文，最後輸出轉為中文即可
+10.若出現需要找english proficiency(TOFEL、雅思、多鄰國)或GRE成績需求時，皆在子問題中包含最低接受成績與是否需要
 
 你的判斷："""
 
@@ -487,6 +504,8 @@ def run_agent(
 # ─── CLI 入口 ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    _test()
+    '''
     import argparse
     import io
 
@@ -511,3 +530,4 @@ if __name__ == "__main__":
     else:
         print("生成回答失敗。")
         sys.exit(1)
+    '''

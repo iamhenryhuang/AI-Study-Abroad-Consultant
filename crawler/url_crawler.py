@@ -187,7 +187,7 @@ def block_resources(context):
 def run_worker(task_chunk: list, root_info: dict, worker_id: int, print_lock: threading.Lock) -> list:
     results = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False)
         context = browser.new_context(
             user_agent=USER_AGENT,
             viewport={"width": 1440, "height": 900},

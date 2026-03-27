@@ -5,13 +5,13 @@ SCHOOLS = [
         "school_id": "ucla",
         "roots": [
             "https://grad.ucla.edu/admissions",
-            "https://grad.ucla.edu/funding",
+            "https://grad.ucla.edu/programs/school-of-engineering-and-applied-science",
         ],
     },
     {
         "school_id": "ucsd",
         "roots": [
-            "https://cse.ucsd.edu/graduate/admissions",
+            "https://cse.ucsd.edu/graduate",
             "https://grad.ucsd.edu/admissions/",
         ],
     },
@@ -22,15 +22,17 @@ SCHOOLS = [
         ],
     },
     {
-        "school_id": "standford",
+        "school_id": "stanford",
         "roots": [
             "https://www.cs.stanford.edu/admissions",
+            "https://gradadmissions.stanford.edu/apply"
         ],
     },
     {
         "school_id": "cmu",
         "roots": [
             "https://www.cs.cmu.edu/academics/graduate-admissions",
+            "https://www.cs.cmu.edu/academics/masters/programs",
         ],
     },
     {
@@ -38,6 +40,9 @@ SCHOOLS = [
         "roots": [
          "https://grad.gatech.edu/admissions",
          "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+         "https://grad.gatech.edu/faq/knowledgebase.php?category=5",
+         "https://grad.gatech.edu/english-proficiency",
+         ""
         ],
     },
     {
@@ -70,7 +75,7 @@ SCHOOLS = [
         ],
     },
     {
-        "school_id": "perdure",
+        "school_id": "purdue",
         "roots": [
             "https://www.cs.purdue.edu/graduate/admission/",
         ],
