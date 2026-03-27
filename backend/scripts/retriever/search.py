@@ -108,7 +108,7 @@ def _execute_hybrid_search(
 
 def search_core(
     query: str,
-    top_k: int = 5,
+    top_k: int = 15,
     use_rerank: bool = True,
     school_id: str | None = None,
 ) -> list[dict]:
