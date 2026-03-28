@@ -27,7 +27,7 @@ load_dotenv()
 
 from langgraph.graph import StateGraph, END
 from retriever.search import search_core
-from generator.gemini import get_gemini_client, generate_answer
+from generator.gemini import get_gemini_client, generate_answer,chunk_compress
 
 
 # ─── 學校別名對照表 ───────────────────────────────────────────────────────────
@@ -48,8 +48,8 @@ _SCHOOL_ALIASES: dict[str, list[str]] = {
     "utoronto": ["utoronto", "toronto", "多倫多"],
 }
 
-MAX_ROUNDS      = 2   # Planner 最多重試幾輪
-TOP_K_PER_QUERY = 15   # 每個子問題檢索幾筆
+MAX_ROUNDS      = 3   # Planner 最多重試幾輪
+TOP_K_PER_QUERY = 10   # 每個子問題檢索幾筆
 
 # 模組層級的 on_event callback（執行期間設定）
 _current_on_event: Optional[Callable[[dict], None]] = None
@@ -143,7 +143,41 @@ def _make_school_query(original_query: str, target_school_id: str, all_school_id
 
     return query.strip()
 
+class AgentState(TypedDict):
+    original_query:   str
+    sub_queries:      list[str]
+    extra_queries:    Annotated[list[str], operator.add]
+    pending_queries:  list[str]
+    collected_docs:   Annotated[list[dict], operator.add]
+    searched_queries: Annotated[list[str], operator.add]
+    is_sufficient:    bool
+    round_count:      int
+    final_answer:     str
 
+def test__():
+    query = "Compare the CS Master's admission requirements for UCLA, umass."
+    q2 = "Compare the CS Master's admission requirements for UCSD, Stanford. my gpa is 3.2/4 give me some suggestion to choose school."
+    q3 = "What are the differences between UCSD and Stanford CS MS requirements?"
+    q4 = "What GRE/TOEFL requirements do Stanford and UMass CS MS have?"
+    
+    q5 = "Compare UCLA and UMass CS MS requirements base on my GPA is 3.2/4."
+    q6 = "Compare these programs considering my background: GPA 3.2/4, TOEFL 100."
+    
+    q7 = "give me some suggestion about cs master base on my GRE is 350."
+    
+    initial_state: AgentState = {
+        "original_query":  q7,
+        "sub_queries":     [],
+        "extra_queries":   [],
+        "pending_queries": [],
+        "collected_docs":  [],
+        "searched_queries": [],
+        "is_sufficient":   False,
+        "round_count":     0,
+        "final_answer":    "",
+    }
+    decomposer_node_1(initial_state)
+    
 def decomposer_node(state: AgentState) -> dict:
     """
     規則式拆解（無 LLM）：
@@ -177,13 +211,118 @@ def decomposer_node(state: AgentState) -> dict:
         "final_answer":     "",
     }
 
+def decomposer_node_1(state: AgentState) -> dict:
+    query = state["original_query"]
+    prompt = f"""
+你是一個 Query Decomposer，負責將使用者問題轉換為結構化資訊。
+
+你需要完成兩個任務，並嚴格遵守規則輸出 JSON。
+
+====================
+【任務一：學校辨識 + 子問題拆解】
+====================
+1. 從使用者問題中辨識出所有「明確提及」的學校（必須出現在已知學校清單中）
+2. 若偵測到多所學校：
+   - 為每一所學校產生一個對應的子問題
+3. 若只偵測到一所學校：
+   - 產生 1 個子問題
+4. 若沒有偵測到任何學校：
+   - school_ids = []
+   - sub_queries = [將原問題改寫為較清楚的單一問題]
+
+【子問題格式要求】
+- 優先使用：「學校 + 需求內容？」形式
+- 保持語意完整，不要遺漏條件
+- 不要自行新增未提及的資訊
+
+====================
+【任務二：是否有推薦學校意圖（school_tend）】
+====================
+請判斷使用者是否「希望你推薦學校」
+
+✔ 設為 true 的條件（需同時滿足）：
+1. 問題包含「選校 / 推薦 / 哪些學校適合 / 落點分析」等意圖
+2. 且提供至少一項背景資訊：
+   - GPA
+   - GRE / GMAT
+   - 英文成績（TOEFL / IELTS / DET）
+
+❌ 否則一律為 false
+
+====================
+【使用者問題】
+{query}
+
+【已知學校清單】（school_ids 只能從此清單的 key 欄位選取）
+{list(_SCHOOL_ALIASES.keys())}
+
+====================
+【輸出格式（嚴格遵守）】
+====================
+只輸出 JSON，禁止輸出任何說明文字
+
+{{
+  "school_ids": ["school_id_1", ...],
+  "sub_queries": ["子問題1", "子問題2", ...],
+  "school_tend": true or false
+}}
+"""
+
+    # ── LLM 呼叫 ──────────────────────────────────────────────────
+    raw = _call_llm(prompt)
+
+    # ── 解析結果 ──────────────────────────────────────────────────
+    try:
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if not match:
+            raise ValueError("找不到 JSON")
+        parsed      = json.loads(match.group())
+        school_ids  = [
+            str(s).strip()
+            for s in parsed.get("school_ids", [])
+            if str(s).strip() in _SCHOOL_ALIASES          # ← 只保留合法的 key
+        ]
+        sub_queries = [str(q).strip() for q in parsed.get("sub_queries", []) if str(q).strip()]
+        print(parsed.get("school_tend"))
+
+        if not sub_queries:
+            raise ValueError("sub_queries 為空")
+
+    except Exception as e:
+        # Fallback：解析失敗時退回原始問題
+        print(f"[Decomposer] LLM 解析失敗（{e}），使用原始問題作為 fallback")
+        school_ids  = _detect_school_ids(query)   # ← 補上必要的參數
+        sub_queries = [query]
+
+    # ── 日誌 ──────────────────────────────────────────────────────
+    if len(school_ids) >= 2:
+        print(f"[Decomposer] 偵測到 {len(school_ids)} 所學校，拆解為 {len(sub_queries)} 個子問題：")
+    else:
+        label = f"（學校：{school_ids[0]}）" if school_ids else "（無特定學校）"
+        print(f"[Decomposer] 單一問題 {label}：")
+
+    for i, q in enumerate(sub_queries, 1):
+        print(f"  Q{i}: {q}")
+
+    # ── 回傳（與原版完全相同） ─────────────────────────────────────
+    return {
+        "sub_queries":      sub_queries,
+        "pending_queries":  sub_queries,
+        "extra_queries":    [],
+        "collected_docs":   [],
+        "searched_queries": [],
+        "is_sufficient":    False,
+        "round_count":      0,
+        "final_answer":     "",
+    }
+
 def _test():
-    q = "Provide detailed information about English test and GRE requirements(including min score) for applying to Caltech's CS master’s program."
+    q = "Provide detailed information about English test(including min score) and GRE requirements for applying to Caltech's CS master’s program."
     q2 = "Caltech english min score requrement"
     q3 = "Caltech cs master apply deadline"
     q4 = "Caltech cs master Eligibility and min gpa"
     q5 = "Caltech cs master min gpa"
-    _search_one_query(q2,q)
+    _search_one_query(q,q)
 # ─── Node 2：Searcher ─────────────────────────────────────────────────────────
 
 def _search_one_query(q: str, original_query: str) -> tuple[list[dict], str | None]:
@@ -204,12 +343,31 @@ def _search_one_query(q: str, original_query: str) -> tuple[list[dict], str | No
 
     results = search_core(query=q, top_k=TOP_K_PER_QUERY, use_rerank=True, school_id=school_id)
     
+    """
+        Returns: result結構
+        list of dict，每筆包含 chunk_text、source_url、passed_types、
+        school_id、university_name、vector_score、rerank_score。
+    """
+    # 插入compress 邏輯
+    
     for v in results:
         k = v.get("chunk_text")
         print("chunck長度:  ",len(k))
         print(v.get("passed_types"))
         print(v.get("source_url"))
         print("內容",k)
+        
+    """
+        測試compress函數
+    """
+    #results = chunk_compress(results,q)
+    
+    #for v in results:
+    #    k = v.get("chunk_text")
+    #    print("Chunk ID",v.get("id"))
+    #    print("問題是:  ",v.get("query"))
+    #    print("chunck長度:  ",len(k))
+    #    print("內容",k)
 
     _emit({
         "type": "tool_result",
@@ -243,9 +401,14 @@ def searcher_node(state: AgentState) -> dict:
 
         results, school_id = _search_one_query(q, original_query)
         print(f"     搜尋：{q}  學校過濾：{school_id or '（全域）'}  取得 {len(results)} 筆")
+        
+        for item in results:
+            item["query"] = q
 
         new_docs.extend(results)
         newly_searched.append(q)
+    
+    new_docs = chunk_compress(new_docs)
 
     print(f"[Searcher] 本輪新增 {len(new_docs)} 筆文件")
 
@@ -290,7 +453,7 @@ def _build_planner_prompt(query: str, docs: list[dict], searched: list[str]) -> 
 {{
   "is_sufficient": true 或 false,
   "reason": "簡短說明為何足夠/不夠（1-2句）",
-  "extra_queries": ["English follow-up query 1", ..., "English follow-up query 5"]  // 若 is_sufficient=false 才填，最多 5 個
+  "extra_queries": ["English follow-up query 1", ..., "English follow-up query 5"],// 若 is_sufficient=false 才填，最多 5 個
 }}
 
 規則（請嚴格遵守）：
@@ -300,12 +463,12 @@ def _build_planner_prompt(query: str, docs: list[dict], searched: list[str]) -> 
 4. 補充問題只針對完全空白的學校或面向，不得重複已搜尋的問題。
 5. 補充問題（extra_queries）必須用英文撰寫，以提升向量檢索效果。
 6. 只輸出 JSON，不要有其他文字。
-7. 第一輪時除非問題真的太短，否則盡量拆解問題
-8. 拆解問題時，盡量用 學校 + 需求問題 的形式
+7. 除非問題真的太短，否則盡量拆解問題。
+8. 拆解問題時，盡量用 學校 + 需求問題 的形式。
 9. 問題請用英文，作答時也用英文，最後輸出轉為中文即可
-10.若出現需要找english proficiency(TOFEL、雅思、多鄰國)或GRE成績需求時，皆在子問題中包含最低接受成績與是否需要
-
-你的判斷："""
+10.若出現需要找english proficiency(TOFEL、TOEFL iBT、IELTS、Duolingo English Test(DET))或GRE成績需求時，皆在子問題中包含最低接受成績與是否需要提供
+11.盡量減少問題過於發散，只問相關的問題與目前資料不足的問題
+你的判斷：(判斷用中文回答) """
 
 
 def _parse_planner_response(raw: str) -> tuple[bool, str, list[str]]:
@@ -415,7 +578,7 @@ def should_continue(state: AgentState) -> str:
 def _build_graph():
     builder = StateGraph(AgentState)
 
-    builder.add_node("decompose", decomposer_node)
+    builder.add_node("decompose", decomposer_node_1)
     builder.add_node("search",    searcher_node)
     builder.add_node("plan",      planner_node)
     builder.add_node("finalize",  finalizer_node)
@@ -504,8 +667,8 @@ def run_agent(
 # ─── CLI 入口 ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    _test()
-    '''
+    #test__()
+    
     import argparse
     import io
 
@@ -530,4 +693,4 @@ if __name__ == "__main__":
     else:
         print("生成回答失敗。")
         sys.exit(1)
-    '''
+    

@@ -58,6 +58,8 @@ KEYWORDS_TO_REMOVE = [
     "Skip to main  =\"https://www.googletagmanager.com/ns.html?id=GTM-N7QFGH2P\" =\"0\" =\"0\" =\"display:;",
     ":\"/ Graduate Education Office of Graduate and Postdoctoral Education Audience Information For: Prospective Students New Students Current Students Faculty & Staff Main About Tech Program Information Cost & Funding Admissions Professional Development News & Events Quick Actions Apply FAQs Request Info Give ",
     "=\"https://www.googletagmanager.com/ns.html?id=GTM-5LK9HJ2\" =\"0\" =\"0\" =\"display:;:",
+    "sk_",
+    "DIVISION OF GRADUATE EDUCATION AND POSTDOCTORAL AFFAIRS UC San Diego ",
 ]
 
 # ============================================================

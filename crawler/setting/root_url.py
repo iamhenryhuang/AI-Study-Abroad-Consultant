@@ -85,6 +85,7 @@ SCHOOLS = [
         "roots": [
          "https://www.umass.edu/graduate/apply",
          "https://www.umass.edu/graduate/academics",
+         "https://www.umass.edu/graduate/academics/master-science-computer-science",
         ],
     },
 ]
