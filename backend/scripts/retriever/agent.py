@@ -1,12 +1,11 @@
 """
 流程：
-  1. Decomposer  — 規則式拆解（無 LLM）：
-                   - 偵測到 N 所學校 → 拆成 N 個子問題（每問題對應一所學校）
-                   - 偵測不到多所學校 → 使用原始問題
-  2. Searcher    — 每個子問題依自己的 school_id 向資料庫檢索
-  3. Planner     — 判斷目前收集的資料是否夠（最多 2 輪）
-                   若不夠，產生英文補充子問題繼續搜尋
-  4. Finalizer   — 彙整所有文件，呼叫 Gemini 生成最終答案
+  1. Decomposer       — LLM 拆解子問題 + 偵測學校
+  1.5 ProfessorFetcher — 若 query 含教授意圖，呼叫 SerpAPI 即時抓取教授資料
+  2. Searcher         — 每個子問題依自己的 school_id 向資料庫檢索
+  3. Planner          — 判斷目前收集的資料是否夠（最多 2 輪）
+                        若不夠，產生英文補充子問題繼續搜尋
+  4. Finalizer        — 彙整所有文件，呼叫 Gemini 生成最終答案
 """
 
 from __future__ import annotations
@@ -27,7 +26,8 @@ load_dotenv()
 
 from langgraph.graph import StateGraph, END
 from retriever.search import search_core
-from generator.gemini import get_gemini_client, generate_answer,chunk_compress
+from generator.gemini import get_gemini_client, generate_answer, chunk_compress
+from professor_fetcher.fetch_for_agent import fetch_professor_docs
 
 
 # ─── 學校別名對照表 ───────────────────────────────────────────────────────────
@@ -58,15 +58,16 @@ _current_on_event: Optional[Callable[[dict], None]] = None
 # ─── State ───────────────────────────────────────────────────────────────────
 
 class AgentState(TypedDict):
-    original_query:   str
-    sub_queries:      list[str]
-    extra_queries:    Annotated[list[str], operator.add]
-    pending_queries:  list[str]
-    collected_docs:   Annotated[list[dict], operator.add]
-    searched_queries: Annotated[list[str], operator.add]
-    is_sufficient:    bool
-    round_count:      int
-    final_answer:     str
+    original_query:    str
+    sub_queries:       list[str]
+    extra_queries:     Annotated[list[str], operator.add]
+    pending_queries:   list[str]
+    collected_docs:    Annotated[list[dict], operator.add]
+    searched_queries:  Annotated[list[str], operator.add]
+    is_sufficient:     bool
+    round_count:       int
+    final_answer:      str
+    professor_fetched: bool   # True 表示已透過 API 抓取教授資料，跳過向量搜尋
 
 
 # ─── 工具函式 ─────────────────────────────────────────────────────────────────
@@ -144,15 +145,16 @@ def _make_school_query(original_query: str, target_school_id: str, all_school_id
     return query.strip()
 
 class AgentState(TypedDict):
-    original_query:   str
-    sub_queries:      list[str]
-    extra_queries:    Annotated[list[str], operator.add]
-    pending_queries:  list[str]
-    collected_docs:   Annotated[list[dict], operator.add]
-    searched_queries: Annotated[list[str], operator.add]
-    is_sufficient:    bool
-    round_count:      int
-    final_answer:     str
+    original_query:    str
+    sub_queries:       list[str]
+    extra_queries:     Annotated[list[str], operator.add]
+    pending_queries:   list[str]
+    collected_docs:    Annotated[list[dict], operator.add]
+    searched_queries:  Annotated[list[str], operator.add]
+    is_sufficient:     bool
+    round_count:       int
+    final_answer:      str
+    professor_fetched: bool
 
 # def test__():
 #     query = "Compare the CS Master's admission requirements for UCLA, umass."
@@ -231,7 +233,8 @@ def decomposer_node_1(state: AgentState) -> dict:
    - sub_queries = [將原問題改寫為較清楚的單一問題]
 
 【子問題格式要求】
-- 優先使用：「學校 + 需求內容？」形式
+- 所有子問題必須用英文撰寫，無論使用者原始問題是何種語言
+- 優先使用：「School + requirement content?」形式
 - 保持語意完整，不要遺漏條件
 - 不要自行新增未提及的資訊
 
@@ -263,7 +266,7 @@ def decomposer_node_1(state: AgentState) -> dict:
 
 {{
   "school_ids": ["school_id_1", ...],
-  "sub_queries": ["子問題1", "子問題2", ...],
+  "sub_queries": ["sub-query in English 1", "sub-query in English 2", ...],
   "school_tend": true or false
 }}
 """
@@ -323,6 +326,32 @@ def decomposer_node_1(state: AgentState) -> dict:
 #     q4 = "Caltech cs master Eligibility and min gpa"
 #     q5 = "Caltech cs master min gpa"
 #     _search_one_query(q,q)
+
+# ─── Node 1.5：ProfessorFetcher ───────────────────────────────────────────────
+
+def professor_fetch_node(state: AgentState) -> dict:
+    """
+    教授資料抓取節點。透過 SerpAPI 即時抓取，不走向量搜尋。
+    細節實作（意圖偵測、LLM 解析、SerpAPI 抓取、格式轉換）皆在
+    professor_fetcher/fetch_for_agent.py 中處理。
+    若有抓到資料，設定 professor_fetched=True，後續跳過 searcher。
+    """
+    query = state["original_query"]
+    _emit({"type": "thinking", "step": "professor_fetch"})
+
+    docs = fetch_professor_docs(query)
+
+    if docs:
+        _emit({
+            "type": "tool_result",
+            "tool": "fetch_professor",
+            "preview": f"找到 {len(docs)} 筆教授相關資料",
+        })
+        return {"collected_docs": docs, "professor_fetched": True}
+
+    return {"professor_fetched": False}
+
+
 # ─── Node 2：Searcher ─────────────────────────────────────────────────────────
 
 def _search_one_query(q: str, original_query: str) -> tuple[list[dict], str | None]:
@@ -575,17 +604,32 @@ def should_continue(state: AgentState) -> str:
     return "finalize" if state.get("is_sufficient", True) else "search"
 
 
+def after_professor_fetch(state: AgentState) -> str:
+    """
+    professor_fetch 後的路由：
+    - 已抓到教授資料（professor_fetched=True）→ 直接 finalize，跳過向量搜尋
+    - 無教授意圖 → 走一般向量搜尋流程
+    """
+    return "finalize" if state.get("professor_fetched", False) else "search"
+
+
 def _build_graph():
     builder = StateGraph(AgentState)
 
-    builder.add_node("decompose", decomposer_node_1)
-    builder.add_node("search",    searcher_node)
-    builder.add_node("plan",      planner_node)
-    builder.add_node("finalize",  finalizer_node)
+    builder.add_node("decompose",        decomposer_node_1)
+    builder.add_node("professor_fetch",  professor_fetch_node)
+    builder.add_node("search",           searcher_node)
+    builder.add_node("plan",             planner_node)
+    builder.add_node("finalize",         finalizer_node)
 
     builder.set_entry_point("decompose")
-    builder.add_edge("decompose", "search")
-    builder.add_edge("search",    "plan")
+    builder.add_edge("decompose", "professor_fetch")
+    builder.add_conditional_edges(
+        "professor_fetch",
+        after_professor_fetch,
+        {"search": "search", "finalize": "finalize"},
+    )
+    builder.add_edge("search",          "plan")
     builder.add_conditional_edges(
         "plan",
         should_continue,
@@ -638,15 +682,16 @@ def run_agent(
             print(f"{'='*60}")
 
         initial_state: AgentState = {
-            "original_query":  query,
-            "sub_queries":     [],
-            "extra_queries":   [],
-            "pending_queries": [],
-            "collected_docs":  [],
-            "searched_queries": [],
-            "is_sufficient":   False,
-            "round_count":     0,
-            "final_answer":    "",
+            "original_query":    query,
+            "sub_queries":       [],
+            "extra_queries":     [],
+            "pending_queries":   [],
+            "collected_docs":    [],
+            "searched_queries":  [],
+            "is_sufficient":     False,
+            "round_count":       0,
+            "final_answer":      "",
+            "professor_fetched": False,
         }
 
         result_state = _get_graph().invoke(initial_state, {"recursion_limit": max_steps * 4})
