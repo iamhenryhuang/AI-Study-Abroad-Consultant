@@ -27,7 +27,7 @@ load_dotenv()
 from langgraph.graph import StateGraph, END
 from retriever.search import search_core
 from generator.gemini import get_gemini_client, generate_answer, chunk_compress
-from professor_fetcher.fetch_for_agent import fetch_professor_docs
+from professor_fetcher.fetch_for_agent import run_professor_fetch
 
 
 # ─── 學校別名對照表 ───────────────────────────────────────────────────────────
@@ -67,7 +67,8 @@ class AgentState(TypedDict):
     is_sufficient:     bool
     round_count:       int
     final_answer:      str
-    professor_fetched: bool   # True 表示已透過 API 抓取教授資料，跳過向量搜尋
+    professor_query:   dict | None   # Decomposer 偵測到的教授查詢 {name, school, school_id}
+    professor_fetched: bool          # True 表示已透過 API 抓取教授資料，跳過向量搜尋
 
 
 # ─── 工具函式 ─────────────────────────────────────────────────────────────────
@@ -154,6 +155,7 @@ class AgentState(TypedDict):
     is_sufficient:     bool
     round_count:       int
     final_answer:      str
+    professor_query:   dict | None
     professor_fetched: bool
 
 # def test__():
@@ -218,7 +220,7 @@ def decomposer_node_1(state: AgentState) -> dict:
     prompt = f"""
 你是一個 Query Decomposer，負責將使用者問題轉換為結構化資訊。
 
-你需要完成兩個任務，並嚴格遵守規則輸出 JSON。
+你需要完成三個任務，並嚴格遵守規則輸出 JSON。
 
 ====================
 【任務一：學校辨識 + 子問題拆解】
@@ -253,10 +255,18 @@ def decomposer_node_1(state: AgentState) -> dict:
 否則一律為 false
 
 ====================
+【任務三：教授查詢偵測（professor_query）】
+====================
+判斷問題是否在詢問「某位具體教授」的相關資訊。
+
+- 若問題中有「明確的教授姓名」，提取其姓名與學校，professor_query 為物件
+- 否則 professor_query 為 null
+
+====================
 【使用者問題】
 {query}
 
-【已知學校清單】（school_ids 只能從此清單的 key 欄位選取）
+【已知學校清單】（school_ids / professor_query.school_id 只能從此清單選取）
 {list(_SCHOOL_ALIASES.keys())}
 
 ====================
@@ -267,7 +277,8 @@ def decomposer_node_1(state: AgentState) -> dict:
 {{
   "school_ids": ["school_id_1", ...],
   "sub_queries": ["sub-query in English 1", "sub-query in English 2", ...],
-  "school_tend": true or false
+  "school_tend": true or false,
+  "professor_query": {{"name": "教授全名（英文）", "school": "學校名稱（英文）", "school_id": "學校ID"}} or null
 }}
 """
 
@@ -283,19 +294,30 @@ def decomposer_node_1(state: AgentState) -> dict:
         school_ids  = [
             str(s).strip()
             for s in parsed.get("school_ids", [])
-            if str(s).strip() in _SCHOOL_ALIASES          # ← 只保留合法的 key
+            if str(s).strip() in _SCHOOL_ALIASES
         ]
         sub_queries = [str(q).strip() for q in parsed.get("sub_queries", []) if str(q).strip()]
-        print(parsed.get("school_tend"))
 
         if not sub_queries:
             raise ValueError("sub_queries 為空")
 
+        # ── 教授查詢解析 ──────────────────────────────────────────
+        pq_raw    = parsed.get("professor_query")
+        professor_query = None
+        if isinstance(pq_raw, dict):
+            pq_name = pq_raw.get("name", "").strip()
+            pq_school = pq_raw.get("school", "").strip()
+            pq_sid  = pq_raw.get("school_id", "").strip()
+            if pq_name:
+                if pq_sid not in _SCHOOL_ALIASES:
+                    pq_sid = _detect_school_ids(pq_school)[0] if _detect_school_ids(pq_school) else ""
+                professor_query = {"name": pq_name, "school": pq_school, "school_id": pq_sid}
+
     except Exception as e:
-        # Fallback：解析失敗時退回原始問題
         print(f"[Decomposer] LLM 解析失敗（{e}），使用原始問題作為 fallback")
-        school_ids  = _detect_school_ids(query)   # ← 補上必要的參數
-        sub_queries = [query]
+        school_ids      = _detect_school_ids(query)
+        sub_queries     = [query]
+        professor_query = None
 
     # ── 日誌 ──────────────────────────────────────────────────────
     if len(school_ids) >= 2:
@@ -303,11 +325,11 @@ def decomposer_node_1(state: AgentState) -> dict:
     else:
         label = f"（學校：{school_ids[0]}）" if school_ids else "（無特定學校）"
         print(f"[Decomposer] 單一問題 {label}：")
-
     for i, q in enumerate(sub_queries, 1):
         print(f"  Q{i}: {q}")
+    if professor_query:
+        print(f"[Decomposer] 教授查詢：{professor_query['name']} @ {professor_query['school']}")
 
-    # ── 回傳（與原版完全相同） ─────────────────────────────────────
     return {
         "sub_queries":      sub_queries,
         "pending_queries":  sub_queries,
@@ -317,6 +339,7 @@ def decomposer_node_1(state: AgentState) -> dict:
         "is_sufficient":    False,
         "round_count":      0,
         "final_answer":     "",
+        "professor_query":  professor_query,
     }
 
 # def _test():
@@ -327,19 +350,17 @@ def decomposer_node_1(state: AgentState) -> dict:
 #     q5 = "Caltech cs master min gpa"
 #     _search_one_query(q,q)
 
-# ─── Node 1.5：ProfessorFetcher ───────────────────────────────────────────────
+# ─── Node 1.5：Extension Function ────────────────────────────────────────────
 
-def professor_fetch_node(state: AgentState) -> dict:
+def extension_function_node(state: AgentState) -> dict:
     """
-    教授資料抓取節點。透過 SerpAPI 即時抓取，不走向量搜尋。
-    細節實作（意圖偵測、LLM 解析、SerpAPI 抓取、格式轉換）皆在
-    professor_fetcher/fetch_for_agent.py 中處理。
-    若有抓到資料，設定 professor_fetched=True，後續跳過 searcher。
+    擴充功能節點：根據 Decomposer 偵測到的 professor_query，
+    透過 SerpAPI 即時抓取教授資料。
+    若有抓到資料，設定 professor_fetched=True，後續跳過向量搜尋。
     """
-    query = state["original_query"]
     _emit({"type": "thinking", "step": "professor_fetch"})
 
-    docs = fetch_professor_docs(query)
+    docs = run_professor_fetch(state.get("professor_query"), state["original_query"])
 
     if docs:
         _emit({
@@ -616,16 +637,16 @@ def after_professor_fetch(state: AgentState) -> str:
 def _build_graph():
     builder = StateGraph(AgentState)
 
-    builder.add_node("decompose",        decomposer_node_1)
-    builder.add_node("professor_fetch",  professor_fetch_node)
-    builder.add_node("search",           searcher_node)
-    builder.add_node("plan",             planner_node)
-    builder.add_node("finalize",         finalizer_node)
+    builder.add_node("decompose",           decomposer_node_1)
+    builder.add_node("extension_function",  extension_function_node)
+    builder.add_node("search",              searcher_node)
+    builder.add_node("plan",               planner_node)
+    builder.add_node("finalize",            finalizer_node)
 
     builder.set_entry_point("decompose")
-    builder.add_edge("decompose", "professor_fetch")
+    builder.add_edge("decompose", "extension_function")
     builder.add_conditional_edges(
-        "professor_fetch",
+        "extension_function",
         after_professor_fetch,
         {"search": "search", "finalize": "finalize"},
     )
@@ -691,6 +712,7 @@ def run_agent(
             "is_sufficient":     False,
             "round_count":       0,
             "final_answer":      "",
+            "professor_query":   None,
             "professor_fetched": False,
         }
 
