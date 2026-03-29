@@ -7,6 +7,7 @@ from google import genai
 load_dotenv()
 
 _client = None
+_compress_client = None
 
 
 def _sanitize_ssl_env() -> None:
@@ -288,18 +289,28 @@ def _parse_gemini_json(text: str) -> list[dict]:
     return json.loads(cleaned)
 
 
-def chunk_compress(raw_chunk: list[dict]) -> list[dict] | None: 
+def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
     """
     raw_chunk 每筆包含：
       - query      : 問的問題
       - chunk_text : 待壓縮的文字
       - school_id  : （選填）學校識別碼
-    回傳壓縮後的 list[dict]，失敗時回傳 None。
+      - 其餘 metadata（source_url, passed_types, rerank_score …）會原樣保留
+
+    回傳壓縮後的 list[dict]（保留所有原始欄位，僅 chunk_text 被替換）。
+    LLM 壓縮失敗時回傳原始 raw_chunk，不丟失任何資料。
+    LLM 回傳 chunk_text="" 的項目會被過濾掉。
     """
-    print(f"本輪蒐集到的文件數量: {len(raw_chunk)}")
-    print("壓縮前各文件長度：")
-    for v in raw_chunk:
-        print(f"  query={v.get('query')}  chunk_len={len(v.get('chunk_text', ''))}")
+    if not raw_chunk:
+        return raw_chunk
+
+    print(f"\n[Compress] 送入壓縮：{len(raw_chunk)} 筆")
+    print("[Compress] ── 壓縮前 ────────────────────────────────────────────")
+    for i, v in enumerate(raw_chunk, 1):
+        orig_len = len(v.get("chunk_text", ""))
+        preview  = v.get("chunk_text", "")[:120].replace("\n", " ")
+        print(f"  [{i:02d}] len={orig_len:5d}  query={v.get('query','')[:60]}"
+              f"\n        {preview}…")
 
     client = get_gemini_compress_client()
     prompt = compress_prompt(raw_chunk)
@@ -311,33 +322,62 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict] | None:
         )
         raw_text = response.text or ""
 
-        compressed = _parse_gemini_json(raw_text)   # 修復：實作 JSON 解析
+        compressed = _parse_gemini_json(raw_text)
 
-        print("壓縮後各文件長度：")
-        for i,item in enumerate(compressed,0):
-            print(f"  id={item.get('id')}  chunk_len={len(item.get('chunk_text', ''))}")
-            print(item.get("chunk_text"))
-            raw_chunk[i]["chunk_text"] = compressed[i].get("chunk_text")
-            raw_chunk[i]["id"] = compressed[i].get('id')
-            
-        return compressed
+        # 以 id（1-based）為 key 建立對應表，避免位置錯位
+        compressed_by_id: dict[int, str] = {
+            item["id"]: item.get("chunk_text", "")
+            for item in compressed
+            if "id" in item
+        }
+
+        print("[Compress] ── 壓縮後 ────────────────────────────────────────────")
+        result: list[dict] = []
+        for idx, doc in enumerate(raw_chunk, start=1):
+            orig_len = len(doc.get("chunk_text", ""))
+
+            if idx not in compressed_by_id:
+                # LLM 未回傳此 id → 保留原始 chunk（安全降級）
+                print(f"  [{idx:02d}] ⚠ LLM 未回傳，保留原始  len={orig_len}")
+                result.append(doc)
+                continue
+
+            new_text = compressed_by_id[idx]
+
+            if not new_text.strip():
+                # LLM 判斷此 chunk 與 query 無關，丟棄
+                print(f"  [{idx:02d}] ✗ 丟棄（LLM 判斷無關）  orig_len={orig_len}")
+                continue
+
+            new_len  = len(new_text)
+            reduction = (1 - new_len / orig_len) * 100 if orig_len > 0 else 0
+            preview  = new_text[:120].replace("\n", " ")
+            print(f"  [{idx:02d}] ✓ {orig_len:5d} → {new_len:5d} chars  "
+                  f"(-{reduction:.0f}%)  │ {preview}…")
+            updated = {**doc, "chunk_text": new_text}
+            result.append(updated)
+
+        kept   = len(result)
+        dropped = len(raw_chunk) - kept
+        print(f"[Compress] 完成：{len(raw_chunk)} 筆 → 保留 {kept} 筆 / 丟棄 {dropped} 筆")
+        return result
 
     except json.JSONDecodeError as e:
-        print(f"[Gemini] JSON 解析失敗: {e}\n原始回應: {raw_text}")
-        return None
+        print(f"[Gemini] JSON 解析失敗: {e}\n原始回應: {raw_text[:200]}")
+        return raw_chunk   # 安全降級：回傳原始資料
     except Exception as e:
         print(f"[Gemini] 壓縮時發生錯誤: {e}")
-        return None
+        return raw_chunk   # 安全降級：回傳原始資料
 
 
 def get_gemini_compress_client():
-    """取得 Gemini GenAI Client（singleton）。"""
-    global _client
-    if _client is None:
+    """取得壓縮用的 Gemini GenAI Client（獨立 singleton，不與 _client 共用）。"""
+    global _compress_client
+    if _compress_client is None:
         _sanitize_ssl_env()
         api_key = os.getenv("COMPRESS_KEY")
         if not api_key:
-            raise ValueError("未在環境變數中找到 COMPRESS_KEY")  # 修復：訊息與變數名一致
-        _client = genai.Client(api_key=api_key)
-    return _client
+            raise ValueError("未在環境變數中找到 COMPRESS_KEY")
+        _compress_client = genai.Client(api_key=api_key)
+    return _compress_client
     

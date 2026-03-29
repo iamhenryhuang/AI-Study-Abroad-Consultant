@@ -187,7 +187,7 @@ def block_resources(context):
 def run_worker(task_chunk: list, root_info: dict, worker_id: int, print_lock: threading.Lock) -> list:
     results = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             user_agent=USER_AGENT,
             viewport={"width": 1440, "height": 900},
@@ -261,6 +261,24 @@ def crawl_tree(root_url: str, max_depth: int = CONFIG.MAX_DEPTH) -> dict:
                 except Exception as e:
                     with print_lock:
                         print(f"  ⚠️  Worker 例外: {e}")
+
+        # ── Drop reason 統計（每個 depth layer 結束後印出）────────────────
+        layer_drop_reasons: dict = {}
+        for _, _, _, r in layer_results:
+            for reason in r["drop"].values():
+                layer_drop_reasons[reason] = layer_drop_reasons.get(reason, 0) + 1
+
+        if layer_drop_reasons:
+            total_d = sum(layer_drop_reasons.values())
+            top = sorted(layer_drop_reasons.items(), key=lambda x: x[1], reverse=True)
+            parts = "  |  ".join(f"{reason}={cnt}" for reason, cnt in top[:10])
+            print(f"\n  [depth={depth} drop] 共 {total_d} 個 URL 被丟棄：")
+            print(f"    {parts}")
+            # 若有超過 10 種原因，補印其餘
+            if len(top) > 10:
+                rest = "  ".join(f"{r}={c}" for r, c in top[10:])
+                print(f"    (其他) {rest}")
+        # ─────────────────────────────────────────────────────────────
 
         next_layer = []
         for url, dep, parent, result in layer_results:

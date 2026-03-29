@@ -88,4 +88,59 @@ SCHOOLS = [
          "https://www.umass.edu/graduate/academics/master-science-computer-science",
         ],
     },
+    {
+        "school_id": "usc",
+        "roots": [
+            "https://viterbigradadmission.usc.edu/programs/masters/apply/",
+            "https://viterbigradadmission.usc.edu/programs/masters/msprograms/computer-science/",
+        ]
+    },
+    {
+        "school_id": "nyu",
+        "roots": [
+            "https://cs.nyu.edu/dynamic/masters/prospective-overview/",
+            "https://cs.nyu.edu/ms-cei/",
+        ]
+    },
+    {
+        "school_id": "columbia",
+        "roots": [
+            "https://www.cs.columbia.edu/education/ms/",
+            "https://gradengineering.columbia.edu/admissions/how-apply",
+        ],
+    },
+    {
+        "school_id": "northeastern",
+        "roots": [
+            "https://www.khoury.northeastern.edu/programs/computer-science-ms/",
+            "https://graduate.northeastern.edu/admissions-aid/",
+            "https://www.khoury.northeastern.edu/apply"
+        ],
+    },
+    {
+        "school_id": "bu",
+        "roots": [
+            "https://www.bu.edu/cs/phd-ms/ms-in-computer-science/",
+            "https://www.bu.edu/cs/admissions/graduate-admissions/",
+            "https://www.bu.edu/cs/masters/",
+            "https://www.bu.edu/admissions"
+        ],
+    },
+    {
+        "school_id": "umn",
+        "roots": [
+            "https://grad.umn.edu/admissions",
+            "https://cse.umn.edu/cs/"
+        ],
+    },
+    {
+        "school_id": "cornell",
+        "roots": [
+            "https://www.cs.cornell.edu/masters",
+            "https://gradschool.cornell.edu/admissions",
+            "https://www.cs.cornell.edu/master-science-computer-science/apply",
+            "https://www.cs.cornell.edu/master-engineering-computer-science",
+            
+        ],
+    },
 ]

@@ -13,10 +13,13 @@ BLACKLIST_PATH_FRAGMENTS = [
     "shibboleth", "log-out", "logout", "/auth/", "/sso/",
 
     # === 個人化 / 推薦 / 收藏 ===
-    "smartrec", "my-favorites", "favorites","building","about","oar2",
+    "smartrec", "my-favorites", "favorites", "building", "oar2",
+    # "about" 移除：過於廣泛，會誤殺 about/graduate-admissions 等合法頁面
 
     # === 捐款 / 校友 / 基金 ===
-    "giving", "alumni", "endowment","history"
+    # BUG FIX: 原本 "history" 後缺逗號，導致與下方 "/news/" 拼接成 "history/news/"
+    # 修正後 /news/ 可以正常過濾
+    "giving", "alumni", "endowment", "history",
 
     # === 新聞 / 部落格 / 活動頁 ===
     "/news/", "/events/", "/blog/", "news", "blog",
@@ -47,13 +50,13 @@ BLACKLIST_PATH_FRAGMENTS = [
     "international-institute", "physical-sciences",
     "chemistry-and-biochemistry-department",
     "school-of-education-and-information-studies",
-    "civil-environmental", "dentistry","accounting",
-    "business","civil","geography","environmental","food","microbiology","chemistry","astronomy",
-    "animal","biotechnology","arts","cognitive","chemical",
-    "anthropology","comparative-literature",
+    "civil-environmental", "dentistry", "accounting",
+    "business", "civil", "geography", "environmental", "food", "microbiology", "chemistry", "astronomy",
+    "animal", "biotechnology", "arts", "cognitive", "chemical",
+    "anthropology", "comparative-literature",
 
     # === 人物 / 社群 / 生活 ===
-    "people", "family", "life","faculty",
+    "people", "family", "life", "faculty",
 
     # === 榮譽 / 亮點 / 宣傳 ===
     "awards", "spotlight", "spotlights", "insights",
@@ -69,16 +72,16 @@ BLACKLIST_PATH_FRAGMENTS = [
     "shirt", "design", "competition", "generating",
 
     # === 網站結構 / 分類 ===
-    "taxonomy", "directory","award",
+    "taxonomy", "directory", "award",
 
     # 年分
-    "2005","2006","2007","2008","2009", 
-    "2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","2020",
+    "2005", "2006", "2007", "2008", "2009",
+    "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017", "2018", "2019", "2020",
 
-    # ucsd
-    "doctoral","caltech.edu/academics/courses/","past-course-offerings","canvas.ucsd.edu","easy.ucsd.edu",
-    
-    # 
+    # 學校特定
+    "doctoral", "caltech.edu/academics/courses/", "past-course-offerings",
+    "canvas.ucsd.edu", "easy.ucsd.edu","https://cse.umn.edu/cseit/services",
+    "https://cse.umn.edu/cseit/self-help-guides","ttps://cse.umn.edu/cs/ta",
+    "https://cse.umn.edu/cs/stephen","stories","visit-us","why-bu",
 
 ]
-

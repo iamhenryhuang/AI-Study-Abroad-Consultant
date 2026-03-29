@@ -47,6 +47,10 @@ SCHOOL_NAMES: dict[str, str] = {
     "purdue":   "Purdue University",
     "Washu":    "Washington University in St. Louis",
     "utoronto": "University of Toronto",
+    "bu":       "Boston University",
+    "columbia": "Columbia University",
+    "cornell":" Cornell University",
+    "northeastern":"Northeastern University",
 }
 
 _SCHOOL_ID_NORMALIZE: dict[str, str] = {
@@ -375,4 +379,4 @@ def run_pipeline(
 
 
 if __name__ == "__main__":
-    run_pipeline("crawler/school_data", "caltech")   
+    run_pipeline("crawler/school_data", "northeastern")   

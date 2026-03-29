@@ -29,6 +29,43 @@ NAV_WEIGHT         = 0.3
 def normalize_spaces(text):
     return " ".join(text.split()) if text else ""
 
+
+def deduplicate_text(text: str, window: int = 40) -> str:
+    """
+    Remove repeated word-sequence blocks from concatenated page text.
+
+    The page-extraction pipeline merges text from many DOM sources
+    (body.innerText, TreeWalker, div/span/a/li …), so navigation bars
+    typically appear 5-10 times.  This function uses a sliding n-gram
+    fingerprint: for each position i, the n-gram words[i:i+window] is
+    checked against a seen-set.  If already seen, word[i] is skipped.
+
+    Because the window spans across repetition boundaries, this correctly
+    deduplicates nav blocks of any length, regardless of alignment to
+    chunk boundaries.  window=40 comfortably covers nav bars of 40-300
+    words while preserving unique body paragraphs.
+    """
+    if not text:
+        return text
+    words = text.split()
+    if len(words) < window * 2:
+        return text
+
+    seen: set = set()
+    kept: list = []
+
+    for i, word in enumerate(words):
+        end = i + window
+        if end <= len(words):
+            ngram = tuple(w.lower() for w in words[i:end])
+            if ngram in seen:
+                continue        # duplicate sequence — skip this word
+            seen.add(ngram)
+        # end > len(words): tail words that can't form a full n-gram → always keep
+        kept.append(word)
+
+    return " ".join(kept)
+
 def parse_url_path(url: str) -> str:
     try:
         from urllib.parse import urlparse
@@ -439,8 +476,39 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
         """) or "")
         # ──────────────────────────────────────────────────────────────────
 
+        # ── STEP 4.5：語意化主要內容區塊（優先萃取，排除 nav/header/footer）────
+        #    按優先序嘗試各語意選擇器；若抓到 >500 字元視為有效主內容，
+        #    並放在 full_text 最前端，讓評分時能優先讀到乾淨的正文。
+        main_content = ""
+        try:
+            main_content = normalize_spaces(page.evaluate("""
+                () => {
+                    const SELECTORS = [
+                        'main', 'article', '[role="main"]',
+                        '#main', '#main-content', '.main-content',
+                        '#content', '.content', '.entry-content',
+                        '.page-content', '#page-content',
+                    ];
+                    for (const sel of SELECTORS) {
+                        try {
+                            const el = document.querySelector(sel);
+                            if (el) {
+                                const t = el.innerText || el.textContent || '';
+                                if (t.trim().length > 500) return t;
+                            }
+                        } catch(e) {}
+                    }
+                    return '';
+                }
+            """) or "")
+        except Exception:
+            pass
+        # ──────────────────────────────────────────────────────────────────
+
         # ── 合併所有來源 ───────────────────────────────────────────────────
-        full_text = normalize_spaces(" ".join([
+        #    main_content 放最前（語意化正文優先），其餘來源補足隱藏/特殊內容
+        prefix = (main_content + " ") if len(main_content) > 500 else ""
+        full_text = normalize_spaces(prefix + " ".join([
             visible_text,       # body.innerText（主力）
             all_text_content,   # body.textContent（補漏）
             walker_texts,       # TreeWalker 逐節點（終極保險）
@@ -463,6 +531,9 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
         ]))
         if len(full_text) > MAX_FULL_TEXT_CHARS:
             full_text = full_text[:MAX_FULL_TEXT_CHARS]
+
+        # ── 去除重複段落（nav bar 在多個 DOM 來源中重複出現）────────────────
+        full_text = deduplicate_text(full_text)
 
         return {
             "title":         title,
@@ -645,7 +716,7 @@ def worker(school_urls_batch):
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
