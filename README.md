@@ -67,7 +67,7 @@ From the project root:
 ```bash
 python -m venv .venv
 source .venv/Scripts/activate   # Git Bash (Windows)
-# source .venv/bin/activate     # macOS / Linux
+source .venv/bin/activate     # macOS / Linux
 ```
 
 After activation your prompt shows `(.venv)`. Use `deactivate` to exit.
