@@ -458,7 +458,7 @@ def searcher_node(state: AgentState) -> dict:
         new_docs.extend(results)
         newly_searched.append(q)
     
-    new_docs = chunk_compress(new_docs)
+    new_docs = chunk_compress(new_docs) or new_docs
 
     print(f"[Searcher] 本輪新增 {len(new_docs)} 筆文件")
 

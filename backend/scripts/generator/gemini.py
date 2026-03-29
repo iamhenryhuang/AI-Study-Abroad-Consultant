@@ -314,18 +314,16 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict] | None:
         )
         raw_text = response.text or ""
 
-        compressed = _parse_gemini_json(raw_text)   # 修復：實作 JSON 解析
+        compressed = _parse_gemini_json(raw_text)
 
-        """
-        print("壓縮後各文件長度：")
-        for i,item in enumerate(compressed,0):
-            print(f"  id={item.get('id')}  chunk_len={len(item.get('chunk_text', ''))}")
-            print(item.get("chunk_text"))
-            raw_chunk[i]["chunk_text"] = compressed[i].get("chunk_text")
-            raw_chunk[i]["id"] = compressed[i].get('id')
-        """
-            
-        return compressed
+        # 將壓縮後的 chunk_text merge 回原始 docs，保留 source_url 等 metadata
+        for item in compressed:
+            idx = item.get("id", 0) - 1   # id 是 1-based
+            if 0 <= idx < len(raw_chunk):
+                raw_chunk[idx]["chunk_text"] = item.get("chunk_text", raw_chunk[idx]["chunk_text"])
+
+        # 過濾掉壓縮後 chunk_text 為空的 doc（代表無相關內容）
+        return [doc for doc in raw_chunk if doc.get("chunk_text", "").strip()]
 
     except json.JSONDecodeError as e:
         print(f"[Gemini] JSON 解析失敗: {e}\n原始回應: {raw_text}")
