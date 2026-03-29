@@ -197,3 +197,150 @@ def generate_answer(
     except Exception as e:
         print(f"[Gemini] 生成回答時發生錯誤: {e}")
         return None
+
+# ===========================================================
+
+import json
+import re
+
+COMPRESS_PROMPT = """
+You will receive multiple sets of query and chunk_text pairs. 
+Pairs sharing the same id belong to the same set.
+
+Your task is to extract ONLY the exact sentences from each chunk_text that are directly helpful for answering the corresponding query.
+
+Strict Rules (MUST follow all):
+
+1. Extractive only:
+   - You MUST copy text exactly from chunk_text.
+   - Do NOT paraphrase, summarize, rewrite, or reorder words.
+   - Do NOT combine partial sentences.
+   - Each extracted unit MUST be a complete, continuous sentence from the original text.
+
+2. Sentence integrity:
+   - Do NOT truncate sentences.
+   - Do NOT merge sentences.
+   - Do NOT stitch text across non-adjacent parts of the chunk.
+   - Each sentence must appear exactly as it exists in the original chunk_text.
+
+3. No hallucination:
+   - Do NOT add any new words, facts, or explanations.
+   - If information is not explicitly present in the chunk_text, do NOT include it.
+
+4. No duplication:
+   - Do NOT repeat the same sentence.
+   - Each sentence should appear at most once per output.
+
+5. Relevance filtering:
+   - Only keep sentences that are clearly useful for answering the query.
+   - Remove unrelated, generic, or background sentences.
+   - Direct answer sentences (HIGHEST PRIORITY — NEVER REMOVE): Sentences that explicitly answer the query
+
+6. Source isolation:
+   - Each output must ONLY contain content from its own chunk_text.
+   - Do NOT mix content from different ids or different chunks.
+
+7. Empty handling:
+   - If no sentence in the chunk_text is relevant, return an empty string "" for chunk_text.
+   
+8. 若問題出現requirement、條件、申請需求等等類似語意:
+    -保留GPA、english profciency、GRE、資格條件等等資訊，不要過度刪除
+    -保留各校的特殊條件
+
+Output format (STRICT):
+- Return a valid JSON array ONLY.
+- Do NOT include explanations or extra text.
+- Keep the original query unchanged.
+- Combine selected sentences into a single string, separated by a space.
+
+Example:
+[
+  {
+    "id": 1,
+    "query": "original query",
+    "chunk_text": "Sentence A. Sentence B."
+  }
+]
+
+Input data:
+"""
+
+
+def compress_prompt(raw_result: list[dict]) -> str:
+    """將 raw_result 組成送給 Gemini 的 prompt 字串。"""
+    blocks = []
+    for count, v in enumerate(raw_result, start=1):   # 修復：用 enumerate 取代手動 count
+        block = (
+            f"id: {count}\n"
+            f"school_id: {v.get('school_id', '')}\n"   # 修復：key 不含逗號
+            f"query: {v.get('query', '')}\n"            # 修復：key 不含逗號
+            f"chunk_text: {v.get('chunk_text', '')}"
+        )
+        blocks.append(block)
+
+    return COMPRESS_PROMPT + "\n\n---\n\n".join(blocks)
+
+
+def _parse_gemini_json(text: str) -> list[dict]:
+    """從 Gemini 回傳文字中解析 JSON 陣列，容忍 markdown code fence。"""
+    # 去除 ```json ... ``` 包裝
+    cleaned = re.sub(r"```(?:json)?\s*|\s*```", "", text).strip()
+    return json.loads(cleaned)
+
+
+def chunk_compress(raw_chunk: list[dict]) -> list[dict] | None: 
+    """
+    raw_chunk 每筆包含：
+      - query      : 問的問題
+      - chunk_text : 待壓縮的文字
+      - school_id  : （選填）學校識別碼
+    回傳壓縮後的 list[dict]，失敗時回傳 None。
+    """
+    print(f"本輪蒐集到的文件數量: {len(raw_chunk)}")
+    
+    """
+    print("壓縮前各文件長度：")
+    for v in raw_chunk:
+        print(f"  query={v.get('query')}  chunk_len={len(v.get('chunk_text', ''))}")
+    """
+
+    client = get_gemini_compress_client()
+    prompt = compress_prompt(raw_chunk)
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
+        raw_text = response.text or ""
+
+        compressed = _parse_gemini_json(raw_text)
+
+        # 將壓縮後的 chunk_text merge 回原始 docs，保留 source_url 等 metadata
+        for item in compressed:
+            idx = item.get("id", 0) - 1   # id 是 1-based
+            if 0 <= idx < len(raw_chunk):
+                raw_chunk[idx]["chunk_text"] = item.get("chunk_text", raw_chunk[idx]["chunk_text"])
+
+        # 過濾掉壓縮後 chunk_text 為空的 doc（代表無相關內容）
+        return [doc for doc in raw_chunk if doc.get("chunk_text", "").strip()]
+
+    except json.JSONDecodeError as e:
+        print(f"[Gemini] JSON 解析失敗: {e}\n原始回應: {raw_text}")
+        return None
+    except Exception as e:
+        print(f"[Gemini] 壓縮時發生錯誤: {e}")
+        return None
+
+
+def get_gemini_compress_client():
+    """取得 Gemini GenAI Client（singleton）。"""
+    global _client
+    if _client is None:
+        _sanitize_ssl_env()
+        api_key = os.getenv("COMPRESS_KEY")
+        if not api_key:
+            raise ValueError("未在環境變數中找到 COMPRESS_KEY")  # 修復：訊息與變數名一致
+        _client = genai.Client(api_key=api_key)
+    return _client
+    
