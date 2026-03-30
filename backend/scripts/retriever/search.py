@@ -285,7 +285,7 @@ def search_alternative(
     print("[search_alternative] 開始 LLM 備案推薦")
     print(f"  學生背景：{profile}")
 
-    # ── 1. 建立統計摘要文字 ──────────────────────────────────────────────────
+    # ── 1. 建立統計摘要文字（school pool = admission_stats 全部有中位數的學校） ──
     stats_lines: list[str] = []
     valid_school_ids: set[str] = set()
 
@@ -304,16 +304,16 @@ def search_alternative(
 
     stats_text = "\n".join(stats_lines) if stats_lines else "（無統計資料）"
 
-    print(f"[search_alternative] stats_text : {stats_text}")
+    #print(f"[search_alternative] stats_text : {stats_text}")
 
     # ── 2. 建立申請經驗摘要文字 ──────────────────────────────────────────────
     exp_sections: list[str] = []
 
     for exp_key, exps in admission_exp.items():
         # 對照到 school_id
-        print(f"[search_alternative] exp_key: {exp_key}, exps: {exps}")
+        # print(f"[search_alternative] exp_key: {exp_key}, exps: {exps}")
         school_id = _EXP_KEY_TO_SCHOOL_ID.get(exp_key)
-        print(f"[search_alternative] stats_ext school_id: {school_id}")
+        # print(f"[search_alternative] stats_ext school_id: {school_id}")
 
         if school_id not in valid_school_ids:
             continue  # 只整理有統計資料的學校
@@ -324,7 +324,7 @@ def search_alternative(
 
     exp_text = "\n\n".join(exp_sections) if exp_sections else "（無申請經驗資料）"
 
-    print(f"[search_alternative] exp_text : {exp_text}")
+    #print(f"[search_alternative] exp_text : {exp_text}")
 
     # ── 3. 呼叫 LLM ──────────────────────────────────────────────────────────
     prompt = _build_prompt(profile, stats_text, exp_text, top_k)
@@ -345,7 +345,7 @@ def search_alternative(
     else:
         raw = _llm_call_fn(prompt)
     
-    print(f"[search_alternative] 呼叫llm : {raw}")
+    #print(f"[search_alternative] 呼叫llm : {raw}")
 
     # ── 4. 解析 JSON ──────────────────────────────────────────────────────────
     try:
@@ -359,17 +359,19 @@ def search_alternative(
         print(f"  LLM 原始輸出：{raw[:300]}")
         return []
 
-    # 過濾不在 valid_school_ids 的結果，保留順序
-    result: list[str] = []
+    # 過濾不在 valid_school_ids 的結果，保留順序，附帶推薦理由
+    result: list[dict] = []
+    seen: set[str] = set()
     for rec in recs:
         sid    = rec.get("school_id", "")
         reason = rec.get("reason", "")
-        if sid in valid_school_ids and sid not in result:
-            result.append(sid)
+        if sid in valid_school_ids and sid not in seen:
+            seen.add(sid)
+            result.append({"school_id": sid, "reason": reason})
             print(f"  ✅ 推薦 {sid}：{reason}")
 
     result = result[:top_k]
-    print(f"[search_alternative] 最終推薦：{result}")
+    print(f"[search_alternative] 最終推薦：{[r['school_id'] for r in result]}")
     return result
 
 # ── 公開 API ────────────────────────────────────────────────────────────────

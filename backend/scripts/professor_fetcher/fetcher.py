@@ -194,60 +194,18 @@ def search_professor_id(name: str, affiliation: str = "") -> str | None:
 
 def fetch_author_profile(author_id: str) -> dict:
     """
-    取得教授 profile 基準資訊。
-    由於 SerpAPI 免費方案限制，此處僅建立 metadata 容器。
+    透過 google_scholar_author engine 取得教授的 profile 與論文列表。
+    使用 author_id 精確鎖定該教授，不會混入其他人的資料。
     """
-    return {"search_parameters": {"author_id": author_id}}
-
-
-def fetch_papers_by_search(
-    name: str,
-    author_id: str,
-    cutoff_year: int,
-    max_papers: int = 20,
-) -> list[dict]:
-    """精確搜尋教授近年論文。"""
-    params = {
-        "engine": "google_scholar",
-        "q": f'author:"{name}"',
-        "hl": "en",
-        "num": min(max_papers * 2, 20),
-        "as_ylo": cutoff_year,
-    }
-    if author_id:
-        params["as_sauthors"] = author_id
-
     try:
-        data = _get(params)
-    except Exception as e:
-        print(f"論文搜尋失敗：{e}")
-        return []
-
-    papers = []
-    for result in data.get("organic_results", []):
-        pub_info = result.get("publication_info", {})
-        summary = pub_info.get("summary", "")
-        year = _extract_year_from_snippet(result.get("snippet", ""), summary)
-        
-        if year and year < cutoff_year:
-            continue
-
-        cited_by = result.get("inline_links", {}).get("cited_by", {})
-        cited_val = cited_by.get("total", 0) if isinstance(cited_by, dict) else 0
-
-        papers.append({
-            "title":          result.get("title", ""),
-            "link":           result.get("link", result.get("snippet_link", "")),
-            "authors":        ", ".join(a.get("name", "") for a in pub_info.get("authors", [])) or summary,
-            "publication":    summary,
-            "year":           year or cutoff_year,
-            "cited_by_value": cited_val,
-            "snippet":        result.get("snippet", ""),
+        return _get({
+            "engine":    "google_scholar_author",
+            "author_id": author_id,
+            "hl":        "en",
         })
-        if len(papers) >= max_papers:
-            break
-
-    return papers
+    except Exception as e:
+        print(f"  profile 抓取失敗：{e}")
+        return {"search_parameters": {"author_id": author_id}}
 
 
 def fetch_recent_papers(
@@ -257,18 +215,49 @@ def fetch_recent_papers(
     max_papers: int = 20,
 ) -> list[dict]:
     """
-    抓取教授近兩年發表的論文。
+    透過 google_scholar_author engine 抓取該教授的近年論文。
+    以 author_id 直接存取個人頁，保證只回傳該教授的論文。
     """
-    if not professor_name:
-        print("錯誤：必須提供教授姓名以進行論文搜尋。")
+    cutoff = cutoff_year if cutoff_year is not None else RECENT_YEARS_CUTOFF
+
+    try:
+        data = _get({
+            "engine":    "google_scholar_author",
+            "author_id": author_id,
+            "hl":        "en",
+            "sort":      "pubdate",   # 依發表時間排序，優先取近年論文
+        })
+    except Exception as e:
+        print(f"  論文抓取失敗：{e}")
         return []
 
-    cutoff = cutoff_year if cutoff_year is not None else RECENT_YEARS_CUTOFF
-    papers = fetch_papers_by_search(
-        name=professor_name,
-        author_id=author_id,
-        cutoff_year=cutoff,
-        max_papers=max_papers,
-    )
+    papers = []
+    for article in data.get("articles", []):
+        year = None
+        year_str = str(article.get("year", ""))
+        m = re.search(r"\b(20\d{2}|19\d{2})\b", year_str)
+        if m:
+            year = int(m.group(1))
+
+        if year and year < cutoff:
+            continue
+
+        cited_val = 0
+        cited_raw = article.get("cited_by", {})
+        if isinstance(cited_raw, dict):
+            cited_val = cited_raw.get("value", 0) or 0
+
+        papers.append({
+            "title":          article.get("title", ""),
+            "link":           article.get("link", ""),
+            "authors":        article.get("authors", professor_name),
+            "publication":    article.get("publication", ""),
+            "year":           year or cutoff,
+            "cited_by_value": cited_val,
+            "snippet":        article.get("description", ""),
+        })
+        if len(papers) >= max_papers:
+            break
+
     print(f"  取得 {cutoff} 年後論文：{len(papers)} 篇")
     return papers

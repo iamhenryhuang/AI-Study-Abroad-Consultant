@@ -51,7 +51,7 @@ _SCHOOL_ALIASES: dict[str, list[str]] = {
     "utoronto": ["utoronto", "toronto", "多倫多"],
 }
 
-MAX_ROUNDS      = 3   # Planner 最多重試幾輪
+MAX_ROUNDS      = 2   # Planner 最多重試幾輪
 TOP_K_PER_QUERY = 10   # 每個子問題檢索幾筆
 
 # 模組層級的 on_event callback（執行期間設定）
@@ -267,7 +267,7 @@ def decomposer_node_1(state: AgentState) -> dict:
 【使用者問題】
 {query}
 
-【已知學校清單】（school_ids / professor_query.school_id 只能從此清單選取）
+【已知學校清單】（school_ids 只能從此清單選取；professor_query.school_id 若學校不在清單內，填寫學校英文全名即可）
 {list(_SCHOOL_ALIASES.keys())}
 
 ====================
@@ -312,7 +312,8 @@ def decomposer_node_1(state: AgentState) -> dict:
             pq_sid  = pq_raw.get("school_id", "").strip()
             if pq_name:
                 if pq_sid not in _SCHOOL_ALIASES:
-                    pq_sid = _detect_school_ids(pq_school)[0] if _detect_school_ids(pq_school) else ""
+                    detected = _detect_school_ids(pq_school)
+                    pq_sid = detected[0] if detected else (pq_school or pq_sid)
                 professor_query = {"name": pq_name, "school": pq_school, "school_id": pq_sid}
                 
         # 意圖解析
@@ -360,13 +361,26 @@ def decomposer_node_1(state: AgentState) -> dict:
 
 def after_decompose(state: AgentState):
     """
-    Decomposer 完成後的路由：同時派出 search 與 extension_function 兩條平行路徑。
-    兩條路徑分別寫入 collected_docs / extension_docs，最終在 finalize 彙整。
+    Decomposer 完成後的路由：
+    - 一般問題（search_tend=False, 無 professor_query）：只派 search，走原始 RAG 流程
+    - 有教授查詢 / 備案推薦意圖：依需求決定是否加派 extension_function
+      - school_tend=True：只派 extension_function（備案推薦，不查 DB）
+      - professor_query 存在：search + extension_function 並行
     """
-    return [
-        Send("search", state),
-        Send("extension_function", state),
-    ]
+    school_tend     = state.get("school_tend", False)
+    professor_query = state.get("professor_query")
+
+    need_extension = school_tend or (professor_query is not None)
+
+    if school_tend:
+        # 純備案推薦：不查 DB
+        return [Send("extension_function", state)]
+    elif need_extension:
+        # 教授查詢：兩路並行
+        return [Send("search", state), Send("extension_function", state)]
+    else:
+        # 一般問題：只走 search → plan → finalize
+        return [Send("search", state)]
 # def _test():
 #     q = "Provide detailed information about English test(including min score) and GRE requirements for applying to Caltech’s CS master’s program."
 #     q2 = "Caltech english min score requrement"
@@ -512,26 +526,7 @@ def searcher_node(state: AgentState) -> dict:
         new_docs.extend(results)
         newly_searched.append(q)
 
-    # ── 壓縮前 chunk 預覽 ─────────────────────────────────────────
-    if new_docs:
-        print(f"\n[Searcher] ── 壓縮前（共 {len(new_docs)} 筆）─────────────────────")
-        for i, doc in enumerate(new_docs, 1):
-            raw_len = len(doc.get("chunk_text", ""))
-            preview = doc.get("chunk_text", "")[:150].replace("\n", " ")
-            print(f"  [{i:02d}] {doc.get('school_id','?'):8s} | {doc.get('source_url','')}")
-            print(f"        len={raw_len:5d}  │ {preview}…")
-
-    new_docs = chunk_compress(new_docs)
-
-    # ── 壓縮後 chunk 預覽 ─────────────────────────────────────────
-    if new_docs:
-        print(f"\n[Searcher] ── 壓縮後（共 {len(new_docs)} 筆）─────────────────────")
-        for i, doc in enumerate(new_docs, 1):
-            new_len = len(doc.get("chunk_text", ""))
-            preview = doc.get("chunk_text", "")[:150].replace("\n", " ")
-            print(f"  [{i:02d}] {doc.get('school_id','?'):8s} | len={new_len:5d}  │ {preview}…")
-
-    print(f"\n[Searcher] 本輪新增 {len(new_docs)} 筆文件（壓縮後）")
+    print(f"\n[Searcher] 本輪新增 {len(new_docs)} 筆文件")
 
     return {
         "collected_docs":   new_docs,
@@ -622,7 +617,7 @@ def _parse_planner_response(raw: str) -> tuple[bool, str, list[str]]:
     is_sufficient = bool(parsed.get("is_sufficient", True))
     reason        = parsed.get("reason", "")
     extra_queries = [str(q).strip() for q in parsed.get("extra_queries", []) if str(q).strip()]
-    return is_sufficient, reason, extra_queries[:5]
+    return is_sufficient, reason, extra_queries[:3]
 
 
 def planner_node(state: AgentState) -> dict:

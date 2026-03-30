@@ -3,8 +3,11 @@ import os
 from groq import Groq
 from pathlib import Path
 
-from retriever.search import search_core, search_alternative
+from retriever.search import search_alternative, _EXP_KEY_TO_SCHOOL_ID
 from generator.gemini import get_gemini_client, generate_answer
+
+# school_id → experience key（反向對照，用於從 admission_exp 查詢）
+_SCHOOL_ID_TO_EXP_KEY: dict[str, str] = {v: k for k, v in _EXP_KEY_TO_SCHOOL_ID.items()}
 
 _PROJECT_ROOT    = Path(__file__).resolve().parent.parent.parent
 _DATA_DIR        = _PROJECT_ROOT / "data" 
@@ -21,7 +24,7 @@ def _load_admission_stats() -> dict:
             data = json.load(f)
         raw = data.get("university_admissions_data", data)
         stats = {}
-        for _name, info in raw.items():
+        for _, info in raw.items():
             sid = info.get("school_id")
             if sid:
                 stats[sid] = info
@@ -168,62 +171,58 @@ def alt_searcher(query: str, profile: dict, admission_stats: dict, admission_exp
     塞進 collected_docs 供 Finalizer 使用。
     """
     print(f"\n[AltSearcher] 開始尋找備案學校，申請人背景：{profile}")
-    #_emit({"type": "thinking", "step": "alt_searcher"})
- 
-    # 取得備案清單
+
+    # 取得備案清單（含推薦理由）
     try:
-        alt_schools = search_alternative(profile, admission_stats, admission_exp)
-        alt_schools = alt_schools[:MAX_ALT_SCHOOLS]
-        
+        alt_school_recs = search_alternative(profile, admission_stats, admission_exp, top_k=MAX_ALT_SCHOOLS)
     except Exception as e:
-        print(f"[AltSearcher] search_alternative 失敗：{e}，使用預設備案")
-        alt_schools = []
- 
-    if not alt_schools:
+        print(f"[AltSearcher] search_alternative 失敗：{e}")
+        alt_school_recs = []
+
+    if not alt_school_recs:
         print("[AltSearcher] 無法取得備案清單，略過")
         return {"alt_schools": [], "distribution": [], "collected_docs": []}
- 
+
+    alt_schools = [r["school_id"] for r in alt_school_recs]
     print(f"[AltSearcher] 備案學校：{alt_schools}")
-    
-    #_emit({"type":    "tool_result", "tool": "alt_searcher", "preview": f"推薦備案：{', '.join(alt_schools)}",})
- 
+
     alt_docs:    list[dict] = []
     distribution: list[dict] = []
- 
-    for sid in alt_schools:
+
+    for rec in alt_school_recs:
+        sid    = rec["school_id"]
+        reason = rec["reason"]
+
         # 1. 收集錄取統計
         stat = admission_stats.get(sid)
         if stat:
             distribution.append(stat)
- 
-        # 2. 向量檢索官方入學要求
-        #_emit({"type": "tool_call","tool": "search_school","args": {"query": f"{sid} admission requirements", "school_id": sid},})
-        official_docs = search_core(
-            query=f"{sid} admission requirements",
-            top_k=2,
-            use_rerank=True,
-            school_id=sid,
-        )
-        if official_docs:
-            alt_docs.extend(official_docs)
-            print(f"  {sid}: 找到 {len(official_docs)} 筆官方文件")
-        else:
-            print(f"  {sid}: 無官方文件")
- 
-        # 3. 載入論壇申請經驗
-        experiences = admission_exp.get(sid, [])
+
+        # 2. 推薦理由 doc（直接來自 LLM，不查 DB）
+        alt_docs.append({
+            "is_alt_recommendation": True,
+            "school_id":      sid,
+            "university_name": sid.upper(),
+            "source_url":     "",
+            "chunk_text":     f"[備案推薦：{sid}]\n{reason}",
+        })
+
+        # 3. 申請經驗 doc（從 JSON，不查 DB）
+        exp_key = _SCHOOL_ID_TO_EXP_KEY.get(sid)
+        experiences = admission_exp.get(exp_key, []) if exp_key else []
         for exp in experiences[:MAX_EXP_PER_SCHOOL]:
             alt_docs.append(_build_exp_doc(sid, exp))
         if experiences:
             print(f"  {sid}: 載入 {min(len(experiences), MAX_EXP_PER_SCHOOL)} 筆申請經驗")
- 
+        else:
+            print(f"  {sid}: 無申請經驗資料 (exp_key={exp_key})")
+
     print(f"[AltSearcher] 共組裝 {len(alt_docs)} 筆備案文件")
-    print(f"[AltSearcher] alt_docs : {alt_docs} ")
 
     return {
         "alt_schools":    alt_schools,
         "distribution":   distribution,
-        "collected_docs": alt_docs,   # 透過 Annotated[list, operator.add] 累加
+        "collected_docs": alt_docs,
     }
 
 #--------接口---------------------

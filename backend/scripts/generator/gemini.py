@@ -58,19 +58,28 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
     sources_list = []
 
     for i, doc in enumerate(context_docs):
-        univ  = doc.get("university_name", "未知學校")
         sid   = doc.get("school_id", "")
-        ptype = _primary_type(doc)
         url   = doc.get("source_url", "")
         text  = doc.get("chunk_text", "").strip()
 
-        formatted_docs.append(f"【{univ} {ptype}】\n{text}")
-        sources_list.append({
-            "index": i + 1,
-            "school": sid,
-            "type": ptype,
-            "url": url,
-        })
+        if doc.get("is_alt_recommendation"):
+            header = f"【{sid.upper()} 備案推薦】"
+            formatted_docs.append(f"{header}\n{text}")
+            # 備案推薦不附 URL
+        elif doc.get("is_experience_data"):
+            header = f"【{sid.upper()} 申請經驗（論壇資料，非官方）】"
+            formatted_docs.append(f"{header}\n{text}")
+            # 申請經驗不附 URL
+        else:
+            univ  = doc.get("university_name", "未知學校")
+            ptype = _primary_type(doc)
+            formatted_docs.append(f"【{univ} {ptype}】\n{text}")
+            sources_list.append({
+                "index": i + 1,
+                "school": sid,
+                "type": ptype,
+                "url": url,
+            })
 
     # 將來源清單附加在文本最後，作為 Gemini 的參考
     formatted_text = "\n\n".join(formatted_docs)
@@ -102,7 +111,8 @@ _SYSTEM_PROMPT = """你是一位北美 CS 研究所申請諮詢助理。你只�
 - 使用「參考資料」後面提供的「來源列表」中的 URL
 - 一般性陳述、背景資訊、分析等無需加註來源
 
-4. 教授與論文（professor_profile/paper）：若多項資訊來自同一教授，請改在段落末尾統一附上連結一次即可，禁止為每一篇論文都標註。
+4. 論壇申請經驗（experience）：若參考資料標示為「申請經驗（論壇資料，非官方）」，引用時必須在該資訊後標註「（此為論壇申請者分享，僅供參考，非官方數據）」，不得與官方資料混用。
+5. 教授與論文（professor_profile/paper）：若多項資訊來自同一教授，請改在段落末尾統一附上連結一次即可，禁止為每一篇論文都標註。
 5. 找不到資訊的固定回應格式：
    「根據目前取得的資料，我無法確認此問題的答案。建議您直接前往官方網站查詢：[相關 URL，若有的話]」
 
@@ -304,6 +314,7 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
     if not raw_chunk:
         return raw_chunk
 
+    """
     print(f"\n[Compress] 送入壓縮：{len(raw_chunk)} 筆")
     print("[Compress] ── 壓縮前 ────────────────────────────────────────────")
     for i, v in enumerate(raw_chunk, 1):
@@ -311,6 +322,7 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
         preview  = v.get("chunk_text", "")[:120].replace("\n", " ")
         print(f"  [{i:02d}] len={orig_len:5d}  query={v.get('query','')[:60]}"
               f"\n        {preview}…")
+    """
 
     client = get_gemini_compress_client()
     prompt = compress_prompt(raw_chunk)
@@ -330,7 +342,7 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
             for item in compressed
             if "id" in item
         }
-
+        """
         print("[Compress] ── 壓縮後 ────────────────────────────────────────────")
         result: list[dict] = []
         for idx, doc in enumerate(raw_chunk, start=1):
@@ -361,6 +373,7 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
         dropped = len(raw_chunk) - kept
         print(f"[Compress] 完成：{len(raw_chunk)} 筆 → 保留 {kept} 筆 / 丟棄 {dropped} 筆")
         return result
+        """
 
     except json.JSONDecodeError as e:
         print(f"[Gemini] JSON 解析失敗: {e}\n原始回應: {raw_text[:200]}")
