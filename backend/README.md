@@ -1,16 +1,29 @@
 # Study Abroad Consultant — Backend
 
-Python-based RAG (Retrieval-Augmented Generation) system for US CS Graduate School admissions consulting. Built with FastAPI, PostgreSQL (pgvector), and Google Gemini.
+Backend service for CS graduate admissions QA. Built with FastAPI, PostgreSQL (pgvector), LangGraph, and Gemini.
 
 ## Core Features
-- **Hybrid Search**: Combines semantic vector search (BGE-M3) with PostgreSQL full-text search (FTS), fused using **Reciprocal Rank Fusion (RRF)**.
-- **LangGraph Agentic RAG**: A LangGraph `StateGraph` orchestrates the Gemini-driven agent loop across planner, tool, and finalizer nodes.
+- **LangGraph Agentic RAG**: A LangGraph `StateGraph` orchestrates:
+  ```
+  decompose → extension_function → search → plan → finalize
+  ```
+- **Hybrid Search**: Semantic vector search (BGE-M3) + PostgreSQL FTS, merged by **Reciprocal Rank Fusion (RRF)**.
+- **Reranking**: Secondary ranking via BGE-Reranker-v2-m3 (Cross-Encoder).
+- **Professor Fetch (runtime)**: If a query names a professor, `extension_function_node` calls SerpAPI and can route to `finalize` directly.
+- **Alternative Recommendations**: Supports backup-school recommendation and attainability checks based on profile + admissions data.
 - **Context-Aware Chunking (v4)**:
     - Automatically injects school and page-type metadata into every chunk to prevent vector space collision.
     - Pre-processing cleans web noise (cookie notices, navigation fragments).
     - FAQ-specific splitting keeps Q&A pairs intact using regex synchronization.
-- **Professor Intelligence**: Integrated SerpAPI tool for fetching researcher interests and papers from Google Scholar.
-- **Reranking**: Secondary ranking via BGE-Reranker-v2-m3 (Cross-Encoder) for precision.
+- **Chunk Compression**: After retrieval, Gemini compresses each chunk to only the sentences relevant to the query. Source metadata (`source_url`, `school_id`, `passed_types`) is preserved and merged back after compression.
+
+## Alternative Recommendation Flow (Key Points)
+When the user asks for backup schools (or profile suggests target school risk), the flow is:
+
+1. Intent analysis extracts profile and whether alternatives are needed.
+2. Candidate backup schools are recommended from admissions statistics + forum experience data.
+3. For each recommended school, the retriever tries official DB docs first; if unavailable, it falls back to experience-only docs.
+4. Final answer merges official requirements, experience snippets, and source metadata.
 
 ## Tech Stack
 - API: FastAPI
@@ -47,8 +60,10 @@ deactivate
 Create `.env` in the `backend/` directory:
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/db_name
-GOOGLE_API_KEY=your_gemini_key
-SERPAPI_KEY=your_serpapi_key
+GOOGLE_API_KEY=your_gemini_key        # answer generation
+GROQ_API_KEY=your_qroq_key            # intent analysis
+COMPRESS_KEY=your_gemini_key          # chunk compression (can be the same key)
+SERPAPI_KEY=your_serpapi_key          # professor fetch only
 
 # Optional: Local model paths
 BGE_EMBED_MODEL_PATH=/path/to/bge-m3
@@ -102,13 +117,15 @@ Event types:
 This is the contract consumed by the frontend chat UI and mirrors the events emitted inside [backend/api.py](backend/api.py) and [backend/scripts/retriever/agent.py](backend/scripts/retriever/agent.py).
 
 ### Professor Fetcher
-```bash
-# Basic fetch
-python -m backend.scripts.professor_fetcher.run_fetch --name "Ming-Feng Tsai" --school "NCCU"
 
-# Fetch + Immediate Embedding
-python -m backend.scripts.professor_fetcher.run_fetch --name "Andrew Ng" --school "Stanford" --embed
+The agent detects professor queries automatically at runtime (via Decomposer → `extension_function_node` → SerpAPI). No manual pre-fetching is required for query-time lookups.
+
+To pre-fetch and embed a professor's data into the DB:
+```bash
+python backend/scripts/professor_fetcher/run_fetch.py --name "Andrew Ng" --school "Stanford" --embed
 ```
+
+Uses `google_scholar_author` API (by `author_id`) to ensure results are scoped to that specific professor only.
 
 ## Chunking Strategy
 Chunks are dynamically sized based on identified URL path types:
