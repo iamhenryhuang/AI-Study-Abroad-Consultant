@@ -3,7 +3,7 @@ import os
 from groq import Groq
 from pathlib import Path
 
-from search import search_core, search_alternative
+from retriever.search import search_core, search_alternative
 from generator.gemini import get_gemini_client, generate_answer
 
 _PROJECT_ROOT    = Path(__file__).resolve().parent.parent.parent
