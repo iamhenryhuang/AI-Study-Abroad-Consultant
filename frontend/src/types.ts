@@ -1,5 +1,5 @@
 export type AgentEvent =
-  | { type: 'thinking'; step: number }
+  | { type: 'thinking'; step: number | 'extension_function' }
   | { type: 'tool_call'; tool: string; args: Record<string, string> }
   | { type: 'tool_result'; tool: string; preview: string }
   | { type: 'llm_call'; purpose: 'planner' | 'finalizer'; round?: number }
