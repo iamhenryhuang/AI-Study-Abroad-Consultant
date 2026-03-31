@@ -13,10 +13,15 @@ from __future__ import annotations
 import json
 import re
 import sys
+import threading
 from pathlib import Path
 from typing import Annotated, Callable, Optional, TypedDict
 import operator
 import time
+
+
+class AgentCancelledError(Exception):
+    """由取消事件觸發，用來快速中止 agent 執行。"""
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
@@ -54,8 +59,15 @@ _SCHOOL_ALIASES: dict[str, list[str]] = {
 MAX_ROUNDS      = 2   # Planner 最多重試幾輪
 TOP_K_PER_QUERY = 10   # 每個子問題檢索幾筆
 
-# 模組層級的 on_event callback（執行期間設定）
+# 模組層級的執行期間狀態（單執行緒 agent，每次一個）
 _current_on_event: Optional[Callable[[dict], None]] = None
+_cancel_event:     Optional[threading.Event]         = None
+
+
+def _check_cancel() -> None:
+    """若取消事件已設定，立即拋出 AgentCancelledError。"""
+    if _cancel_event is not None and _cancel_event.is_set():
+        raise AgentCancelledError("Agent 已被取消")
 
 
 # ─── State ───────────────────────────────────────────────────────────────────
@@ -110,7 +122,8 @@ def _deduplicate_docs(docs: list[dict]) -> list[dict]:
 
 
 def _call_llm(prompt: str, model_name: str = "gemini-2.5-flash") -> str:
-    """呼叫 Gemini，回傳純文字。"""
+    """呼叫 Gemini，回傳純文字。每次呼叫前先檢查是否已取消。"""
+    _check_cancel()
     client = get_gemini_client()
     response = client.models.generate_content(model=model_name, contents=prompt)
     return (response.text or "").strip()
@@ -513,6 +526,7 @@ def searcher_node(state: AgentState) -> dict:
     newly_searched: list[str] = []
 
     for q in pending:
+        _check_cancel()
         if q in already_searched:
             print(f"  ⏭ 略過（已搜尋）：{q}")
             continue
@@ -705,6 +719,7 @@ def finalizer_node(state: AgentState) -> dict:
         reverse=True,
     )
 
+    _check_cancel()
     _emit({"type": "llm_call", "purpose": "finalizer"})
     answer = generate_answer(query, docs_sorted)
 
@@ -794,6 +809,7 @@ def run_agent(
     max_steps: int = 10,
     verbose: bool = True,
     on_event: Optional[Callable[[dict], None]] = None,
+    cancel_event: Optional[threading.Event] = None,
 ) -> str | None:
     """
     執行 Agentic RAG 流程。
@@ -807,8 +823,9 @@ def run_agent(
     Returns:
         最終回答字串，或 None
     """
-    global _current_on_event
+    global _current_on_event, _cancel_event
     _current_on_event = on_event
+    _cancel_event     = cancel_event
 
     try:
         if verbose:
@@ -846,8 +863,13 @@ def run_agent(
         print(f"   Agentic RAG 結束時間 : {time.localtime()}")
         return result_state.get("final_answer") or None
 
+    except AgentCancelledError:
+        print("[Agent] 收到取消信號，提前結束。")
+        return None
+
     finally:
         _current_on_event = None
+        _cancel_event     = None
 
 
 # ─── CLI 入口 ─────────────────────────────────────────────────────────────────

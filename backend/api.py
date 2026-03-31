@@ -6,6 +6,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+import threading
 from threading import Thread
 
 SCRIPTS_DIR = Path(__file__).resolve().parent / "scripts"
@@ -47,11 +48,13 @@ async def chat(request: ChatRequest):
       {"type": "answer",      "text": "..."}
       {"type": "error",       "message": "..."}
     """
+    cancel_event: threading.Event = threading.Event()
     event_queue: asyncio.Queue[dict] = asyncio.Queue()
     loop = asyncio.get_running_loop()
 
     def on_event(event: dict) -> None:
-        loop.call_soon_threadsafe(event_queue.put_nowait, event)
+        if not cancel_event.is_set():
+            loop.call_soon_threadsafe(event_queue.put_nowait, event)
 
     def run_in_thread() -> None:
         try:
@@ -60,18 +63,24 @@ async def chat(request: ChatRequest):
                 max_steps=request.max_steps,
                 verbose=False,
                 on_event=on_event,
+                cancel_event=cancel_event,
             )
         except Exception as exc:
-            on_event({"type": "error", "message": str(exc)})
+            if not cancel_event.is_set():
+                on_event({"type": "error", "message": str(exc)})
 
     Thread(target=run_in_thread, daemon=True).start()
 
     async def event_stream():
-        while True:
-            event = await event_queue.get()
-            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-            if event["type"] in ("answer", "error"):
-                break
+        try:
+            while True:
+                event = await event_queue.get()
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                if event["type"] in ("answer", "error"):
+                    break
+        finally:
+            # 無論是正常結束、client 斷線還是 Ctrl+C，都通知 agent 停止
+            cancel_event.set()
 
     return StreamingResponse(
         event_stream(),
