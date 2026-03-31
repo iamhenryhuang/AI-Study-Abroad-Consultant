@@ -1,16 +1,3 @@
-"""
-資料庫腳本統一入口。請在專案根目錄執行：
-
-  python backend/scripts/run.py setup       # 檢查連線，必要時建立資料庫
-  python backend/scripts/run.py import      # 建表 + 切片 + 向量化並匯入 crawler/school_data/*.json
-  python backend/scripts/run.py verify-db   # 檢查 SQL 資料是否已寫入
-  python backend/scripts/run.py verify-vdb  # 檢查向量資料庫狀態
-  python backend/scripts/run.py embed       # 切片 + 向量化並寫入 document_chunks
-  python backend/scripts/run.py search [query] [--school cmu|caltech]
-  python backend/scripts/run.py rag    [query] [--school cmu|caltech]
-  python backend/scripts/run.py agent  [query] [--max-steps N]
-  python backend/scripts/run.py init-all    # 一次完成 setup + import
-"""
 import os
 import sys
 from pathlib import Path
