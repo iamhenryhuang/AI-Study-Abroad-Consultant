@@ -22,7 +22,7 @@ export function useStreamChat() {
       return []
     }
   })
-  
+
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessions[0]?.id || null)
 
   useEffect(() => {
@@ -37,11 +37,11 @@ export function useStreamChat() {
       return currentSessionId
     }
     const newSessionId = crypto.randomUUID()
-    
+
     const maxLen = 20
     let title = firstMessageText.slice(0, maxLen)
     if (firstMessageText.length > maxLen) title += '...'
-    
+
     const newSession: ChatSession = {
       id: newSessionId,
       title,
