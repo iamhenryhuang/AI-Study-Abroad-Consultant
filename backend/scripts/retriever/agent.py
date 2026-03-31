@@ -525,6 +525,8 @@ def searcher_node(state: AgentState) -> dict:
 
         new_docs.extend(results)
         newly_searched.append(q)
+    
+    new_docs = chunk_compress(new_docs) or new_docs
 
     print(f"\n[Searcher] 本輪新增 {len(new_docs)} 筆文件")
 
@@ -721,6 +723,15 @@ def finalizer_node(state: AgentState) -> dict:
 def should_continue(state: AgentState) -> str:
     """Planner 結束後的路由：繼續搜尋 or 直接 Finalize。"""
     return "finalize" if state.get("is_sufficient", True) else "search"
+
+
+def after_professor_fetch(state: AgentState) -> str:
+    """
+    professor_fetch 後的路由：
+    - 已抓到教授資料（professor_fetched=True）→ 直接 finalize，跳過向量搜尋
+    - 無教授意圖 → 走一般向量搜尋流程
+    """
+    return "finalize" if state.get("professor_fetched", False) else "search"
 
 
 def _build_graph():
