@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,7 @@ def save_school_results(results: List[Dict[str, Any]], school_id: str, output_di
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     records = []
+    seen_hashes: set = set()   # content-hash deduplication within this school
 
     for result in results:
         if result.get("error"):
@@ -39,11 +41,22 @@ def save_school_results(results: List[Dict[str, Any]], school_id: str, output_di
 
         visible_text = result.get("full_text") or result.get("text_preview", "")
 
+        # Skip pages whose content is byte-for-byte identical to one already saved.
+        # This catches SPA sites that serve the same nav-only blob for every URL.
+        data_hash = hashlib.md5(
+            visible_text.encode("utf-8", errors="replace")
+        ).hexdigest()
+        if data_hash in seen_hashes:
+            print(f"  ⏭  [{school_id}] duplicate content skipped: {result.get('url','')[:80]}")
+            continue
+        seen_hashes.add(data_hash)
+
         records.append({
             "school_id": school_id,
             "url": result.get("url", ""),
             "passed_types": passed_types,
             "data": visible_text,
+            "data_hash": data_hash,
         })
 
     if not records:

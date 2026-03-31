@@ -6,13 +6,6 @@ import { UserProfileModal } from './components/UserProfileModal'
 import { ChatInput } from './components/ChatInput'
 import { MessageBubble } from './components/MessageBubble'
 
-const QUICK_QUESTIONS = [
-  'CMU 的 GPA 要求是多少？',
-  'MIT 和 Stanford 的申請截止日期比較',
-  'UCSD 教授的研究方向有哪些？',
-  'UIUC CS 碩士需要哪些申請文件？',
-]
-
 export default function App() {
   const { 
     messages, 
@@ -126,19 +119,6 @@ export default function App() {
                  <span className="text-3xl">🎓</span>
               </div>
               <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center">我可以幫忙解答什麼？</h2>
-              
-              {/* 快速提問按鈕區 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-                {QUICK_QUESTIONS.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => sendMessage(q)}
-                    className="text-left text-sm text-gray-600 bg-white border border-gray-200 rounded-xl px-4 py-3 hover:bg-gray-50 transition-colors duration-200 cursor-pointer"
-                  >
-                    <span>{q}</span>
-                  </button>
-                ))}
-              </div>
             </div>
           )}
 

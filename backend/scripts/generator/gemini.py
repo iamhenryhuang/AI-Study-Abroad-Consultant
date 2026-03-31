@@ -7,6 +7,7 @@ from google import genai
 load_dotenv()
 
 _client = None
+_compress_client = None
 
 
 def _sanitize_ssl_env() -> None:
@@ -57,19 +58,28 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
     sources_list = []
 
     for i, doc in enumerate(context_docs):
-        univ  = doc.get("university_name", "未知學校")
         sid   = doc.get("school_id", "")
-        ptype = _primary_type(doc)
         url   = doc.get("source_url", "")
         text  = doc.get("chunk_text", "").strip()
 
-        formatted_docs.append(f"【{univ} {ptype}】\n{text}")
-        sources_list.append({
-            "index": i + 1,
-            "school": sid,
-            "type": ptype,
-            "url": url,
-        })
+        if doc.get("is_alt_recommendation"):
+            header = f"【{sid.upper()} 備案推薦】"
+            formatted_docs.append(f"{header}\n{text}")
+            # 備案推薦不附 URL
+        elif doc.get("is_experience_data"):
+            header = f"【{sid.upper()} 申請經驗（論壇資料，非官方）】"
+            formatted_docs.append(f"{header}\n{text}")
+            # 申請經驗不附 URL
+        else:
+            univ  = doc.get("university_name", "未知學校")
+            ptype = _primary_type(doc)
+            formatted_docs.append(f"【{univ} {ptype}】\n{text}")
+            sources_list.append({
+                "index": i + 1,
+                "school": sid,
+                "type": ptype,
+                "url": url,
+            })
 
     # 將來源清單附加在文本最後，作為 Gemini 的參考
     formatted_text = "\n\n".join(formatted_docs)
@@ -101,7 +111,8 @@ _SYSTEM_PROMPT = """你是一位北美 CS 研究所申請諮詢助理。你只�
 - 使用「參考資料」後面提供的「來源列表」中的 URL
 - 一般性陳述、背景資訊、分析等無需加註來源
 
-4. 教授與論文（professor_profile/paper）：若多項資訊來自同一教授，請改在段落末尾統一附上連結一次即可，禁止為每一篇論文都標註。
+4. 論壇申請經驗（experience）：若參考資料標示為「申請經驗（論壇資料，非官方）」，引用時必須在該資訊後標註「（此為論壇申請者分享，僅供參考，非官方數據）」，不得與官方資料混用。
+5. 教授與論文（professor_profile/paper）：若多項資訊來自同一教授，請改在段落末尾統一附上連結一次即可，禁止為每一篇論文都標註。
 5. 找不到資訊的固定回應格式：
    「根據目前取得的資料，我無法確認此問題的答案。建議您直接前往官方網站查詢：[相關 URL，若有的話]」
 
@@ -288,20 +299,29 @@ def _parse_gemini_json(text: str) -> list[dict]:
     return json.loads(cleaned)
 
 
-def chunk_compress(raw_chunk: list[dict]) -> list[dict] | None: 
+def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
     """
     raw_chunk 每筆包含：
       - query      : 問的問題
       - chunk_text : 待壓縮的文字
       - school_id  : （選填）學校識別碼
-    回傳壓縮後的 list[dict]，失敗時回傳 None。
+      - 其餘 metadata（source_url, passed_types, rerank_score …）會原樣保留
+
+    回傳壓縮後的 list[dict]（保留所有原始欄位，僅 chunk_text 被替換）。
+    LLM 壓縮失敗時回傳原始 raw_chunk，不丟失任何資料。
+    LLM 回傳 chunk_text="" 的項目會被過濾掉。
     """
-    print(f"本輪蒐集到的文件數量: {len(raw_chunk)}")
-    
+    if not raw_chunk:
+        return raw_chunk
+
     """
-    print("壓縮前各文件長度：")
-    for v in raw_chunk:
-        print(f"  query={v.get('query')}  chunk_len={len(v.get('chunk_text', ''))}")
+    print(f"\n[Compress] 送入壓縮：{len(raw_chunk)} 筆")
+    print("[Compress] ── 壓縮前 ────────────────────────────────────────────")
+    for i, v in enumerate(raw_chunk, 1):
+        orig_len = len(v.get("chunk_text", ""))
+        preview  = v.get("chunk_text", "")[:120].replace("\n", " ")
+        print(f"  [{i:02d}] len={orig_len:5d}  query={v.get('query','')[:60]}"
+              f"\n        {preview}…")
     """
 
     client = get_gemini_compress_client()
@@ -316,31 +336,61 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict] | None:
 
         compressed = _parse_gemini_json(raw_text)
 
-        # 將壓縮後的 chunk_text merge 回原始 docs，保留 source_url 等 metadata
-        for item in compressed:
-            idx = item.get("id", 0) - 1   # id 是 1-based
-            if 0 <= idx < len(raw_chunk):
-                raw_chunk[idx]["chunk_text"] = item.get("chunk_text", raw_chunk[idx]["chunk_text"])
+        # 以 id（1-based）為 key 建立對應表，避免位置錯位
+        compressed_by_id: dict[int, str] = {
+            item["id"]: item.get("chunk_text", "")
+            for item in compressed
+            if "id" in item
+        }
+        """
+        print("[Compress] ── 壓縮後 ────────────────────────────────────────────")
+        result: list[dict] = []
+        for idx, doc in enumerate(raw_chunk, start=1):
+            orig_len = len(doc.get("chunk_text", ""))
 
-        # 過濾掉壓縮後 chunk_text 為空的 doc（代表無相關內容）
-        return [doc for doc in raw_chunk if doc.get("chunk_text", "").strip()]
+            if idx not in compressed_by_id:
+                # LLM 未回傳此 id → 保留原始 chunk（安全降級）
+                print(f"  [{idx:02d}] ⚠ LLM 未回傳，保留原始  len={orig_len}")
+                result.append(doc)
+                continue
+
+            new_text = compressed_by_id[idx]
+
+            if not new_text.strip():
+                # LLM 判斷此 chunk 與 query 無關，丟棄
+                print(f"  [{idx:02d}] ✗ 丟棄（LLM 判斷無關）  orig_len={orig_len}")
+                continue
+
+            new_len  = len(new_text)
+            reduction = (1 - new_len / orig_len) * 100 if orig_len > 0 else 0
+            preview  = new_text[:120].replace("\n", " ")
+            print(f"  [{idx:02d}] ✓ {orig_len:5d} → {new_len:5d} chars  "
+                  f"(-{reduction:.0f}%)  │ {preview}…")
+            updated = {**doc, "chunk_text": new_text}
+            result.append(updated)
+
+        kept   = len(result)
+        dropped = len(raw_chunk) - kept
+        print(f"[Compress] 完成：{len(raw_chunk)} 筆 → 保留 {kept} 筆 / 丟棄 {dropped} 筆")
+        return result
+        """
 
     except json.JSONDecodeError as e:
-        print(f"[Gemini] JSON 解析失敗: {e}\n原始回應: {raw_text}")
-        return None
+        print(f"[Gemini] JSON 解析失敗: {e}\n原始回應: {raw_text[:200]}")
+        return raw_chunk   # 安全降級：回傳原始資料
     except Exception as e:
         print(f"[Gemini] 壓縮時發生錯誤: {e}")
-        return None
+        return raw_chunk   # 安全降級：回傳原始資料
 
 
 def get_gemini_compress_client():
-    """取得 Gemini GenAI Client（singleton）。"""
-    global _client
-    if _client is None:
+    """取得壓縮用的 Gemini GenAI Client（獨立 singleton，不與 _client 共用）。"""
+    global _compress_client
+    if _compress_client is None:
         _sanitize_ssl_env()
         api_key = os.getenv("COMPRESS_KEY")
         if not api_key:
-            raise ValueError("未在環境變數中找到 COMPRESS_KEY")  # 修復：訊息與變數名一致
-        _client = genai.Client(api_key=api_key)
-    return _client
+            raise ValueError("未在環境變數中找到 COMPRESS_KEY")
+        _compress_client = genai.Client(api_key=api_key)
+    return _compress_client
     

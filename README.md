@@ -11,17 +11,20 @@
 
 ## Overview
 
-Study Abroad RAG is an intelligent advisory tool designed to simplify the complex process of researching North American CS Master's programs. Instead of manually scouring hundreds of university pages, users can ask the system specific questions about admission requirements, funding, faculty, and deadlines.
+Study Abroad RAG is a practical QA system for North American CS Master's applications.  
+It replaces manual page-by-page browsing with one interface for requirements, deadlines, professor information, and supporting sources.
 
-The system does not just retrieve passages. It runs a LangGraph-based agent workflow that can decide what to search, call retrieval tools step by step, and then synthesize a cited answer in Traditional Chinese.
+The backend uses a LangGraph workflow: analyze intent, choose tools, retrieve relevant data, then produce a Traditional Chinese answer with citations.
 
 ### Key Features
-- **LangGraph Agent Workflow**: Uses a LangGraph `StateGraph` to run the agent loop across decomposer, searcher, planner, and finalizer steps.
-- **Real-Time Thinking**: Streams agent events such as `thinking`, `tool_call`, `tool_result`, and `answer` to the frontend.
-- **High Precision**: Powered by **BGE-M3** embeddings and a **Cross-Encoder Reranker** for the best document retrieval.
-- **Contextual Chunking**: Chunking strategy that preserves metadata and FAQ structures, sized by content type via `passed_types`.
-- **Verified Sources**: Every claim includes a direct source URL to the university's official page.
-- **Web Crawler**: Playwright-based crawler that scores and classifies pages by type before ingestion.
+- **Agentic Retrieval Workflow**: `decompose -> extension_function -> search -> plan -> finalize`.
+- **Alternative School Recommendation**: Supports backup-school suggestions from user profile (GPA/TOEFL/GRE) and admission statistics/experience data.
+- **Professor Runtime Fetch**: For named professor queries, calls SerpAPI directly and skips vector DB retrieval.
+- **Hybrid Search + Rerank**: Vector search (BGE-M3) + PostgreSQL FTS (RRF) + Cross-Encoder reranker.
+- **Chunk Compression**: Gemini keeps only query-relevant sentences while preserving source metadata.
+- **Streaming Responses**: Frontend receives `thinking`, `tool_call`, `tool_result`, `answer`, `error` events.
+- **Traceable Output**: Answers include source URLs from official university pages whenever available.
+- **Crawler + Ingestion Pipeline**: Playwright crawler, scoring/classification, then chunk/embed/store.
 
 ---
 
@@ -94,9 +97,11 @@ Create `backend/.env`:
 
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/study_abroad_rag
-GOOGLE_API_KEY=your_gemini_api_key
-SERPAPI_KEY=your_serpapi_key          # only needed for professor_fetcher
-BGE_EMBED_MODEL_PATH=path/to/bge-m3   # local model path (optional)
+GOOGLE_API_KEY=your_gemini_api_key      # answer generation
+GROQ_API_KEY=your_qroq_key              # intent analysis
+COMPRESS_KEY=your_gemini_api_key        # chunk compression (can reuse the same key)
+SERPAPI_KEY=your_serpapi_key            # professor fetch only
+BGE_EMBED_MODEL_PATH=path/to/bge-m3     # local model path (optional)
 BGE_RERANKER_MODEL_PATH=path/to/bge-reranker-v2-m3
 ```
 
@@ -136,10 +141,14 @@ Manage the pipeline from `backend/scripts/run.py`:
 
 | Command | Description |
 |---------|-------------|
+| `init-all` | Run `setup` + full import in one command |
 | `setup` | Check DB connection, create DB if missing |
 | `import` | Init schema + chunk + embed + store `crawler/school_data/` |
+| `embed` | Incremental chunk + embed into DB |
 | `verify-db` | Check DB contents |
+| `verify-vdb` | Check vector DB and index status |
 | `search "QUERY"` | Hybrid vector + keyword search |
+| `rag "QUERY"` | Standard RAG (search -> rerank -> answer) |
 | `agent "QUERY"` | Full LangGraph agent workflow |
 
 ```bash
@@ -151,7 +160,11 @@ python backend/scripts/run.py agent "Compare Stanford and CMU GPA requirements"
 
 ## Professor Data Fetcher
 
-Fetch individual professor data from Google Scholar via SerpAPI:
+There are two ways to get professor data:
+
+**1. Agent (runtime)** — when a query mentions a specific professor name, the agent auto-detects the intent in the Decomposer step and calls SerpAPI live. No pre-fetching needed.
+
+**2. CLI (pre-fetch + embed)** — manually fetch and embed a professor's data:
 
 ```bash
 python backend/scripts/professor_fetcher/run_fetch.py \

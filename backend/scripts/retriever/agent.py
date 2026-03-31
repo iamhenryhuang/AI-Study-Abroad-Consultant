@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 from typing import Annotated, Callable, Optional, TypedDict
 import operator
+import time
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
@@ -25,10 +26,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from langgraph.graph import StateGraph, END
+from langgraph.types import Send
+
 from retriever.search import search_core
 from generator.gemini import get_gemini_client, generate_answer, chunk_compress
 from professor_fetcher.fetch_for_agent import run_professor_fetch
-
+from retriever.analyzer import analyze_and_evaluate
 
 # ─── 學校別名對照表 ───────────────────────────────────────────────────────────
 
@@ -48,7 +51,7 @@ _SCHOOL_ALIASES: dict[str, list[str]] = {
     "utoronto": ["utoronto", "toronto", "多倫多"],
 }
 
-MAX_ROUNDS      = 3   # Planner 最多重試幾輪
+MAX_ROUNDS      = 2   # Planner 最多重試幾輪
 TOP_K_PER_QUERY = 10   # 每個子問題檢索幾筆
 
 # 模組層級的 on_event callback（執行期間設定）
@@ -62,13 +65,15 @@ class AgentState(TypedDict):
     sub_queries:       list[str]
     extra_queries:     Annotated[list[str], operator.add]
     pending_queries:   list[str]
-    collected_docs:    Annotated[list[dict], operator.add]
+    collected_docs:    Annotated[list[dict], operator.add]   # search 結果
+    extension_docs:    Annotated[list[dict], operator.add]   # extension 結果（教授 / 選校推薦）
     searched_queries:  Annotated[list[str], operator.add]
     is_sufficient:     bool
     round_count:       int
     final_answer:      str
     professor_query:   dict | None   # Decomposer 偵測到的教授查詢 {name, school, school_id}
-    professor_fetched: bool          # True 表示已透過 API 抓取教授資料，跳過向量搜尋
+    professor_fetched: bool
+    school_tend:       bool
 
 
 # ─── 工具函式 ─────────────────────────────────────────────────────────────────
@@ -145,19 +150,6 @@ def _make_school_query(original_query: str, target_school_id: str, all_school_id
 
     return query.strip()
 
-class AgentState(TypedDict):
-    original_query:    str
-    sub_queries:       list[str]
-    extra_queries:     Annotated[list[str], operator.add]
-    pending_queries:   list[str]
-    collected_docs:    Annotated[list[dict], operator.add]
-    searched_queries:  Annotated[list[str], operator.add]
-    is_sufficient:     bool
-    round_count:       int
-    final_answer:      str
-    professor_query:   dict | None
-    professor_fetched: bool
-
 # def test__():
 #     query = "Compare the CS Master's admission requirements for UCLA, umass."
 #     q2 = "Compare the CS Master's admission requirements for UCSD, Stanford. my gpa is 3.2/4 give me some suggestion to choose school."
@@ -217,10 +209,14 @@ def decomposer_node(state: AgentState) -> dict:
 
 def decomposer_node_1(state: AgentState) -> dict:
     query = state["original_query"]
+    print(f"\n{'='*60}")
+    print(f"[Decomposer] 原始問題：{query}")
+    print(f"{'='*60}")
     prompt = f"""
 你是一個 Query Decomposer，負責將使用者問題轉換為結構化資訊。
 
 你需要完成三個任務，並嚴格遵守規則輸出 JSON。
+[嚴格遵守] decompose的問題最多9個，只有一間學校的話，一間最多5個，兩間學校的話，一間最多四個，若有三間以上，單一學校最多三個問題
 
 ====================
 【任務一：學校辨識 + 子問題拆解】
@@ -233,13 +229,18 @@ def decomposer_node_1(state: AgentState) -> dict:
 4. 若沒有偵測到任何學校：
    - school_ids = []
    - sub_queries = [將原問題改寫為較清楚的單一問題]
+5.若問題太過於廣泛，如只詢問了application requirement、申請資格等等這種廣泛問題，請在子問題種搜尋細項，
+    請將廣泛問題的細項分開詢問，細項詢問甚麼由你判斷，參考範例如下。
+    問題:application requirement 子問題拆成:min gpa/min english score/min gre/等等，類似這樣的子問題找答案
 
 【子問題格式要求】
 - 所有子問題必須用英文撰寫，無論使用者原始問題是何種語言
 - 優先使用：「School + requirement content?」形式
 - 保持語意完整，不要遺漏條件
 - 不要自行新增未提及的資訊
-
+- 若有分數相關問題如GRE/GPA/English test，請都要詢問 是否需要、最低分多少
+- 推薦信問題則詢問最少封數、推薦信方向
+- 申請資格問題，則詢問背景需求、特殊資格規定等等
 ====================
 【任務二：是否有推薦學校意圖（school_tend）】
 ====================
@@ -266,7 +267,7 @@ def decomposer_node_1(state: AgentState) -> dict:
 【使用者問題】
 {query}
 
-【已知學校清單】（school_ids / professor_query.school_id 只能從此清單選取）
+【已知學校清單】（school_ids 只能從此清單選取；professor_query.school_id 若學校不在清單內，填寫學校英文全名即可）
 {list(_SCHOOL_ALIASES.keys())}
 
 ====================
@@ -302,6 +303,7 @@ def decomposer_node_1(state: AgentState) -> dict:
             raise ValueError("sub_queries 為空")
 
         # ── 教授查詢解析 ──────────────────────────────────────────
+        # 可進行解偶
         pq_raw    = parsed.get("professor_query")
         professor_query = None
         if isinstance(pq_raw, dict):
@@ -310,8 +312,13 @@ def decomposer_node_1(state: AgentState) -> dict:
             pq_sid  = pq_raw.get("school_id", "").strip()
             if pq_name:
                 if pq_sid not in _SCHOOL_ALIASES:
-                    pq_sid = _detect_school_ids(pq_school)[0] if _detect_school_ids(pq_school) else ""
+                    detected = _detect_school_ids(pq_school)
+                    pq_sid = detected[0] if detected else (pq_school or pq_sid)
                 professor_query = {"name": pq_name, "school": pq_school, "school_id": pq_sid}
+                
+        # 意圖解析
+        intent = parsed.get("school_tend") 
+            
 
     except Exception as e:
         print(f"[Decomposer] LLM 解析失敗（{e}），使用原始問題作為 fallback")
@@ -327,8 +334,17 @@ def decomposer_node_1(state: AgentState) -> dict:
         print(f"[Decomposer] 單一問題 {label}：")
     for i, q in enumerate(sub_queries, 1):
         print(f"  Q{i}: {q}")
+
+    # ── Intent 摘要 ───────────────────────────────────────────────
+    print(f"[Decomposer] ── Intent 摘要 ──────────────────────────────")
+    print(f"  school_tend     = {intent}   "
+          f"（{'需要選校推薦' if intent else '不需要選校推薦'}）")
     if professor_query:
-        print(f"[Decomposer] 教授查詢：{professor_query['name']} @ {professor_query['school']}")
+        print(f"  professor_query = {professor_query['name']} @ {professor_query['school']} "
+              f"[{professor_query.get('school_id', '?')}]")
+    else:
+        print(f"  professor_query = None   （無教授查詢意圖）")
+    print(f"[Decomposer] ───────────────────────────────────────────────")
 
     return {
         "sub_queries":      sub_queries,
@@ -340,8 +356,31 @@ def decomposer_node_1(state: AgentState) -> dict:
         "round_count":      0,
         "final_answer":     "",
         "professor_query":  professor_query,
+        "school_tend":      intent,
     }
 
+def after_decompose(state: AgentState):
+    """
+    Decomposer 完成後的路由：
+    - 一般問題（search_tend=False, 無 professor_query）：只派 search，走原始 RAG 流程
+    - 有教授查詢 / 備案推薦意圖：依需求決定是否加派 extension_function
+      - school_tend=True：只派 extension_function（備案推薦，不查 DB）
+      - professor_query 存在：search + extension_function 並行
+    """
+    school_tend     = state.get("school_tend", False)
+    professor_query = state.get("professor_query")
+
+    need_extension = school_tend or (professor_query is not None)
+
+    if school_tend:
+        # 純備案推薦：不查 DB
+        return [Send("extension_function", state)]
+    elif need_extension:
+        # 教授查詢：兩路並行
+        return [Send("search", state), Send("extension_function", state)]
+    else:
+        # 一般問題：只走 search → plan → finalize
+        return [Send("search", state)]
 # def _test():
 #     q = "Provide detailed information about English test(including min score) and GRE requirements for applying to Caltech’s CS master’s program."
 #     q2 = "Caltech english min score requrement"
@@ -354,23 +393,52 @@ def decomposer_node_1(state: AgentState) -> dict:
 
 def extension_function_node(state: AgentState) -> dict:
     """
-    擴充功能節點：根據 Decomposer 偵測到的 professor_query，
-    透過 SerpAPI 即時抓取教授資料。
-    若有抓到資料，設定 professor_fetched=True，後續跳過向量搜尋。
+    擴充功能節點（與 search 並行）：
+    - 若 professor_query 存在 → SerpAPI 抓取教授資料
+    - 若 school_tend=True     → 進行選校推薦分析
+    結果寫入 extension_docs，不影響 search 的 collected_docs。
     """
-    _emit({"type": "thinking", "step": "professor_fetch"})
+    _emit({"type": "thinking", "step": "extension_function"})
 
-    docs = run_professor_fetch(state.get("professor_query"), state["original_query"])
+    extension_docs: list[dict] = []
+    professor_fetched = False
 
-    if docs:
-        _emit({
-            "type": "tool_result",
-            "tool": "fetch_professor",
-            "preview": f"找到 {len(docs)} 筆教授相關資料",
-        })
-        return {"collected_docs": docs, "professor_fetched": True}
-
-    return {"professor_fetched": False}
+    # ── 教授查詢 ──────────────────────────────────────────────────────────────
+    professor_query = state.get("professor_query")
+    if professor_query is not None:
+        print(f"[Extension] 抓取教授資料：{professor_query.get('name')}")
+        docs = run_professor_fetch(professor_query, state["original_query"])
+        if docs:
+            _emit({
+                "type": "tool_result",
+                "tool": "fetch_professor",
+                "preview": f"找到 {len(docs)} 筆教授相關資料",
+            })
+            professor_fetched = True
+            extension_docs.extend(docs)
+        else:
+            print("[Extension] 未抓到教授資料")
+    
+    # ── 選校推薦 ──────────────────────────────────────────────────────────────
+    if state.get("school_tend") is True:
+        print("[Extension] 進行選校推薦分析...")
+        result = analyze_and_evaluate(state["original_query"])
+        if result and result.get("collected_docs"):
+            alt_docs = result["collected_docs"]
+            _emit({
+                "type": "tool_result",
+                "tool": "school_recommend",
+                "preview": f"找到 {len(alt_docs)} 筆推薦學校相關 chunk",
+            })
+            extension_docs.extend(alt_docs)
+        else:
+            print("[Extension] 選校推薦無結果")
+    
+    print(f"[Extension] 共取得 {len(extension_docs)} 筆擴充資料")
+    return {
+        "extension_docs":    extension_docs,
+        "professor_fetched": professor_fetched,
+    }
 
 
 # ─── Node 2：Searcher ─────────────────────────────────────────────────────────
@@ -460,7 +528,7 @@ def searcher_node(state: AgentState) -> dict:
     
     new_docs = chunk_compress(new_docs) or new_docs
 
-    print(f"[Searcher] 本輪新增 {len(new_docs)} 筆文件")
+    print(f"\n[Searcher] 本輪新增 {len(new_docs)} 筆文件")
 
     return {
         "collected_docs":   new_docs,
@@ -471,18 +539,30 @@ def searcher_node(state: AgentState) -> dict:
 
 
 # ─── Node 3：Planner ──────────────────────────────────────────────────────────
-
-def _build_planner_prompt(query: str, docs: list[dict], searched: list[str]) -> str:
+# query = 原始問題 | docs = 找到的資料  | searched = 已經搜尋的子問題 
+def _build_planner_prompt(query: str, docs: list[dict], ext_docs: list[dict], searched: list[str]) -> str:
     """組合 Planner 用的 prompt。"""
     def _primary_type(doc: dict) -> str:
         pts = doc.get("passed_types") or []
         return max(pts, key=lambda x: x.get("score", 0))["type"] if pts else "?"
 
+    # 顯示全部 docs（不再限制 10 筆），每筆截 1500 字防止 token 過大
     context_preview = "".join(
         f"\n[{i+1}] {doc.get('school_id', '?')}/{_primary_type(doc)}: "
-        f"{doc.get('chunk_text', '')[:300]}\n"
-        for i, doc in enumerate(docs[:10])
+        f"{doc.get('chunk_text', '')[:1500]}\n"
+        for i, doc in enumerate(docs)
     )
+
+    # extension_docs（教授資料 / 選校推薦）一併提供給 Planner 判斷
+    ext_preview = ""
+    if ext_docs:
+        ext_preview = f"\n\n【擴充資料（教授 / 選校推薦）】（共 {len(ext_docs)} 筆）"
+        ext_preview += "".join(
+            f"\n[E{i+1}] {doc.get('school_id', '?')}: "
+            f"{doc.get('chunk_text', '')[:1500]}\n"
+            for i, doc in enumerate(ext_docs)
+        )
+
     searched_str = "\n".join(f"- {q}" for q in searched)
 
     return f"""你是的任務是評估資料充足性。請根據以下資訊判斷目前的資料是否足夠回答使用者問題。
@@ -494,10 +574,11 @@ def _build_planner_prompt(query: str, docs: list[dict], searched: list[str]) -> 
 {searched_str}
 
 【目前收集到的資料摘要】（共 {len(docs)} 筆）
-{context_preview}
+{context_preview}{ext_preview}
 
 【評估任務】
 請判斷：目前的資料是否已足夠回答使用者的原始問題？
+若問題涉及教授相關資訊，請一併考量「擴充資料」是否已滿足需求。
 
 輸出格式（JSON）：
 {{
@@ -518,6 +599,8 @@ def _build_planner_prompt(query: str, docs: list[dict], searched: list[str]) -> 
 9. 問題請用英文，作答時也用英文，最後輸出轉為中文即可
 10.若出現需要找english proficiency(TOFEL、TOEFL iBT、IELTS、Duolingo English Test(DET))或GRE成績需求時，皆在子問題中包含最低接受成績與是否需要提供
 11.盡量減少問題過於發散，只問相關的問題與目前資料不足的問題
+12.若問題太過於廣泛，如只詢問了application requirement、申請資格等等這種廣泛問題，請在子問題種搜尋細項，範例如下。
+    問題:application requirement 子問題拆成:min gpa/min english score/min gre/類似這樣
 你的判斷：(判斷用中文回答) """
 
 
@@ -536,7 +619,7 @@ def _parse_planner_response(raw: str) -> tuple[bool, str, list[str]]:
     is_sufficient = bool(parsed.get("is_sufficient", True))
     reason        = parsed.get("reason", "")
     extra_queries = [str(q).strip() for q in parsed.get("extra_queries", []) if str(q).strip()]
-    return is_sufficient, reason, extra_queries[:5]
+    return is_sufficient, reason, extra_queries[:3]
 
 
 def planner_node(state: AgentState) -> dict:
@@ -548,21 +631,27 @@ def planner_node(state: AgentState) -> dict:
     """
     query       = state["original_query"]
     docs        = _deduplicate_docs(state.get("collected_docs", []))
+    ext_docs    = _deduplicate_docs(state.get("extension_docs", []))
     round_count = state.get("round_count", 0)
     searched    = state.get("searched_queries", [])
 
-    print(f"\n[Planner] 第 {round_count} 輪判斷，目前收集 {len(docs)} 筆去重文件")
+    print(f"\n[Planner] ══ 第 {round_count} 輪 ══════════════════════════════════════")
+    print(f"[Planner] 去重後文件數：{len(docs)}  擴充文件數：{len(ext_docs)}  已搜尋問題數：{len(searched)}")
+    if searched:
+        print("[Planner] 已搜尋過的問題：")
+        for q in searched:
+            print(f"  ✓ {q}")
 
     if round_count >= MAX_ROUNDS:
         print(f"[Planner] 已達最大輪次（{MAX_ROUNDS}），強制結束")
         return {"is_sufficient": True, "pending_queries": []}
 
-    if not docs:
+    if not docs and not ext_docs:
         print("[Planner] 無文件，結束搜尋")
         return {"is_sufficient": True, "pending_queries": []}
 
     _emit({"type": "llm_call", "purpose": "planner", "round": round_count})
-    raw = _call_llm(_build_planner_prompt(query, docs, searched))
+    raw = _call_llm(_build_planner_prompt(query, docs, ext_docs, searched))
 
     try:
         is_sufficient, reason, extra_queries = _parse_planner_response(raw)
@@ -587,20 +676,31 @@ def planner_node(state: AgentState) -> dict:
 
 def finalizer_node(state: AgentState) -> dict:
     """
-    彙整所有收集到的文件，呼叫 Gemini 生成最終答案，並發送 answer 事件。
+    彙整所有收集到的文件（search 的 collected_docs + extension 的 extension_docs），
+    呼叫 Gemini 生成最終答案，並發送 answer 事件。
     """
     query = state["original_query"]
-    docs  = _deduplicate_docs(state.get("collected_docs", []))
 
-    print(f"\n[Finalizer] 共 {len(docs)} 筆去重文件，開始生成回答...")
+    search_docs    = state.get("collected_docs", [])
+    extension_docs = state.get("extension_docs", [])
 
-    if not docs:
+    # extension_docs 放在前面（教授資料 / 選校推薦優先作為上下文）
+    all_docs = _deduplicate_docs(extension_docs + search_docs)
+
+    print(
+        f"\n[Finalizer] 搜尋文件：{len(search_docs)} 筆  "
+        f"擴充文件：{len(extension_docs)} 筆  "
+        f"合併去重後：{len(all_docs)} 筆"
+    )
+
+    if not all_docs:
         answer = "很抱歉，未能從資料庫中找到相關資訊。建議您直接前往各校官方網站查詢。"
         _emit({"type": "answer", "text": answer})
         return {"final_answer": answer}
 
+    # 以 rerank_score（或 rrf_score）降冪排序，讓最相關的文件排在前面
     docs_sorted = sorted(
-        docs,
+        all_docs,
         key=lambda d: d.get("rerank_score", d.get("rrf_score", 0)),
         reverse=True,
     )
@@ -635,27 +735,43 @@ def after_professor_fetch(state: AgentState) -> str:
 
 
 def _build_graph():
+    """
+    流程：
+      decompose
+        ├─ Send → search ──────────────────────────┐
+        │                                          ▼
+        └─ Send → extension_function ──────────► plan ─(not sufficient)→ search
+                                                   └─(sufficient)──────────────┐
+                                                                                ▼
+                                                                            finalize
+    兩條並行路徑（search / extension_function）fan-in 到 plan，
+    Planner 能同時看到 collected_docs 與 extension_docs 再決定是否充足。
+    finalize 彙整兩者後呼叫 Gemini 生成回答。
+    """
     builder = StateGraph(AgentState)
 
-    builder.add_node("decompose",           decomposer_node_1)
-    builder.add_node("extension_function",  extension_function_node)
-    builder.add_node("search",              searcher_node)
+    builder.add_node("decompose",          decomposer_node_1)
+    builder.add_node("extension_function", extension_function_node)
+    builder.add_node("search",             searcher_node)
     builder.add_node("plan",               planner_node)
-    builder.add_node("finalize",            finalizer_node)
+    builder.add_node("finalize",           finalizer_node)
 
     builder.set_entry_point("decompose")
-    builder.add_edge("decompose", "extension_function")
-    builder.add_conditional_edges(
-        "extension_function",
-        after_professor_fetch,
-        {"search": "search", "finalize": "finalize"},
-    )
-    builder.add_edge("search",          "plan")
+
+    # decompose → 平行派出 search + extension_function
+    builder.add_conditional_edges("decompose", after_decompose)
+
+    # extension_function 路徑：完成後匯入 plan（fan-in），讓 Planner 能看到擴充資料
+    builder.add_edge("extension_function", "plan")
+
+    # search 路徑：search → plan → (loop or finalize)
+    builder.add_edge("search", "plan")
     builder.add_conditional_edges(
         "plan",
         should_continue,
         {"search": "search", "finalize": "finalize"},
     )
+
     builder.add_edge("finalize", END)
 
     return builder.compile()
@@ -698,6 +814,7 @@ def run_agent(
         if verbose:
             print(f"\n{'='*60}")
             print(f"   Agentic RAG 啟動")
+            print(f"   Agentic RAG 啟動時間 : {time.localtime()}")
             print(f"   問題：{query}")
             print(f"   最大搜尋輪次：{MAX_ROUNDS}")
             print(f"{'='*60}")
@@ -708,12 +825,14 @@ def run_agent(
             "extra_queries":     [],
             "pending_queries":   [],
             "collected_docs":    [],
+            "extension_docs":    [],
             "searched_queries":  [],
             "is_sufficient":     False,
             "round_count":       0,
             "final_answer":      "",
             "professor_query":   None,
             "professor_fetched": False,
+            "school_tend":       False,
         }
 
         result_state = _get_graph().invoke(initial_state, {"recursion_limit": max_steps * 4})
@@ -724,7 +843,7 @@ def run_agent(
             print(f"\n{'='*60}")
             print(f"完成！共搜尋 {rounds} 輪，彙整 {total_docs} 筆去重文件")
             print(f"{'='*60}")
-
+        print(f"   Agentic RAG 結束時間 : {time.localtime()}")
         return result_state.get("final_answer") or None
 
     finally:
