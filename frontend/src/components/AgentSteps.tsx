@@ -48,38 +48,38 @@ export function AgentSteps({ events }: Props) {
     <div className="mb-4 mt-2">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-gray-800 transition-colors group cursor-pointer bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-gray-200/50 shadow-sm"
+        className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors group cursor-pointer bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-gray-200/50 dark:border-gray-700/50 shadow-sm"
       >
-        <div className={`p-0.5 rounded-full bg-gray-100 group-hover:bg-gray-200 transition-colors ${open ? 'rotate-90' : ''}`}>
+        <div className={`p-0.5 rounded-full bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600 transition-colors ${open ? 'rotate-90' : ''}`}>
           <ChevronRight size={12} strokeWidth={3} />
         </div>
         <span>AI 思考過程</span>
 
         {/* LLM 呼叫次數徽章 */}
-        <span className="inline-flex items-center gap-1 bg-violet-50 text-violet-600 border border-violet-100 px-2 py-0.5 rounded-full text-[10px] font-semibold">
+        <span className="inline-flex items-center gap-1 bg-violet-50 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300 border border-violet-100 dark:border-violet-800 px-2 py-0.5 rounded-full text-[10px] font-semibold">
           <Sparkles size={9} className="shrink-0" />
           Gemini {llmCalls.length} 次
         </span>
 
         {searchRounds > 0 && (
-          <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 border border-gray-200 px-2 py-0.5 rounded-full text-[10px] font-semibold">
+          <span className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-full text-[10px] font-semibold">
             {searchRounds} 輪搜尋
           </span>
         )}
       </button>
 
       {open && (
-        <div className="mt-3 ml-4 space-y-0 text-sm relative before:absolute before:inset-y-2 before:-left-[11px] before:w-px before:bg-gray-200">
+        <div className="mt-3 ml-4 space-y-0 text-sm relative before:absolute before:inset-y-2 before:-left-[11px] before:w-px before:bg-gray-200 dark:before:bg-gray-700">
           {safeEvents.map((event, i) => {
 
             // ── 擴充功能並行啟動 ──────────────────────
             if (event.type === 'thinking' && event.step === 'extension_function') {
               return (
                 <div key={i} className="flex gap-4 items-start py-2">
-                  <div className="relative z-10 w-[18px] h-[18px] rounded-full bg-amber-100 text-amber-600 flex items-center justify-center -ml-[4px] shadow-[0_0_0_4px_white]">
+                  <div className="relative z-10 w-[18px] h-[18px] rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center -ml-[4px] shadow-[0_0_0_4px_white] dark:shadow-[0_0_0_4px_#212121]">
                     <Zap size={10} strokeWidth={3} />
                   </div>
-                  <div className="text-amber-600 text-xs italic">並行執行擴充功能（教授查詢 / 選校推薦）...</div>
+                  <div className="text-amber-600 dark:text-amber-400 text-xs italic">並行執行擴充功能（教授查詢 / 選校推薦）...</div>
                 </div>
               )
             }
@@ -88,8 +88,8 @@ export function AgentSteps({ events }: Props) {
             if (event.type === 'thinking' && typeof event.step === 'number') {
               return (
                 <div key={i} className="flex gap-4 items-start py-2">
-                  <div className="relative z-10 w-2 h-2 rounded-full bg-gray-300 mt-1.5 shadow-[0_0_0_4px_white]" />
-                  <div className="text-gray-400 italic text-xs">第 {event.step} 輪搜尋推演中...</div>
+                  <div className="relative z-10 w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 mt-1.5 shadow-[0_0_0_4px_white] dark:shadow-[0_0_0_4px_#212121]" />
+                  <div className="text-gray-400 dark:text-gray-500 italic text-xs">第 {event.step} 輪搜尋推演中...</div>
                 </div>
               )
             }
@@ -101,27 +101,27 @@ export function AgentSteps({ events }: Props) {
               const isExtension = event.tool === 'fetch_professor' || event.tool === 'school_recommend'
               return (
                 <div key={i} className="flex gap-4 items-start py-2 animate-slide-down">
-                  <div className={`relative z-10 w-[18px] h-[18px] rounded-full flex items-center justify-center -ml-[4px] shadow-[0_0_0_4px_white] ${isExtension ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                  <div className={`relative z-10 w-[18px] h-[18px] rounded-full flex items-center justify-center -ml-[4px] shadow-[0_0_0_4px_white] dark:shadow-[0_0_0_4px_#212121] ${isExtension ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400' : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400'}`}>
                     <Icon size={10} strokeWidth={3} />
                   </div>
-                  <div className="flex-1 bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
+                  <div className="flex-1 bg-white dark:bg-[#2a2a2a] border border-gray-100 dark:border-gray-700 rounded-xl p-3 shadow-sm">
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="font-semibold text-gray-700 text-xs">{toolInfo.label}</span>
-                      <span className="text-[10px] text-gray-400 font-mono">{isExtension ? '外部資料' : '向量 DB'}</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-300 text-xs">{toolInfo.label}</span>
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">{isExtension ? '外部資料' : '向量 DB'}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       {event.args.query && (
-                        <span className="text-gray-500 text-xs bg-gray-50 px-2 py-1 rounded truncate max-w-[200px]" title={event.args.query}>
+                        <span className="text-gray-500 dark:text-gray-400 text-xs bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded truncate max-w-[200px]" title={event.args.query}>
                           "{event.args.query}"
                         </span>
                       )}
                       {event.args.school_id && (
-                        <span className="bg-indigo-50 text-indigo-600 px-2 py-1 rounded text-[10px] tracking-wide font-medium">
+                        <span className="bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 px-2 py-1 rounded text-[10px] tracking-wide font-medium">
                           {event.args.school_id.toUpperCase()}
                         </span>
                       )}
                       {event.args.page_type && (
-                        <span className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded text-[10px] tracking-wide font-medium">
+                        <span className="bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 px-2 py-1 rounded text-[10px] tracking-wide font-medium">
                           {event.args.page_type}
                         </span>
                       )}
@@ -138,12 +138,12 @@ export function AgentSteps({ events }: Props) {
               const isExtension = event.tool === 'fetch_professor' || event.tool === 'school_recommend'
               return (
                 <div key={i} className="flex gap-4 items-start py-1">
-                  <div className={`relative z-10 w-2 h-2 rounded-full mt-1.5 shadow-[0_0_0_4px_white] ${isExtension ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-                  <div className={`text-xs flex items-center gap-1 ${isExtension ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  <div className={`relative z-10 w-2 h-2 rounded-full mt-1.5 shadow-[0_0_0_4px_white] dark:shadow-[0_0_0_4px_#212121] ${isExtension ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                  <div className={`text-xs flex items-center gap-1 ${isExtension ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     <CheckCircle2 size={12} className="shrink-0" />
                     <span>{resultLabel}</span>
                     {preview && (
-                      <span className="text-gray-400 ml-1">— {preview}</span>
+                      <span className="text-gray-400 dark:text-gray-500 ml-1">— {preview}</span>
                     )}
                   </div>
                 </div>
@@ -160,17 +160,17 @@ export function AgentSteps({ events }: Props) {
                 : ''
               return (
                 <div key={i} className="flex gap-4 items-start py-2 animate-slide-down">
-                  <div className="relative z-10 w-[18px] h-[18px] rounded-full bg-violet-100 text-violet-600 flex items-center justify-center -ml-[4px] shadow-[0_0_0_4px_white]">
+                  <div className="relative z-10 w-[18px] h-[18px] rounded-full bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-300 flex items-center justify-center -ml-[4px] shadow-[0_0_0_4px_white] dark:shadow-[0_0_0_4px_#212121]">
                     <BrainCircuit size={10} strokeWidth={2.5} />
                   </div>
-                  <div className="flex-1 bg-violet-50/60 border border-violet-100 rounded-xl p-3 shadow-sm">
+                  <div className="flex-1 bg-violet-50/60 dark:bg-violet-900/20 border border-violet-100 dark:border-violet-800/50 rounded-xl p-3 shadow-sm">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
-                        <Sparkles size={10} className="text-violet-500 shrink-0" />
-                        <span className="font-semibold text-violet-700 text-xs">Gemini API</span>
-                        <span className="text-violet-500 text-xs">— {purposeLabel}{roundLabel}</span>
+                        <Sparkles size={10} className="text-violet-500 dark:text-violet-400 shrink-0" />
+                        <span className="font-semibold text-violet-700 dark:text-violet-300 text-xs">Gemini API</span>
+                        <span className="text-violet-500 dark:text-violet-400 text-xs">— {purposeLabel}{roundLabel}</span>
                       </div>
-                      <span className="text-[10px] text-violet-400 font-mono bg-violet-100 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] text-violet-400 dark:text-violet-400 font-mono bg-violet-100 dark:bg-violet-900/50 px-1.5 py-0.5 rounded">
                         #{callNum}
                       </span>
                     </div>
@@ -183,15 +183,15 @@ export function AgentSteps({ events }: Props) {
           })}
 
           {/* 底部統計摘要 */}
-          <div className="flex items-center gap-3 pt-3 pb-1 border-t border-gray-100 mt-2">
-            <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+          <div className="flex items-center gap-3 pt-3 pb-1 border-t border-gray-100 dark:border-gray-800 mt-2">
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
               <Sparkles size={10} className="text-violet-400 shrink-0" />
-              <span className="font-semibold text-violet-500">{llmCalls.length}</span>
+              <span className="font-semibold text-violet-500 dark:text-violet-400">{llmCalls.length}</span>
               <span>次 Gemini 呼叫</span>
             </div>
-            <span className="text-gray-200">·</span>
-            <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-              <span className="font-semibold text-gray-500">{searchRounds}</span>
+            <span className="text-gray-200 dark:text-gray-700">·</span>
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+              <span className="font-semibold text-gray-500 dark:text-gray-400">{searchRounds}</span>
               <span>輪搜尋推演</span>
             </div>
           </div>
