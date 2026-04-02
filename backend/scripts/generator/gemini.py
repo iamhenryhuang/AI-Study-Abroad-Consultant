@@ -348,13 +348,14 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
 
     
     print(f"\n[Compress] 送入壓縮：{len(raw_chunk)} 筆")
+    """
     print("[Compress] ── 壓縮前 ────────────────────────────────────────────")
     for i, v in enumerate(raw_chunk, 1):
         orig_len = len(v.get("chunk_text", ""))
         preview  = v.get("chunk_text", "")[:120].replace("\n", " ")
         print(f"  [{i:02d}] len={orig_len:5d}  query={v.get('query','')[:60]}"
               f"\n        {preview}…")
-    
+    """
 
     client = get_gemini_compress_client()
     prompt = compress_prompt(raw_chunk)
@@ -374,6 +375,7 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
             for item in compressed
             if "id" in item
         }
+        
         
         print("[Compress] ── 壓縮後 ────────────────────────────────────────────")
         result: list[dict] = []
@@ -396,14 +398,17 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
             new_len  = len(new_text)
             reduction = (1 - new_len / orig_len) * 100 if orig_len > 0 else 0
             preview  = new_text[:120].replace("\n", " ")
+            """
             print(f"  [{idx:02d}] ✓ {orig_len:5d} → {new_len:5d} chars  "
                   f"(-{reduction:.0f}%)  │ {preview}…")
+            """
             updated = {**doc, "chunk_text": new_text}
             result.append(updated)
 
         kept   = len(result)
         dropped = len(raw_chunk) - kept
         print(f"[Compress] 完成：{len(raw_chunk)} 筆 → 保留 {kept} 筆 / 丟棄 {dropped} 筆")
+        
         
         return result
         

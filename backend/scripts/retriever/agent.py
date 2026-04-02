@@ -274,6 +274,7 @@ def decomposer_node_1(state: AgentState) -> dict:
 判斷問題是否在詢問「某位具體教授」的相關資訊。
 
 - 若問題中有「明確的教授姓名」，提取其姓名與學校，professor_query 為物件
+- 姓名必須完整保留原始寫法，包括連字號（-）與大小寫，例如 "Fei-Fei Li" 不得改寫為 "Feifei Li"
 - 否則 professor_query 為 null
 
 ====================
