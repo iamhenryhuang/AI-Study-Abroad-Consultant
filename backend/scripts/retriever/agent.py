@@ -34,7 +34,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.types import Send
 
 from retriever.search import search_core
-from generator.gemini import get_gemini_client, generate_answer, chunk_compress
+from generator.gemini import get_gemini_client, generate_answer, generate_answer_stream, chunk_compress
 from professor_fetcher.fetch_for_agent import run_professor_fetch
 from retriever.analyzer import analyze_and_evaluate
 
@@ -721,11 +721,30 @@ def finalizer_node(state: AgentState) -> dict:
 
     _check_cancel()
     _emit({"type": "llm_call", "purpose": "finalizer"})
-    answer = generate_answer(query, docs_sorted)
 
-    if answer:
-        _emit({"type": "answer", "text": answer})
-        return {"final_answer": answer}
+    full_text = ""
+    try:
+        for chunk in generate_answer_stream(query, docs_sorted):
+            _check_cancel()
+            full_text += chunk
+            if chunk:
+                _emit({"type": "answer_chunk", "text": chunk})
+    except Exception as e:
+        print(f"[Finalizer] 串流失敗，回退到非串流: {e}")
+        full_text = generate_answer(query, docs_sorted) or ""
+
+    if full_text:
+        # 清理格式（統一在全文上處理，避免跨 chunk 的問題）
+        import re as _re
+        clean = full_text.replace("**", "")
+        clean = _re.sub(
+            r"<span[^>]*>\s*(\[[^\]]+\]\([^\)]+\))\s*</span>",
+            r"\1", clean, flags=_re.IGNORECASE,
+        )
+        clean = _re.sub(r"</?span[^>]*>", "", clean, flags=_re.IGNORECASE)
+        clean = clean.strip()
+        _emit({"type": "answer", "text": clean})
+        return {"final_answer": clean}
     else:
         msg = "Gemini 生成失敗"
         print(f"[Finalizer] {msg}")

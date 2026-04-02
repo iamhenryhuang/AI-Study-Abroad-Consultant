@@ -156,6 +156,38 @@ CMU: GPA 要求...^截止日期...^其他...
 """
 
 
+def generate_answer_stream(
+    query: str,
+    context_docs: list[dict],
+    model_name: str = "gemini-2.5-flash",
+):
+    """
+    串流版本：逐 chunk yield 原始文字。
+    呼叫端收集完整文字後自行清理（**、<span> 等）。
+    若 API 失敗則 raise Exception。
+    """
+    client = get_gemini_client()
+    context_text = format_context_for_prompt(context_docs)
+
+    prompt = f"""{_SYSTEM_PROMPT}
+
+--- 參考資料（共 {len(context_docs)} 筆） ---
+{context_text}
+
+--- 使用者問題 ---
+{query}
+
+--- 你的回答 ---
+（請嚴格遵守以上規則，若資料不足請直接說不知道並引導查官網）
+"""
+
+    for chunk in client.models.generate_content_stream(
+        model=model_name,
+        contents=prompt,
+    ):
+        yield chunk.text or ""
+
+
 def generate_answer(
     query: str,
     context_docs: list[dict],
@@ -314,7 +346,7 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
     if not raw_chunk:
         return raw_chunk
 
-    """
+    
     print(f"\n[Compress] 送入壓縮：{len(raw_chunk)} 筆")
     print("[Compress] ── 壓縮前 ────────────────────────────────────────────")
     for i, v in enumerate(raw_chunk, 1):
@@ -322,7 +354,7 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
         preview  = v.get("chunk_text", "")[:120].replace("\n", " ")
         print(f"  [{i:02d}] len={orig_len:5d}  query={v.get('query','')[:60]}"
               f"\n        {preview}…")
-    """
+    
 
     client = get_gemini_compress_client()
     prompt = compress_prompt(raw_chunk)
@@ -342,7 +374,7 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
             for item in compressed
             if "id" in item
         }
-        """
+        
         print("[Compress] ── 壓縮後 ────────────────────────────────────────────")
         result: list[dict] = []
         for idx, doc in enumerate(raw_chunk, start=1):
@@ -372,8 +404,9 @@ def chunk_compress(raw_chunk: list[dict]) -> list[dict]:
         kept   = len(result)
         dropped = len(raw_chunk) - kept
         print(f"[Compress] 完成：{len(raw_chunk)} 筆 → 保留 {kept} 筆 / 丟棄 {dropped} 筆")
+        
         return result
-        """
+        
 
     except json.JSONDecodeError as e:
         print(f"[Gemini] JSON 解析失敗: {e}\n原始回應: {raw_text[:200]}")

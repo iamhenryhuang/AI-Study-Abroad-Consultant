@@ -3,6 +3,7 @@ export type AgentEvent =
   | { type: 'tool_call'; tool: string; args: Record<string, string> }
   | { type: 'tool_result'; tool: string; preview: string }
   | { type: 'llm_call'; purpose: 'planner' | 'finalizer'; round?: number }
+  | { type: 'answer_chunk'; text: string }
   | { type: 'answer'; text: string }
   | { type: 'error'; message: string }
 
