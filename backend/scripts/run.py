@@ -30,7 +30,7 @@ from retriever.rag_pipeline import run_rag_pipeline, run_agent_pipeline
 
 COMMANDS = {
     "setup":     ("檢查連線並建立資料庫",                   setup_db),
-    "import":    ("建表 + 切片 + 向量化並匯入 crawler/school_data/*.json", import_json),
+    "import":    ("建表 + 切片 + 向量化並匯入 crawler/data/*.json", import_json),
     "verify-db": ("檢查 SQL 資料是否已寫入",                 verify),
     "verify-vdb":("檢查向量資料庫狀態",                      verify_embeddings),
     "embed":     ("切片 + 向量化並寫入 document_chunks",     run_pipeline),

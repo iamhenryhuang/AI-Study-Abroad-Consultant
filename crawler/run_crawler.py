@@ -35,7 +35,7 @@ from clean_json_data import clean
 from setting.root_url import SCHOOLS
 from setting.parameter import CONFIG
 
-PATH_DATA = Path(__file__).resolve().parent / "school_data"
+PATH_DATA = Path(__file__).resolve().parent / "data"
 PATH_URL  = Path(__file__).resolve().parent / "url_result"
 
 # ──────────────────────────────────────────────

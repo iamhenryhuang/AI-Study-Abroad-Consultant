@@ -99,6 +99,8 @@ export function useStreamChat() {
                   ...s,
                   messages: s.messages.map(m => {
                     if (m.id !== assistantId) return m
+                    if (event.type === 'answer_chunk')
+                      return { ...m, text: m.text + event.text }
                     const base = { ...m, events: [...m.events, event] }
                     if (event.type === 'answer')
                       return { ...base, text: event.text, loading: false }

@@ -66,7 +66,7 @@ KEYWORDS_TO_REMOVE = [
 # 設定要掃描的資料夾路徑（預設為目前目錄）
 # Set the folder path to scan (default: current directory)
 # ============================================================
-SCAN_FOLDER = Path(__file__).resolve().parent / "school_data"
+SCAN_FOLDER = Path(__file__).resolve().parent / "data"
 
 
 def remove_keywords(text: str, keywords: list[str]) -> str:
