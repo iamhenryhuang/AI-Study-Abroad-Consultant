@@ -23,7 +23,7 @@ from professor_fetcher.fetcher import (
 )
 from professor_fetcher.formatter import format_professor_to_json
 
-SCHOOL_DATA_DIR = ROOT_DIR.parent / "crawler" / "school_data"
+SCHOOL_DATA_DIR = ROOT_DIR.parent / "crawler" / "data"
 
 # ── Utils ────────────────────────────────────────────────────────────────────
 
@@ -115,7 +115,7 @@ def run_embed(json_path: Path) -> None:
     try:
         from embedder.pipeline import run_pipeline
         print(f"\n>>> Running embedding pipeline for {json_path.name}...")
-        run_pipeline(data_dirname="crawler/school_data")
+        run_pipeline(data_dirname="crawler/data")
     except Exception as e:
         print(f"!!! Embedding failed: {e}")
 

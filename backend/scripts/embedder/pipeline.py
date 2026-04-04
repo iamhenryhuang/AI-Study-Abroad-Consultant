@@ -1,6 +1,6 @@
 """
 流程：
-    1. 讀取 crawler/school_data/ 目錄下所有 .json
+    1. 讀取 crawler/data/ 目錄下所有 .json
     2. 每個 record 含 school_id, url, passed_types, data
     3. 正規化 school_id，寫入 universities 和 web_pages 表
     4. 依主要 page_type（passed_types 中分數最高者）切片
@@ -315,7 +315,7 @@ def _process_record(
 
 
 def run_pipeline(
-    data_dirname: str = "crawler/school_data",
+    data_dirname: str = "crawler/data",
     target_school: str | None = None,
 ) -> bool:
     data_dir = _ROOT_DIR / data_dirname
@@ -379,4 +379,4 @@ def run_pipeline(
 
 
 if __name__ == "__main__":
-    run_pipeline("crawler/school_data", "bu")   
+    run_pipeline("crawler/data", "bu")   

@@ -10,7 +10,7 @@ from generator.gemini import get_gemini_client, generate_answer
 _SCHOOL_ID_TO_EXP_KEY: dict[str, str] = {v: k for k, v in _EXP_KEY_TO_SCHOOL_ID.items()}
 
 _PROJECT_ROOT    = Path(__file__).resolve().parent.parent.parent
-_DATA_DIR        = _PROJECT_ROOT / "data" 
+_DATA_DIR        = _PROJECT_ROOT.parent / "crawler" / "data"
 _DISTRIBUTION_PATH = _DATA_DIR / "1point3_distribution.json"
 _EXPERIENCE_PATH   = _DATA_DIR / "merged_1point3_data.json"
 

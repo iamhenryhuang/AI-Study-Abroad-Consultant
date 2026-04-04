@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 # 輸出資料夾，可依需求修改
-OUTPUT_DIR = "school_data"
+OUTPUT_DIR = "data"
 
 
 def save_school_results(results: List[Dict[str, Any]], school_id: str, output_dir: str = OUTPUT_DIR) -> None:

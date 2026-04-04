@@ -44,12 +44,12 @@ def setup_db():
 
 # ── import_json ──────────────────────────────────────────────
 
-def import_json(data_dirname: str = "crawler/school_data"):
+def import_json(data_dirname: str = "crawler/data"):
     """
     依 db/init_db.sql 建表，並啟動 embedder/pipeline.py 的 run_pipeline。
 
     1. 建立/重置資料表（執行 init_db.sql）
-    2. 呼叫 pipeline.run_pipeline()，資料來源預設為 crawler/school_data/
+    2. 呼叫 pipeline.run_pipeline()，資料來源預設為 crawler/data/
     """
     conn = get_connection()
     if not conn:
