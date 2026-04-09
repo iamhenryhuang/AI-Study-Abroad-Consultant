@@ -9,7 +9,7 @@ Backend service for CS graduate admissions QA. Built with FastAPI, PostgreSQL (p
   ```
 - **Hybrid Search**: Semantic vector search (BGE-M3) + PostgreSQL FTS, merged by **Reciprocal Rank Fusion (RRF)**.
 - **Reranking**: Secondary ranking via BGE-Reranker-v2-m3 (Cross-Encoder).
-- **Professor Fetch (runtime)**: If a query names a professor, `extension_function_node` calls SerpAPI and can route to `finalize` directly.
+- **Professor Fetch (runtime)**: If a query names a professor, `extension_function_node` calls SerpAPI and merges results into final context.
 - **Alternative Recommendations**: Supports backup-school recommendation and attainability checks based on profile + admissions data.
 - **Context-Aware Chunking (v4)**:
     - Automatically injects school and page-type metadata into every chunk to prevent vector space collision.
@@ -37,7 +37,7 @@ When the user asks for backup schools (or profile suggests target school risk), 
 
 ### When should I enter `.venv`?
 Activate `.venv` whenever you are going to run backend Python commands, for example:
-- Installing packages (`pip install -r backend/requirements.txt`)
+- Installing packages (`python -m pip install -r requirements.txt`)
 - Running CLI (`python backend/scripts/run.py ...`)
 - Running API server (`python backend/api.py`)
 
@@ -77,7 +77,7 @@ BGE_RERANKER_MODEL_PATH=/path/to/bge-reranker-v2-m3
 | :--- | :--- |
 | `python backend/scripts/run.py init-all` | Run setup + full import (Resets all tables). |
 | `python backend/scripts/run.py setup` | Check connection and create database. |
-| `python backend/scripts/run.py import` | Rebuild schema and re-import all JSON files in `data/`. |
+| `python backend/scripts/run.py import` | Rebuild schema and re-import all JSON files in `crawler/data/`. |
 | `python backend/scripts/run.py embed` | Incremental import: Chunk and embed data without resetting tables. |
 | `python backend/scripts/run.py verify-db` | Check database stats and school distribution. |
 | `python backend/scripts/run.py verify-vdb` | Check vector counts and HNSW index health. |
@@ -111,6 +111,8 @@ Event types:
 - `thinking`
 - `tool_call`
 - `tool_result`
+- `llm_call`
+- `answer_chunk`
 - `answer`
 - `error`
 
