@@ -283,6 +283,11 @@ def search_professor_id(name: str, affiliation: str = "") -> str | None:
         name:        教授全名
         affiliation: 學校名稱或關鍵字
     """
+    profile_id = _search_via_profiles(name, affiliation)
+    if profile_id:
+        return profile_id
+
+    print("  [Search] Profiles 未找到可靠結果，改用 Papers fallback")
     return _search_via_papers(name, affiliation)
 
 
@@ -300,6 +305,73 @@ def fetch_author_profile(author_id: str) -> dict:
     except Exception as e:
         print(f"  profile 抓取失敗：{e}")
         return {"search_parameters": {"author_id": author_id}}
+
+
+def _extract_recent_papers(
+    data: dict,
+    professor_name: str = "",
+    cutoff_year: int | None = None,
+    max_papers: int = 20,
+) -> list[dict]:
+    cutoff = cutoff_year if cutoff_year is not None else RECENT_YEARS_CUTOFF
+
+    papers = []
+    for article in data.get("articles", []):
+        year = None
+        year_str = str(article.get("year", ""))
+        m = re.search(r"\b(20\d{2}|19\d{2})\b", year_str)
+        if m:
+            year = int(m.group(1))
+
+        if year and year < cutoff:
+            continue
+
+        cited_val = 0
+        cited_raw = article.get("cited_by", {})
+        if isinstance(cited_raw, dict):
+            cited_val = cited_raw.get("value", 0) or 0
+
+        papers.append({
+            "title":          article.get("title", ""),
+            "link":           article.get("link", ""),
+            "authors":        article.get("authors", professor_name),
+            "publication":    article.get("publication", ""),
+            "year":           year or cutoff,
+            "cited_by_value": cited_val,
+            "snippet":        article.get("description", ""),
+        })
+        if len(papers) >= max_papers:
+            break
+
+    print(f"  [Papers] collected {len(papers)} papers since {cutoff}")
+    return papers
+
+
+def fetch_author_profile_and_recent_papers(
+    author_id: str,
+    professor_name: str = "",
+    cutoff_year: int | None = None,
+    max_papers: int = 20,
+) -> tuple[dict, list[dict]]:
+    """Fetch author metadata and recent papers with one SerpAPI author request."""
+    try:
+        data = _get({
+            "engine":    "google_scholar_author",
+            "author_id": author_id,
+            "hl":        "en",
+            "sort":      "pubdate",
+        })
+    except Exception as e:
+        print(f"  author fetch failed: {e}")
+        return {"search_parameters": {"author_id": author_id}}, []
+
+    papers = _extract_recent_papers(
+        data=data,
+        professor_name=professor_name,
+        cutoff_year=cutoff_year,
+        max_papers=max_papers,
+    )
+    return data, papers
 
 
 def fetch_recent_papers(

@@ -18,8 +18,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from professor_fetcher.fetcher import (
     search_professor_id,
-    fetch_author_profile,
-    fetch_recent_papers,
+    fetch_author_profile_and_recent_papers,
 )
 from professor_fetcher.formatter import format_professor_to_json
 
@@ -67,7 +66,7 @@ def fetch_one(
         print(f"!!! Skipping {name}: Author ID not found.")
         return None
 
-    papers = fetch_recent_papers(
+    profile, papers = fetch_author_profile_and_recent_papers(
         author_id=author_id,
         professor_name=name,
         cutoff_year=cutoff_year,
@@ -75,7 +74,6 @@ def fetch_one(
     )
     time.sleep(delay)
 
-    profile = fetch_author_profile(author_id)
     return format_professor_to_json(
         profile_data=profile,
         recent_papers=papers,
