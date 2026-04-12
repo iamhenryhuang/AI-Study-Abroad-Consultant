@@ -23,6 +23,7 @@ CREATE TABLE web_pages (
     passed_types  JSONB NOT NULL,   -- [{type, score}, ...] 所有類型及分數
     raw_text      TEXT NOT NULL,
     char_count    INTEGER,
+    content_hash  VARCHAR(64) NOT NULL,
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
