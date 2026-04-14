@@ -49,22 +49,30 @@ async def chat(request: ChatRequest):
       {"type": "error",       "message": "..."}
     """
     cancel_event: threading.Event = threading.Event()
+    terminal_event_sent: threading.Event = threading.Event()
     event_queue: asyncio.Queue[dict] = asyncio.Queue()
     loop = asyncio.get_running_loop()
 
     def on_event(event: dict) -> None:
         if not cancel_event.is_set():
+            if event.get("type") in ("answer", "error"):
+                terminal_event_sent.set()
             loop.call_soon_threadsafe(event_queue.put_nowait, event)
 
     def run_in_thread() -> None:
         try:
-            run_agent(
+            result = run_agent(
                 query=request.query,
                 max_steps=request.max_steps,
                 verbose=False,
                 on_event=on_event,
                 cancel_event=cancel_event,
             )
+            if not cancel_event.is_set() and not terminal_event_sent.is_set():
+                if result:
+                    on_event({"type": "answer", "text": result})
+                else:
+                    on_event({"type": "error", "message": "Agent finished without a final answer."})
         except Exception as exc:
             if not cancel_event.is_set():
                 on_event({"type": "error", "message": str(exc)})
