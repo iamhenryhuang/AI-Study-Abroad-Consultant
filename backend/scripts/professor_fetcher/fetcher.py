@@ -283,11 +283,6 @@ def search_professor_id(name: str, affiliation: str = "") -> str | None:
         name:        教授全名
         affiliation: 學校名稱或關鍵字
     """
-    profile_id = _search_via_profiles(name, affiliation)
-    if profile_id:
-        return profile_id
-
-    print("  [Search] Profiles 未找到可靠結果，改用 Papers fallback")
     return _search_via_papers(name, affiliation)
 
 
