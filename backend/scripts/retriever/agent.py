@@ -59,14 +59,14 @@ _SCHOOL_ALIASES: dict[str, list[str]] = {
 MAX_ROUNDS      = 2   # Planner 最多重試幾輪
 TOP_K_PER_QUERY = 10   # 每個子問題檢索幾筆
 
-# 模組層級的執行期間狀態（單執行緒 agent，每次一個）
-_current_on_event: Optional[Callable[[dict], None]] = None
-_cancel_event:     Optional[threading.Event]         = None
+# Thread-local execution context prevents concurrent API requests from sharing callbacks.
+_agent_context = threading.local()
 
 
 def _check_cancel() -> None:
     """若取消事件已設定，立即拋出 AgentCancelledError。"""
-    if _cancel_event is not None and _cancel_event.is_set():
+    cancel_event = getattr(_agent_context, "cancel_event", None)
+    if cancel_event is not None and cancel_event.is_set():
         raise AgentCancelledError("Agent 已被取消")
 
 
@@ -92,9 +92,10 @@ class AgentState(TypedDict):
 
 def _emit(event: dict) -> None:
     """安全地呼叫目前的 on_event callback（若有設定）。"""
-    if _current_on_event is not None:
+    on_event = getattr(_agent_context, "on_event", None)
+    if on_event is not None:
         try:
-            _current_on_event(event)
+            on_event(event)
         except Exception:
             pass
 
@@ -843,9 +844,8 @@ def run_agent(
     Returns:
         最終回答字串，或 None
     """
-    global _current_on_event, _cancel_event
-    _current_on_event = on_event
-    _cancel_event     = cancel_event
+    _agent_context.on_event = on_event
+    _agent_context.cancel_event = cancel_event
 
     try:
         if verbose:
@@ -888,8 +888,8 @@ def run_agent(
         return None
 
     finally:
-        _current_on_event = None
-        _cancel_event     = None
+        _agent_context.on_event = None
+        _agent_context.cancel_event = None
 
 
 # ─── CLI 入口 ─────────────────────────────────────────────────────────────────

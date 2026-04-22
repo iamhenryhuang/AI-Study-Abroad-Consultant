@@ -213,26 +213,31 @@ def upsert_chunks(
         return 0
 
     passed_types_json = json.dumps(passed_types, ensure_ascii=False)
+    rows = [
+        (
+            university_id,
+            page_id,
+            school_id,
+            source_url,
+            passed_types_json,
+            idx,
+            text,
+            str(emb),
+        )
+        for idx, (text, emb) in enumerate(zip(chunks, embeddings))
+    ]
 
     with conn.cursor() as cur:
         cur.execute("DELETE FROM document_chunks WHERE page_id = %s", (page_id,))
-        for idx, (text, emb) in enumerate(zip(chunks, embeddings)):
-            cur.execute(
-                """
-                INSERT INTO document_chunks
-                    (university_id, page_id, school_id, source_url,
-                     passed_types, chunk_index, chunk_text, embedding)
-                VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s::vector)
-                ON CONFLICT (page_id, chunk_index) DO UPDATE SET
-                    chunk_text   = EXCLUDED.chunk_text,
-                    embedding    = EXCLUDED.embedding,
-                    passed_types = EXCLUDED.passed_types;
-                """,
-                (
-                    university_id, page_id, school_id, source_url,
-                    passed_types_json, idx, text, str(emb),
-                ),
-            )
+        cur.executemany(
+            """
+            INSERT INTO document_chunks
+                (university_id, page_id, school_id, source_url,
+                 passed_types, chunk_index, chunk_text, embedding)
+            VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s::vector);
+            """,
+            rows,
+        )
     return len(chunks)
 
 

@@ -4,7 +4,7 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev/)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg)](https://react.dev/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4-38B2AC.svg)](https://tailwindcss.com/)
 
 ---
@@ -19,10 +19,10 @@ The backend uses a LangGraph workflow: analyze intent, choose tools, retrieve re
 ### Key Features
 - **Agentic Retrieval Workflow**: `decompose -> extension_function -> search -> plan -> finalize`.
 - **Alternative School Recommendation**: Supports backup-school suggestions from user profile (GPA/TOEFL/GRE) and admission statistics/experience data.
-- **Professor Runtime Fetch**: For named professor queries, calls SerpAPI directly and skips vector DB retrieval.
+- **Professor Runtime Fetch**: For named professor queries, agent calls SerpAPI in the extension path and merges results into final context.
 - **Hybrid Search + Rerank**: Vector search (BGE-M3) + PostgreSQL FTS (RRF) + Cross-Encoder reranker.
 - **Chunk Compression**: Gemini keeps only query-relevant sentences while preserving source metadata.
-- **Streaming Responses**: Frontend receives `thinking`, `tool_call`, `tool_result`, `answer`, `error` events.
+- **Streaming Responses**: Frontend receives `thinking`, `tool_call`, `tool_result`, `llm_call`, `answer_chunk`, `answer`, `error` events.
 - **Traceable Output**: Answers include source URLs from official university pages whenever available.
 - **Crawler + Ingestion Pipeline**: Playwright crawler, scoring/classification, then chunk/embed/store.
 
@@ -44,9 +44,9 @@ The backend uses a LangGraph workflow: analyze intent, choose tools, retrieve re
 │   ├── run_crawler.py      # Crawler entry point
 │   ├── url_crawler.py      # URL discovery & page fetching
 │   ├── score.py            # Page scoring & classification
-│   ├── save_result.py      # Write results to school_data/
+│   ├── save_result.py      # Write results to data/
 │   ├── clean_json_data.py  # Post-crawl data cleaning
-│   └── school_data/        # Crawled data ([{school_id, url, passed_types, data}])
+│   └── data/               # Crawled data ([{school_id, url, passed_types, data}])
 ├── frontend/               # React + Tailwind v4 + Vite
 │   ├── src/components/     # UI components
 │   └── src/hooks/          # Real-time streaming hooks
@@ -112,7 +112,7 @@ BGE_RERANKER_MODEL_PATH=path/to/bge-reranker-v2-m3
 cd crawler
 python run_crawler.py
 ```
-Output saved to `crawler/school_data/*.json`.
+Output saved to `crawler/data/*.json`.
 
 **Step 2 — Import into DB (init schema + embed + store):**
 ```bash
@@ -143,13 +143,17 @@ Manage the pipeline from `backend/scripts/run.py`:
 |---------|-------------|
 | `init-all` | Run `setup` + full import in one command |
 | `setup` | Check DB connection, create DB if missing |
-| `import` | Init schema + chunk + embed + store `crawler/school_data/` |
+| `import` | Init schema + chunk + embed + store `crawler/data/` |
 | `embed` | Incremental chunk + embed into DB |
 | `verify-db` | Check DB contents |
 | `verify-vdb` | Check vector DB and index status |
 | `search "QUERY"` | Hybrid vector + keyword search |
 | `rag "QUERY"` | Standard RAG (search -> rerank -> answer) |
 | `agent "QUERY"` | Full LangGraph agent workflow |
+
+Common flags:
+- `--school [sid]`: Restrict `search`/`rag` to a specific school.
+- `--max-steps [N]`: Control agent recursion limit for `agent` command.
 
 ```bash
 python backend/scripts/run.py search "MIT deadline" --school mit
@@ -162,7 +166,7 @@ python backend/scripts/run.py agent "Compare Stanford and CMU GPA requirements"
 
 There are two ways to get professor data:
 
-**1. Agent (runtime)** — when a query mentions a specific professor name, the agent auto-detects the intent in the Decomposer step and calls SerpAPI live. No pre-fetching needed.
+**1. Agent (runtime)** — when a query mentions a specific professor name, the agent auto-detects the intent in the Decomposer step, calls SerpAPI live via `extension_function`, and merges fetched docs into final answer context.
 
 **2. CLI (pre-fetch + embed)** — manually fetch and embed a professor's data:
 
@@ -173,7 +177,7 @@ python backend/scripts/professor_fetcher/run_fetch.py \
   --embed
 ```
 
-Results are saved to `crawler/school_data/{school_id}_professors.json` and optionally embedded into the DB with `--embed`.
+Results are saved to `crawler/data/{school_id}_professors.json` and optionally embedded into the DB with `--embed`.
 
 ---
 
