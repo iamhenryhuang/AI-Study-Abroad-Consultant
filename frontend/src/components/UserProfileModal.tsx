@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
 interface Props {
@@ -10,83 +11,79 @@ export function UserProfileModal({ isOpen, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+        aria-label="關閉個人資料"
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="relative bg-white dark:bg-[#2a2a2a] rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in-up">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">使用者資料 User Profile</h2>
+      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-black/8 bg-white shadow-2xl dark:border-white/10 dark:bg-[#242527]">
+        <div className="flex items-center justify-between border-b border-black/6 px-6 py-4 dark:border-white/8">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">個人資料</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="grid h-9 w-9 place-items-center rounded-xl text-gray-400 transition hover:bg-black/5 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white"
+            aria-label="關閉"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Form Body - UI Only */}
-        <div className="px-6 py-6 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
-
-          <div className="space-y-1">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">目標科系</h3>
+        <div className="max-h-[70vh] space-y-5 overflow-y-auto px-6 py-6 custom-scrollbar">
+          <Field label="申請領域">
             <input
               type="text"
-              placeholder="例如：Computer Science, Data Science"
-              className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-[#333] placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400"
+              placeholder="例如 Computer Science, Data Science"
+              className="field-input"
             />
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="GPA">
+              <input type="text" placeholder="例如 3.8 / 4.0" className="field-input" />
+            </Field>
+            <Field label="英文成績">
+              <input type="text" placeholder="例如 TOEFL 105" className="field-input" />
+            </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">GPA</h3>
-              <input
-                type="text"
-                placeholder="例如：3.8 / 4.0"
-                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-[#333] placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400"
-              />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">語文成績 (TOEFL/IELTS)</h3>
-              <input
-                type="text"
-                placeholder="例如：TOEFL 105"
-                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-[#333] placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">研究經驗 / 工作經驗簡述</h3>
+          <Field label="研究興趣 / 申請背景">
             <textarea
-              rows={3}
-              placeholder="請簡短描述您的相關經驗..."
-              className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-[#333] placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 resize-none"
+              rows={4}
+              placeholder="簡短描述你的研究、實習、專題或想申請的方向..."
+              className="field-input resize-none"
             />
-          </div>
-
+          </Field>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 dark:bg-[#222222] border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
+        <div className="flex justify-end gap-3 border-t border-black/6 bg-gray-50 px-6 py-4 dark:border-white/8 dark:bg-white/[0.03]">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-white dark:bg-[#333] border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium rounded-lg shadow-sm transition-colors"
+            className="rounded-xl border border-black/8 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-200 dark:hover:bg-white/[0.08]"
           >
             取消
           </button>
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black text-sm font-medium rounded-lg shadow-sm transition-colors"
+            className="rounded-xl bg-[#1f1f1f] px-4 py-2 text-sm font-medium text-white transition hover:bg-black dark:bg-white dark:text-black dark:hover:bg-gray-100"
           >
-            儲存資料
+            儲存
           </button>
         </div>
       </div>
     </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
+      {children}
+    </label>
   )
 }

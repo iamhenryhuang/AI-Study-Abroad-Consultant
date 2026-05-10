@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import type { AgentEvent, Message, ChatSession } from '../types'
+import type { AgentEvent, ChatSession, Message } from '../types'
 
 const STORAGE_KEY = 'study_abroad_chat_sessions'
 
@@ -10,45 +10,46 @@ export function useStreamChat() {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (!saved) return []
       const parsed: ChatSession[] = JSON.parse(saved)
-      // Ensure events exists on all messages
-      return parsed.map(s => ({
-        ...s,
-        messages: s.messages.map(m => ({
-          ...m,
-          events: m.events || []
-        }))
+      return parsed.map((session) => ({
+        ...session,
+        messages: session.messages.map((message) => ({
+          ...message,
+          events: message.events || [],
+        })),
       }))
     } catch {
       return []
     }
   })
 
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessions[0]?.id || null)
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(
+    sessions[0]?.id || null,
+  )
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions))
   }, [sessions])
 
-  const currentSession = sessions.find(s => s.id === currentSessionId)
+  const currentSession = sessions.find((session) => session.id === currentSessionId)
   const messages = currentSession?.messages || []
 
   const getOrCreateSession = (firstMessageText: string) => {
-    if (currentSessionId && sessions.some(s => s.id === currentSessionId)) {
+    if (currentSessionId && sessions.some((session) => session.id === currentSessionId)) {
       return currentSessionId
     }
-    const newSessionId = crypto.randomUUID()
 
-    const maxLen = 20
-    let title = firstMessageText.slice(0, maxLen)
-    if (firstMessageText.length > maxLen) title += '...'
+    const newSessionId = crypto.randomUUID()
+    const title =
+      firstMessageText.length > 20 ? `${firstMessageText.slice(0, 20)}...` : firstMessageText
 
     const newSession: ChatSession = {
       id: newSessionId,
       title,
       updatedAt: Date.now(),
-      messages: []
+      messages: [],
     }
-    setSessions(prev => [newSession, ...prev])
+
+    setSessions((previous) => [newSession, ...previous])
     setCurrentSessionId(newSessionId)
     return newSessionId
   }
@@ -57,26 +58,42 @@ export function useStreamChat() {
     mutationFn: async (query: string) => {
       const targetSessionId = getOrCreateSession(query)
       const assistantId = crypto.randomUUID()
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        text: query,
+        events: [],
+        loading: false,
+      }
+      const assistantMessage: Message = {
+        id: assistantId,
+        role: 'assistant',
+        text: '',
+        events: [],
+        loading: true,
+      }
 
-      const userMessage: Message = { id: crypto.randomUUID(), role: 'user', text: query, events: [], loading: false }
-      const assistantMessage: Message = { id: assistantId, role: 'assistant', text: '', events: [], loading: true }
-
-      setSessions(prev =>
-        prev.map(s => {
-          if (s.id !== targetSessionId) return s
-          return { ...s, messages: [...s.messages, userMessage, assistantMessage], updatedAt: Date.now() }
-        })
+      setSessions((previous) =>
+        previous.map((session) => {
+          if (session.id !== targetSessionId) return session
+          return {
+            ...session,
+            messages: [...session.messages, userMessage, assistantMessage],
+            updatedAt: Date.now(),
+          }
+        }),
       )
 
-      const res = await fetch('/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),
       })
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      if (!response.body) throw new Error('Response body is empty')
 
-      const reader = res.body!.getReader()
+      const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
 
@@ -90,48 +107,64 @@ export function useStreamChat() {
 
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
+
           try {
             const event: AgentEvent = JSON.parse(line.slice(6))
-            setSessions(prev =>
-              prev.map(s => {
-                if (s.id !== targetSessionId) return s
+            setSessions((previous) =>
+              previous.map((session) => {
+                if (session.id !== targetSessionId) return session
                 return {
-                  ...s,
-                  messages: s.messages.map(m => {
-                    if (m.id !== assistantId) return m
-                    if (event.type === 'answer_chunk')
-                      return { ...m, text: m.text + event.text }
-                    const base = { ...m, events: [...m.events, event] }
-                    if (event.type === 'answer')
+                  ...session,
+                  messages: session.messages.map((message) => {
+                    if (message.id !== assistantId) return message
+                    if (event.type === 'answer_chunk') {
+                      return { ...message, text: message.text + event.text }
+                    }
+
+                    const base = { ...message, events: [...message.events, event] }
+                    if (event.type === 'answer') {
                       return { ...base, text: event.text, loading: false }
-                    if (event.type === 'error')
+                    }
+                    if (event.type === 'error') {
                       return { ...base, text: event.message, loading: false, error: true }
+                    }
                     return base
-                  })
+                  }),
                 }
-              })
+              }),
             )
           } catch {
-            // ignore malformed SSE line
+            // Ignore malformed SSE payloads.
           }
         }
       }
     },
 
     onError: (error) => {
-      setSessions(prev => prev.map(s => {
-        if (s.id !== currentSessionId) return s
-        const last = [...s.messages].reverse().find(m => m.role === 'assistant' && m.loading)
-        if (!last) return s
-        return {
-          ...s,
-          messages: s.messages.map(m =>
-            m.id === last.id
-              ? { ...m, loading: false, error: true, text: `連線錯誤，請稍後再試。\n\n錯誤詳情：${error.message}` }
-              : m
-          )
-        }
-      }))
+      setSessions((previous) =>
+        previous.map((session) => {
+          if (session.id !== currentSessionId) return session
+          const lastLoadingAssistant = [...session.messages]
+            .reverse()
+            .find((message) => message.role === 'assistant' && message.loading)
+
+          if (!lastLoadingAssistant) return session
+
+          return {
+            ...session,
+            messages: session.messages.map((message) =>
+              message.id === lastLoadingAssistant.id
+                ? {
+                    ...message,
+                    loading: false,
+                    error: true,
+                    text: `連線失敗，請確認後端服務是否啟動。\n\n錯誤訊息：${error.message}`,
+                  }
+                : message,
+            ),
+          }
+        }),
+      )
     },
   })
 
@@ -146,16 +179,19 @@ export function useStreamChat() {
     startNewSession: () => setCurrentSessionId(null),
     switchSession: (id: string) => setCurrentSessionId(id),
     deleteSession: (id: string) => {
-      setSessions(prev => {
-        const next = prev.filter(s => s.id !== id)
+      setSessions((previous) => {
+        const next = previous.filter((session) => session.id !== id)
         if (id === currentSessionId) setCurrentSessionId(next[0]?.id || null)
         return next
       })
     },
     clearChat: () => {
-      if (currentSessionId) {
-         setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, messages: [] } : s))
-      }
+      if (!currentSessionId) return
+      setSessions((previous) =>
+        previous.map((session) =>
+          session.id === currentSessionId ? { ...session, messages: [] } : session,
+        ),
+      )
     },
   }
 }

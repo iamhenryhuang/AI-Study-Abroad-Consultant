@@ -9,19 +9,18 @@ interface Props {
   isLast?: boolean
 }
 
-// 共用的內容最大寬度 - 跟隨螢幕放大，避免全螢幕留白過多
-const CONTENT_WIDTH = 'max-w-3xl xl:max-w-4xl 2xl:max-w-5xl'
+const CONTENT_WIDTH = 'max-w-3xl xl:max-w-4xl'
 
 export function MessageBubble({ message, isLast }: Props) {
   if (message.role === 'user') {
     return (
-      <div className="flex justify-center w-full py-3 sm:py-4 px-4 sm:px-6">
-        <div className={`${CONTENT_WIDTH} w-full flex justify-end gap-3 items-start`}>
-          <div className="bg-[#f4f4f4] dark:bg-[#2f2f2f] text-gray-800 dark:text-gray-100 rounded-3xl px-5 py-3 text-[15px] leading-relaxed max-w-[80%] sm:max-w-[75%] break-words">
+      <div className="flex w-full justify-center px-4 py-3 sm:px-6">
+        <div className={`${CONTENT_WIDTH} flex w-full items-start justify-end gap-3`}>
+          <div className="max-w-[82%] rounded-[24px] bg-[#f0f0f0] px-5 py-3 text-[15px] leading-7 text-gray-900 shadow-sm sm:max-w-[75%] dark:bg-[#303134] dark:text-gray-100">
             {message.text}
           </div>
-          <div className="w-8 h-8 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#2a2a2a] flex items-center justify-center shrink-0">
-            <User size={15} className="text-gray-500 dark:text-gray-400" strokeWidth={2} />
+          <div className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-black/8 bg-white text-gray-500 dark:border-white/10 dark:bg-[#27282a] dark:text-gray-300">
+            <User size={15} />
           </div>
         </div>
       </div>
@@ -29,48 +28,43 @@ export function MessageBubble({ message, isLast }: Props) {
   }
 
   return (
-    <div className={`flex justify-center w-full group py-5 sm:py-6 px-4 sm:px-6 ${!isLast ? 'border-b border-gray-100/60 dark:border-gray-800/50' : ''}`}>
-      <div className={`${CONTENT_WIDTH} w-full flex gap-4 items-start`}>
-
-        {/* AI Avatar */}
-        <div className="w-8 h-8 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#2a2a2a] flex items-center justify-center shrink-0 mt-0.5">
-          <Sparkles size={14} className="text-gray-700 dark:text-gray-400" strokeWidth={2} />
+    <div
+      className={`group flex w-full justify-center px-4 py-5 sm:px-6 sm:py-6 ${
+        !isLast ? 'border-b border-black/[0.04] dark:border-white/[0.06]' : ''
+      }`}
+    >
+      <div className={`${CONTENT_WIDTH} flex w-full items-start gap-4`}>
+        <div className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-blue-500 via-teal-400 to-emerald-400 text-white shadow-sm">
+          <Sparkles size={15} />
         </div>
 
-        <div className="flex-1 space-y-4 pt-0.5 min-w-0">
+        <div className="min-w-0 flex-1 space-y-4">
           <AgentSteps events={message.events} />
 
           {message.loading && !message.text ? (
-            <div className="flex gap-1.5 items-center h-6">
-              <span className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="flex h-8 items-center gap-1.5">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-gray-300 dark:bg-gray-600" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-gray-300 dark:bg-gray-600 [animation-delay:150ms]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-gray-300 dark:bg-gray-600 [animation-delay:300ms]" />
             </div>
           ) : (
-            <div className={`
-              font-sans text-[15px] leading-relaxed tracking-normal break-words
-              prose dark:prose-invert max-w-none
-              prose-p:my-3 prose-p:text-[15px] prose-p:leading-7
-              prose-li:my-1 prose-li:text-[15px]
-              prose-ul:text-[15px] prose-ol:text-[15px]
-              prose-headings:font-semibold
-              prose-strong:text-[15px]
-              prose-code:text-[14px] prose-code:before:content-none prose-code:after:content-none
-              prose-code:bg-gray-100 dark:prose-code:bg-gray-800
-              prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
-              prose-pre:text-[13px] prose-pre:leading-relaxed
-              prose-pre:bg-gray-50 dark:prose-pre:bg-gray-900
-              prose-pre:border prose-pre:border-gray-200 dark:prose-pre:border-gray-700
-              prose-pre:text-gray-800 dark:prose-pre:text-gray-100
-              prose-pre:rounded-xl prose-pre:overflow-x-auto
-              prose-a:text-[13px] prose-a:text-blue-600 dark:prose-a:text-blue-400
-              prose-a:font-medium prose-a:break-all
-              hover:prose-a:underline prose-a:no-underline
-              ${message.error ? 'text-red-500 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}
-            `}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {message.text}
-              </ReactMarkdown>
+            <div
+              className={`
+                break-words text-[15px] leading-7 tracking-normal
+                prose max-w-none dark:prose-invert
+                prose-p:my-3 prose-p:text-[15px] prose-p:leading-7
+                prose-li:my-1 prose-li:text-[15px]
+                prose-headings:mb-2 prose-headings:mt-5 prose-headings:font-semibold
+                prose-strong:font-semibold
+                prose-code:rounded-md prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:text-[14px] prose-code:before:content-none prose-code:after:content-none
+                dark:prose-code:bg-white/10
+                prose-pre:overflow-x-auto prose-pre:rounded-2xl prose-pre:border prose-pre:border-black/8 prose-pre:bg-[#f7f7f7] prose-pre:text-[13px] prose-pre:leading-relaxed prose-pre:text-gray-900
+                dark:prose-pre:border-white/10 dark:prose-pre:bg-[#111213] dark:prose-pre:text-gray-100
+                prose-a:break-all prose-a:font-medium prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline dark:prose-a:text-blue-400
+                ${message.error ? 'text-red-500 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}
+              `}
+            >
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
             </div>
           )}
         </div>
