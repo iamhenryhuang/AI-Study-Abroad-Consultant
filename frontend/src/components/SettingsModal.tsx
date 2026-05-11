@@ -10,32 +10,37 @@ export function SettingsModal({ isOpen, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+        aria-label="關閉設定"
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="relative bg-white dark:bg-[#2a2a2a] rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in-up">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">設定 Settings</h2>
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-black/8 bg-white shadow-2xl dark:border-white/10 dark:bg-[#242527]">
+        <div className="flex items-center justify-between border-b border-black/6 px-6 py-4 dark:border-white/8">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">設定</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="grid h-9 w-9 place-items-center rounded-xl text-gray-400 transition hover:bg-black/5 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white"
+            aria-label="關閉"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="p-12 text-center space-y-4">
-          <p className="text-gray-400 dark:text-gray-500 text-sm">此功能目前停用中。</p>
+        <div className="px-6 py-10 text-center">
+          <p className="text-sm leading-6 text-gray-500 dark:text-gray-400">
+            目前尚未開放更多設定。之後可以放模型選擇、回覆語氣或檢索偏好。
+          </p>
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 dark:bg-[#222222] border-t border-gray-100 dark:border-gray-700 flex justify-end">
+        <div className="flex justify-end border-t border-black/6 bg-gray-50 px-6 py-4 dark:border-white/8 dark:bg-white/[0.03]">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+            className="rounded-xl bg-[#1f1f1f] px-4 py-2 text-sm font-medium text-white transition hover:bg-black dark:bg-white dark:text-black dark:hover:bg-gray-100"
           >
             完成
           </button>

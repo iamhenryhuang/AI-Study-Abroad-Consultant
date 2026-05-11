@@ -1,5 +1,17 @@
-import { useState, useEffect, useRef } from 'react'
-import { Settings, Plus, MessageSquare, Trash2, User, Sun, Moon, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  Menu,
+  MessageSquare,
+  Moon,
+  PanelLeftClose,
+  Plus,
+  Settings,
+  Sparkles,
+  Sun,
+  Trash2,
+  User,
+  X,
+} from 'lucide-react'
 import { useStreamChat } from './hooks/useStreamChat'
 import { SettingsModal } from './components/SettingsModal'
 import { UserProfileModal } from './components/UserProfileModal'
@@ -15,7 +27,7 @@ export default function App() {
     currentSessionId,
     startNewSession,
     switchSession,
-    deleteSession
+    deleteSession,
   } = useStreamChat()
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -23,7 +35,6 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Theme state: read from localStorage, fallback to system preference
   const [isDark, setIsDark] = useState(() => {
     const stored = localStorage.getItem('theme')
     if (stored) return stored === 'dark'
@@ -31,25 +42,21 @@ export default function App() {
   })
 
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('theme', 'dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem('theme', 'light')
-    }
+    document.documentElement.classList.toggle('dark', isDark)
+    localStorage.setItem('theme', isDark ? 'dark' : 'light')
   }, [isDark])
 
-  // Close sidebar when viewport becomes desktop-sized
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)')
-    const handler = (e: MediaQueryListEvent) => { if (e.matches) setIsSidebarOpen(false) }
+    const handler = (event: MediaQueryListEvent) => {
+      if (event.matches) setIsSidebarOpen(false)
+    }
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages])
 
   const handleNewSession = () => {
@@ -63,155 +70,201 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white dark:bg-[#212121] font-sans text-gray-800 dark:text-gray-100 transition-colors duration-300">
-
-      {/* ─── 行動版遮罩 Mobile backdrop ─── */}
+    <div className="h-dvh overflow-hidden bg-[#fbfbfb] text-[#1f1f1f] antialiased transition-colors duration-300 dark:bg-[#1b1c1d] dark:text-gray-100">
       {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+        <button
+          type="button"
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          aria-label="關閉側欄"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      {/* ─── 側邊欄 Sidebar ─── */}
-      <aside className={`
-        w-[260px] h-screen shrink-0
-        bg-[#f9f9f9] dark:bg-[#171717]
-        border-r border-[#e5e5e5] dark:border-gray-800
-        text-gray-700 dark:text-gray-300
-        flex flex-col pt-3 pb-4 px-3
-        fixed md:static z-40
-        transition-transform duration-300
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
-      `}>
-
-        {/* New Chat 按鈕 */}
-        <button
-          onClick={handleNewSession}
-          className="flex items-center gap-2 w-full px-3 py-2.5 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-all mb-4 text-sm font-medium text-gray-700 dark:text-gray-200 cursor-pointer active:scale-[0.98]"
+      <div className="flex h-full">
+        <aside
+          className={`fixed inset-y-0 left-0 z-40 flex w-[280px] shrink-0 flex-col border-r border-black/5 bg-[#f5f5f5] px-3 py-3 shadow-2xl shadow-black/10 transition-transform duration-300 md:static md:translate-x-0 md:shadow-none dark:border-white/8 dark:bg-[#111213] ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
         >
-          <Plus size={16} />
-          New chat
-        </button>
-
-        {/* 對話紀錄區塊 */}
-        <div className="flex-1 overflow-y-auto space-y-1 mb-2 custom-scrollbar">
-          {sessions.map(session => (
-            <div
-              key={session.id}
-              onClick={() => handleSwitchSession(session.id)}
-              className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm ${
-                currentSessionId === session.id
-                  ? 'bg-gray-200 dark:bg-gray-700 font-medium'
-                  : 'hover:bg-gray-200/50 dark:hover:bg-gray-800/60'
-              }`}
-            >
-              <div className="flex items-center gap-2.5 overflow-hidden w-full">
-                <MessageSquare size={14} className="shrink-0 text-gray-500 dark:text-gray-500" />
-                <span className="truncate text-gray-700 dark:text-gray-300">{session.title}</span>
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); deleteSession(session.id) }}
-                className="opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-opacity p-1 -mr-1 shrink-0 text-gray-400 dark:text-gray-600 cursor-pointer"
-                title="刪除對話"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* 底部設定與個人資料 */}
-        <div className="mt-auto pt-4 border-t border-gray-200/60 dark:border-gray-800 pb-1 space-y-1">
-          <button
-            onClick={() => { setIsProfileOpen(true); setIsSidebarOpen(false) }}
-            className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-200/50 dark:hover:bg-gray-800/60 transition-colors text-gray-700 dark:text-gray-300 font-medium"
-          >
-            <User size={18} className="text-gray-500 dark:text-gray-500" />
-            <span className="text-sm">個人資料</span>
-          </button>
-
-          <button
-            onClick={() => { setIsSettingsOpen(true); setIsSidebarOpen(false) }}
-            className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-200/50 dark:hover:bg-gray-800/60 transition-colors text-gray-700 dark:text-gray-300 font-medium"
-          >
-            <Settings size={18} className="text-gray-500 dark:text-gray-500" />
-            <span className="text-sm">設定</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* ─── 主對話區域 Chat Main ─── */}
-      <main className="flex-1 flex flex-col relative min-w-0 bg-white dark:bg-[#212121] transition-colors duration-300">
-
-        {/* 頂部導航欄 Header */}
-        <header className="sticky top-0 z-10 bg-white/95 dark:bg-[#212121]/95 backdrop-blur px-4 py-3 shrink-0 flex items-center justify-between border-b border-gray-100 dark:border-gray-800/60">
-
-          {/* 行動版漢堡 / 關閉按鈕 */}
-          <button
-            onClick={() => setIsSidebarOpen(o => !o)}
-            className="md:hidden p-2 -ml-2 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            aria-label="Toggle sidebar"
-          >
-            {isSidebarOpen
-              ? <X size={22} />
-              : <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></svg>
-            }
-          </button>
-
-          <div className="flex-1 flex items-center min-w-0 ml-1 md:ml-0">
-            <h1
+          <div className="mb-3 flex items-center gap-2 px-1">
+            <button
+              type="button"
               onClick={handleNewSession}
-              className="text-base sm:text-lg font-medium text-gray-700 dark:text-gray-200 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors truncate"
+              className="flex h-10 flex-1 items-center gap-2 rounded-xl border border-black/8 bg-white px-3 text-sm font-medium text-gray-800 shadow-sm transition hover:bg-gray-50 active:scale-[0.99] dark:border-white/10 dark:bg-[#1f2021] dark:text-gray-100 dark:hover:bg-[#292a2b]"
             >
-              留學顧問 AI
-              <span className="hidden sm:inline text-xs text-gray-400 dark:text-gray-600 ml-2 font-normal">北美 CS 研究所</span>
-            </h1>
+              <Plus size={17} />
+              新對話
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(false)}
+              className="grid h-10 w-10 place-items-center rounded-xl text-gray-500 transition hover:bg-black/5 md:hidden dark:text-gray-400 dark:hover:bg-white/10"
+              aria-label="收合側欄"
+            >
+              <X size={19} />
+            </button>
           </div>
 
-          {/* 深色 / 淺色切換 */}
-          <button
-            onClick={() => setIsDark(d => !d)}
-            title={isDark ? '切換為淺色模式' : '切換為深色模式'}
-            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0"
-          >
-            {isDark ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-        </header>
-
-        {/* 對話視窗 Main Scroll Area */}
-        <div className="flex-1 overflow-y-auto w-full pb-36 custom-scrollbar">
-
-          {/* 首頁引導畫面 */}
-          {messages.length === 0 && (
-            <div className="h-full min-h-[60vh] flex flex-col justify-center items-center px-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-5">
-                <span className="text-3xl">🎓</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-3">
-                我可以幫忙解答什麼？
-              </h2>
-              <p className="text-sm text-gray-400 dark:text-gray-500 max-w-sm">
-                詢問北美 CS 研究所的申請、選校、教授、SOP 等任何問題
-              </p>
+          <div className="mb-3 rounded-2xl border border-black/5 bg-white/70 p-3 dark:border-white/8 dark:bg-white/[0.03]">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-blue-500 via-teal-400 to-emerald-400 text-white">
+                <Sparkles size={15} />
+              </span>
+              留學申請 AI
             </div>
-          )}
+            <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">
+              幫你整理 CS 選校、教授、申請策略與文件方向。
+            </p>
+          </div>
 
-          {/* 訊息泡泡列表 */}
-          {messages.length > 0 && (
-            <div className="w-full">
-              {messages.map((msg, index) => (
-                <MessageBubble key={msg.id} message={msg} isLast={index === messages.length - 1} />
+          <div className="flex-1 overflow-y-auto pb-3 custom-scrollbar">
+            <p className="px-3 pb-2 text-xs font-medium text-gray-400">最近對話</p>
+            <div className="space-y-1">
+              {sessions.length === 0 && (
+                <p className="px-3 py-2 text-sm text-gray-400">尚未開始對話</p>
+              )}
+
+              {sessions.map((session) => (
+                <div
+                  key={session.id}
+                  onClick={() => handleSwitchSession(session.id)}
+                  className={`group flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition ${
+                    currentSessionId === session.id
+                      ? 'bg-black/7 text-gray-950 dark:bg-white/12 dark:text-white'
+                      : 'text-gray-600 hover:bg-black/5 dark:text-gray-300 dark:hover:bg-white/8'
+                  }`}
+                >
+                  <MessageSquare size={16} className="shrink-0 text-gray-400" />
+                  <span className="min-w-0 flex-1 truncate">{session.title || '未命名對話'}</span>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      deleteSession(session.id)
+                    }}
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-gray-400 opacity-0 transition hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
+                    title="刪除對話"
+                    aria-label="刪除對話"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               ))}
             </div>
-          )}
+          </div>
 
-          <div ref={bottomRef} className="h-4 w-full" />
-        </div>
+          <div className="space-y-1 border-t border-black/6 pt-3 dark:border-white/8">
+            <button
+              type="button"
+              onClick={() => {
+                setIsProfileOpen(true)
+                setIsSidebarOpen(false)
+              }}
+              className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-gray-700 transition hover:bg-black/5 dark:text-gray-300 dark:hover:bg-white/8"
+            >
+              <User size={17} className="text-gray-500" />
+              個人資料
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSettingsOpen(true)
+                setIsSidebarOpen(false)
+              }}
+              className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-gray-700 transition hover:bg-black/5 dark:text-gray-300 dark:hover:bg-white/8"
+            >
+              <Settings size={17} className="text-gray-500" />
+              設定
+            </button>
+          </div>
+        </aside>
 
-        {/* 對話輸入框 */}
-        <ChatInput onSend={sendMessage} disabled={isStreaming} />
-      </main>
+        <main className="relative flex min-w-0 flex-1 flex-col bg-white dark:bg-[#1b1c1d]">
+          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-black/5 bg-white/85 px-3 backdrop-blur-xl dark:border-white/8 dark:bg-[#1b1c1d]/85 sm:px-5">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen((open) => !open)}
+                className="grid h-10 w-10 place-items-center rounded-xl text-gray-600 transition hover:bg-black/5 md:hidden dark:text-gray-300 dark:hover:bg-white/8"
+                aria-label="開啟側欄"
+              >
+                {isSidebarOpen ? <PanelLeftClose size={20} /> : <Menu size={20} />}
+              </button>
+              <button
+                type="button"
+                onClick={handleNewSession}
+                className="hidden h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium text-gray-700 transition hover:bg-black/5 md:flex dark:text-gray-200 dark:hover:bg-white/8"
+              >
+                <Sparkles size={17} className="text-teal-500" />
+                AI 留學顧問
+              </button>
+              <div className="min-w-0 md:hidden">
+                <p className="truncate text-sm font-semibold">AI 留學顧問</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsDark((dark) => !dark)}
+              title={isDark ? '切換為淺色模式' : '切換為深色模式'}
+              className="grid h-10 w-10 place-items-center rounded-xl text-gray-600 transition hover:bg-black/5 dark:text-gray-300 dark:hover:bg-white/8"
+              aria-label="切換主題"
+            >
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </header>
+
+          <div className="flex-1 overflow-y-auto pb-36 custom-scrollbar">
+            {messages.length === 0 ? (
+              <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-center px-5 py-14">
+                <div className="mb-8">
+                  <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 via-teal-400 to-emerald-400 text-white shadow-lg shadow-teal-500/20">
+                    <Sparkles size={22} />
+                  </div>
+                  <h1 className="text-3xl font-semibold tracking-normal text-gray-900 dark:text-white sm:text-4xl">
+                    今天想規劃哪一段申請？
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-base leading-7 text-gray-500 dark:text-gray-400">
+                    可以問我選校名單、教授研究方向、申請時程、SOP 架構，或請我依你的背景做策略建議。
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    '依照我的背景推薦 CS 碩士選校',
+                    '幫我整理 Stanford CS 相關教授',
+                    'SOP 第一段應該怎麼寫？',
+                    '比較 CMU、UCSD、Georgia Tech 的申請重點',
+                  ].map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => sendMessage(prompt)}
+                      disabled={isStreaming}
+                      className="min-h-20 rounded-2xl border border-black/8 bg-[#f7f7f7] p-4 text-left text-sm leading-6 text-gray-700 transition hover:border-black/15 hover:bg-white hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:border-white/16 dark:hover:bg-white/[0.07]"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="w-full">
+                {messages.map((message, index) => (
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    isLast={index === messages.length - 1}
+                  />
+                ))}
+              </div>
+            )}
+            <div ref={bottomRef} className="h-2 w-full" />
+          </div>
+
+          <ChatInput onSend={sendMessage} disabled={isStreaming} />
+        </main>
+      </div>
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <UserProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />

@@ -60,6 +60,10 @@
       radial-gradient(at 50% 0%, hsla(225, 39%, 12%, 1) 0, transparent 50%),
       radial-gradient(at 100% 0%, hsla(339, 49%, 14%, 1) 0, transparent 50%);
   }
+
+  .field-input {
+    @apply w-full rounded-xl border border-black/8 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-400/10 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-100 dark:placeholder:text-gray-500;
+  }
 }
 
 /* Custom scrollbar - light */
