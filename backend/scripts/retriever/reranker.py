@@ -7,11 +7,10 @@ from sentence_transformers import CrossEncoder
 
 load_dotenv()
 
-# 從 .env 讀取路徑；若未設定則使用預設 D 槽路徑
 _MODEL_PATH = Path(
     os.getenv("BGE_RERANKER_MODEL_PATH", r"C:\Users\Henry\.cache\huggingface\hub\models--BAAI--bge-reranker-v2-m3")
 )
-_MODEL_NAME = _MODEL_PATH.name
+_MODEL_HF_ID = "BAAI/bge-reranker-v2-m3"
 
 _model: CrossEncoder | None = None
 
@@ -31,7 +30,7 @@ def _resolve_model_id() -> str:
     """
     if not _MODEL_PATH.exists():
         print(f"[reranker] 找不到本地模型 {_MODEL_PATH}，改從 HuggingFace 下載 ...")
-        return f"BAAI/{_MODEL_NAME}"
+        return _MODEL_HF_ID
 
     snapshots_dir = _MODEL_PATH / "snapshots"
     if snapshots_dir.exists():

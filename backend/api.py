@@ -22,9 +22,15 @@ from retriever.agent import run_agent
 
 app = FastAPI(title="Study Abroad Advisor API")
 
+_CORS_ORIGINS = [
+    "http://localhost:5173",  # Vite dev server
+    "http://localhost:80",
+    "http://localhost",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
