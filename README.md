@@ -135,6 +135,88 @@ npm run dev
 
 ---
 
+## Docker Quick Start
+
+> 使用 Docker 可跳過 Python 環境、PostgreSQL 安裝與 model 下載設定，推薦用於快速部署或跨機器複現。
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows / macOS) 或 Docker Engine (Linux)
+
+### 1. 準備 .env
+
+`.env` 放在 `backend/` 目錄（與本地開發一致）：
+
+```bash
+cp .env.example backend/.env
+```
+
+編輯 `backend/.env`，填入以下必要欄位：
+
+```env
+GOOGLE_API_KEY=your_gemini_api_key
+SERPAPI_KEY=your_serpapi_key
+GROQ_API_KEY=your_groq_api_key
+POSTGRES_PASSWORD=postgres        # 可自行更改
+```
+
+### 2. 第一次啟動
+
+```bash
+docker compose up --build
+```
+
+**第一次啟動會自動下載兩個 model**（約 3.4 GB），需要幾分鐘：
+
+| Model | 用途 | 大小 |
+|-------|------|------|
+| BAAI/bge-m3 | Embedding | ~2.3 GB |
+| BAAI/bge-reranker-v2-m3 | Reranker | ~1.1 GB |
+
+下載完後 model 存入 Docker named volume (`hf_models`)，**之後重啟不會重新下載**。
+
+### 3. 之後的啟動
+
+```bash
+docker compose up
+```
+
+### 4. 匯入資料
+
+資料庫 schema 在 `db/init_db.sql` 會在 db container 第一次啟動時自動建立。
+
+若要匯入爬蟲資料（需先確保 `crawler/data/` 有 JSON 檔案）：
+
+```bash
+docker compose exec backend python backend/scripts/run.py import
+```
+
+### 5. 服務端點
+
+| 服務 | URL |
+|------|-----|
+| Frontend | http://localhost |
+| Backend API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+
+### 常用指令
+
+```bash
+# 停止所有服務
+docker compose down
+
+# 停止並清除資料庫資料（model 不受影響）
+docker compose down -v
+
+# 查看 backend log
+docker compose logs -f backend
+
+# 進入 backend container 執行 CLI 工具
+docker compose exec backend python backend/scripts/run.py agent "Compare Stanford and CMU"
+```
+
+---
+
 ## CLI Tools
 
 Manage the pipeline from `backend/scripts/run.py`:

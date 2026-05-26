@@ -426,9 +426,9 @@ def get_gemini_compress_client():
     global _compress_client
     if _compress_client is None:
         _sanitize_ssl_env()
-        api_key = os.getenv("COMPRESS_KEY")
+        api_key = os.getenv("COMPRESS_KEY") or os.getenv("GOOGLE_API_KEY")
         if not api_key:
-            raise ValueError("未在環境變數中找到 COMPRESS_KEY")
+            raise ValueError("未在環境變數中找到 COMPRESS_KEY 或 GOOGLE_API_KEY")
         _compress_client = genai.Client(api_key=api_key)
     return _compress_client
     

@@ -1,11 +1,6 @@
 from __future__ import annotations
-import sys
 from pathlib import Path
 
-# 修復 Windows 控制台 UTF-8 輸出
-if sys.platform == "win32":
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
