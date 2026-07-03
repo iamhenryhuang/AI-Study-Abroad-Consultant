@@ -14,16 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 複製後端程式碼
 COPY backend/ ./backend/
-
-# model 會在 runtime 透過 volume 提供或首次啟動時下載
-# HF_HOME 統一指向 /models，讓 volume mount 生效
-ENV HF_HOME=/models
-ENV TRANSFORMERS_CACHE=/models
-ENV SENTENCE_TRANSFORMERS_HOME=/models
-
-# model 路徑由 docker-compose environment 注入
-ENV BGE_EMBED_MODEL_PATH=/models/hub/models--BAAI--bge-m3
-ENV BGE_RERANKER_MODEL_PATH=/models/hub/models--BAAI--bge-reranker-v2-m3
+COPY db/ ./db/
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
