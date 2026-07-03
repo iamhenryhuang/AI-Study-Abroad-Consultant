@@ -3,7 +3,8 @@
   1. Decomposer       — LLM 拆解子問題 + 偵測學校 + 偵測教授查詢意圖
   1.5 ProfessorFetcher — 若 query 含教授意圖，呼叫 SerpAPI 即時抓取教授資料
   2. SQLSearcher      — 每個子問題透過 text-to-SQL 查詢結構化申請要求資料
-  3. Finalizer        — 彙整所有資料，呼叫 OpenAI 生成最終答案
+  3. Verifier         — 判斷彙整後的資料是否文不對題/足以回答問題（只判斷，不重試）
+  4. Finalizer        — 呼叫 OpenAI 生成最終答案，或依 Verifier 判斷誠實告知資料不足
 """
 
 from __future__ import annotations
@@ -31,8 +32,8 @@ load_dotenv()
 from langgraph.graph import StateGraph, END
 from langgraph.types import Send
 
-from retriever.sql_search import sql_search
-from generator.openai_client import call_llm, generate_answer, generate_answer_stream
+from retriever.sql_search import sql_search, get_known_school_ids
+from generator.openai_client import call_llm, generate_answer, generate_answer_stream, format_context_for_prompt
 from professor_fetcher.fetch_for_agent import run_professor_fetch
 
 # ─── 學校別名對照表 ───────────────────────────────────────────────────────────
@@ -92,6 +93,11 @@ class AgentState(TypedDict):
     professor_query:   dict | None   # Decomposer 偵測到的教授查詢 {name, school, school_id}
     professor_fetched: bool
     needs_sql_search:  bool         # Decomposer 判斷是否需要查 program_requirements
+    mentioned_school_ids: list[str]   # Decomposer 從已知清單中偵測到的 school_id（不代表資料庫已收錄）
+    mentioned_school_names: list[str] # Decomposer 偵測到的學校名稱原文（不限於已知清單）
+    verified_docs:     list[dict]    # Verifier 去重後的資料（search + extension 合併）
+    is_sufficient:     bool          # Verifier 判斷資料是否足以回答問題
+    insufficiency_reason: str        # 資料不足或文不對題時的簡短原因
 
 
 # ─── 工具函式 ─────────────────────────────────────────────────────────────────
@@ -151,15 +157,19 @@ def decomposer_node(state: AgentState) -> dict:
 ====================
 【任務一：學校辨識 + 子問題拆解】
 ====================
-1. 從使用者問題中辨識出所有「明確提及」的學校（必須出現在已知學校清單中）
-2. 若偵測到多所學校：
+1. 從使用者問題中辨識出所有「明確提及」的學校（必須出現在已知學校清單中），存入 school_ids
+2. 額外辨識使用者問題中「明確提及」的所有學校名稱原文（不限於已知清單，包含清單外的學校），
+   以英文全名或使用者原本使用的名稱存入 mentioned_school_names（例如使用者問 University of Toronto，
+   即使它不在已知清單內，也要存入 "University of Toronto"）
+3. 若偵測到多所學校：
    - 為每一所學校產生一個對應的子問題
-3. 若只偵測到一所學校：
+4. 若只偵測到一所學校：
    - 產生 1 個子問題
-4. 若沒有偵測到任何學校：
+5. 若沒有偵測到任何學校：
    - school_ids = []
+   - mentioned_school_names = []
    - sub_queries = [將原問題改寫為較清楚的單一問題]
-5. 若問題太過於廣泛，如只詢問了application requirement、申請資格等等這種廣泛問題，請在子問題種搜尋細項，
+6. 若問題太過於廣泛，如只詢問了application requirement、申請資格等等這種廣泛問題，請在子問題種搜尋細項，
     請將廣泛問題的細項分開詢問，細項詢問甚麼由你判斷，參考範例如下。
     問題:application requirement 子問題拆成:min gpa/min english score/min gre/等等，類似這樣的子問題找答案
 
@@ -205,6 +215,7 @@ def decomposer_node(state: AgentState) -> dict:
 
 {{
   "school_ids": ["school_id_1", ...],
+  "mentioned_school_names": ["School Name 1", ...],
   "sub_queries": ["sub-query in English 1", "sub-query in English 2", ...],
   "professor_query": {{"name": "教授全名（英文）", "school": "學校名稱（英文）", "school_id": "學校ID"}} or null,
   "needs_sql_search": true or false
@@ -222,6 +233,9 @@ def decomposer_node(state: AgentState) -> dict:
             str(s).strip()
             for s in parsed.get("school_ids", [])
             if str(s).strip() in _SCHOOL_ALIASES
+        ]
+        mentioned_school_names = [
+            str(s).strip() for s in parsed.get("mentioned_school_names", []) if str(s).strip()
         ]
         sub_queries = [str(q).strip() for q in parsed.get("sub_queries", []) if str(q).strip()]
 
@@ -244,10 +258,11 @@ def decomposer_node(state: AgentState) -> dict:
 
     except Exception as e:
         print(f"[Decomposer] LLM 解析失敗（{e}），使用原始問題作為 fallback")
-        school_ids       = _detect_school_ids(query)
-        sub_queries      = [query]
-        professor_query  = None
-        needs_sql_search = True
+        school_ids             = _detect_school_ids(query)
+        mentioned_school_names = []
+        sub_queries             = [query]
+        professor_query         = None
+        needs_sql_search        = True
 
     if len(school_ids) >= 2:
         print(f"[Decomposer] 偵測到 {len(school_ids)} 所學校，拆解為 {len(sub_queries)} 個子問題：")
@@ -265,11 +280,13 @@ def decomposer_node(state: AgentState) -> dict:
     print(f"[Decomposer] needs_sql_search = {needs_sql_search}")
 
     return {
-        "sub_queries":      sub_queries,
-        "collected_docs":   [],
-        "final_answer":     "",
-        "professor_query":  professor_query,
-        "needs_sql_search": needs_sql_search,
+        "sub_queries":            sub_queries,
+        "collected_docs":         [],
+        "final_answer":           "",
+        "professor_query":        professor_query,
+        "needs_sql_search":       needs_sql_search,
+        "mentioned_school_ids":   school_ids,
+        "mentioned_school_names": mentioned_school_names,
     }
 
 
@@ -369,12 +386,35 @@ def searcher_node(state: AgentState) -> dict:
     return {"collected_docs": new_docs}
 
 
-# ─── Node 3：Finalizer ────────────────────────────────────────────────────────
+# ─── Node 3：Verifier ─────────────────────────────────────────────────────────
 
-def finalizer_node(state: AgentState) -> dict:
+def _build_verify_prompt(query: str, context_text: str) -> str:
+    return f"""你是一個檢索結果品質檢查員，負責判斷「檢索到的參考資料」是否真的能回答使用者的問題。
+
+【判斷重點】
+1. 資料是否與問題「文不對題」：例如問的是 A 學校，資料卻是 B 學校；問的是某位教授，資料卻是同名的另一個人。
+2. 資料是否「足夠完整」：若問題涉及多個面向（如多所學校比較、多個欄位），資料是否涵蓋了大部分核心面向。
+3. 允許「部分足夠」：只要資料裡有能實際回答問題核心的部分，即使不是每個細節都涵蓋，也算 sufficient=true，
+   缺的部分由後續生成階段自然告知使用者「部分資料不足」即可，不需要在這裡整批判定為不足。
+4. 只有在資料明顯「文不對題」或「完全無關」時，才判定 sufficient=false。
+
+【使用者問題】
+{query}
+
+【檢索到的參考資料】
+{context_text}
+
+【輸出格式（嚴格遵守）】
+只輸出 JSON，禁止輸出任何說明文字：
+
+{{"sufficient": true or false, "reason": "若 sufficient=false，用一句話說明資料為何文不對題或無關；否則留空字串"}}
+"""
+
+
+def verifier_node(state: AgentState) -> dict:
     """
-    彙整所有收集到的資料（search 的 collected_docs + extension 的 extension_docs），
-    呼叫 OpenAI 生成最終答案，並發送 answer 事件。
+    在生成答案前，檢查 search + extension_function 收集到的資料是否真的與問題相關、足以回答。
+    只做好壞判斷，不重試、不重新查詢——文不對題時讓 finalizer 誠實告知使用者。
     """
     query = state["original_query"]
 
@@ -384,14 +424,68 @@ def finalizer_node(state: AgentState) -> dict:
     # extension_docs 放在前面（教授資料優先作為上下文）
     all_docs = _deduplicate_docs(extension_docs + search_docs)
 
-    print(
-        f"\n[Finalizer] 搜尋文件：{len(search_docs)} 筆  "
-        f"擴充文件：{len(extension_docs)} 筆  "
-        f"合併去重後：{len(all_docs)} 筆"
-    )
+    if not all_docs:
+        return {"verified_docs": [], "is_sufficient": False, "insufficiency_reason": ""}
+
+    _check_cancel()
+    context_text = format_context_for_prompt(all_docs)
+
+    try:
+        raw = _call_llm(_build_verify_prompt(query, context_text))
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        parsed = json.loads(match.group()) if match else {}
+        is_sufficient = bool(parsed.get("sufficient", True))
+        reason        = str(parsed.get("reason", "")).strip()
+    except Exception as e:
+        print(f"[Verifier] 判斷失敗（{e}），預設視為足夠，交由生成階段自行把關")
+        is_sufficient = True
+        reason        = ""
+
+    print(f"[Verifier] is_sufficient={is_sufficient}" + (f"  reason={reason}" if reason else ""))
+
+    return {
+        "verified_docs":        all_docs,
+        "is_sufficient":        is_sufficient,
+        "insufficiency_reason": reason,
+    }
+
+
+# ─── Node 4：Finalizer ────────────────────────────────────────────────────────
+
+def finalizer_node(state: AgentState) -> dict:
+    """
+    使用 Verifier 判斷過的資料生成最終答案，並發送 answer 事件。
+    若 Verifier 判定資料不足/文不對題，直接誠實告知，不呼叫 LLM 生成答案。
+    """
+    query = state["original_query"]
+    all_docs = state.get("verified_docs", [])
+
+    print(f"\n[Finalizer] Verifier 判斷後的資料：{len(all_docs)} 筆")
 
     if not all_docs:
-        answer = "很抱歉，未能從資料庫中找到相關資訊。建議您直接前往各校官方網站查詢。"
+        mentioned_ids   = state.get("mentioned_school_ids", [])
+        mentioned_names = state.get("mentioned_school_names", [])
+        known = get_known_school_ids()
+
+        # school_ids 已限定在已知別名清單內，該清單與 DB 收錄範圍同步，故其恆在 known 中；
+        # 真正判斷「有沒有收錄」要看 mentioned_school_names（含清單外的學校原文）。
+        unknown_ids   = [sid for sid in mentioned_ids if sid not in known]
+        unknown_names = mentioned_names if not mentioned_ids else []
+
+        unrecognized = unknown_ids + unknown_names
+
+        if unrecognized:
+            names = "、".join(unrecognized)
+            answer = f"很抱歉，目前系統尚未收錄 {names} 的資料，暫時無法回答此問題。建議您直接前往該校官方網站查詢。"
+        else:
+            answer = "很抱歉，資料庫中查無與此問題相關的欄位資訊。建議您直接前往各校官方網站查詢。"
+
+        _emit({"type": "answer", "text": answer})
+        return {"final_answer": answer}
+
+    if not state.get("is_sufficient", True):
+        reason = state.get("insufficiency_reason", "").strip()
+        answer = "很抱歉，目前檢索到的資料與您的問題不符" + (f"（{reason}）" if reason else "") + "，暫時無法提供可靠的回答。建議您直接前往官方網站查詢。"
         _emit({"type": "answer", "text": answer})
         return {"final_answer": answer}
 
@@ -429,33 +523,32 @@ def finalizer_node(state: AgentState) -> dict:
 
 # ─── 路由 & 圖建構 ────────────────────────────────────────────────────────────
 
-def after_professor_fetch(state: AgentState) -> str:
-    return "finalize"
-
-
 def _build_graph():
     """
     流程：
       decompose
         ├─ Send → search ──────────────────────────┐
         │                                          ▼
-        └─ Send → extension_function ──────────► finalize
-    兩條並行路徑（search / extension_function）fan-in 到 finalize。
-    SQL 查詢通常一次到位，故不再有 planner 重試迴圈。
+        └─ Send → extension_function ──────────► verify → finalize
+    兩條並行路徑（search / extension_function）fan-in 到 verify，
+    verify 判斷資料是否文不對題/足夠，再交給 finalize 生成答案或誠實告知。
+    只做好壞判斷，不重試、不重新查詢，故不是 planner 重試迴圈。
     """
     builder = StateGraph(AgentState)
 
     builder.add_node("decompose",          decomposer_node)
     builder.add_node("extension_function", extension_function_node)
     builder.add_node("search",             searcher_node)
+    builder.add_node("verify",             verifier_node)
     builder.add_node("finalize",           finalizer_node)
 
     builder.set_entry_point("decompose")
 
     builder.add_conditional_edges("decompose", after_decompose)
 
-    builder.add_edge("extension_function", "finalize")
-    builder.add_edge("search", "finalize")
+    builder.add_edge("extension_function", "verify")
+    builder.add_edge("search", "verify")
+    builder.add_edge("verify", "finalize")
 
     builder.add_edge("finalize", END)
 
@@ -513,6 +606,11 @@ def run_agent(
             "professor_query":   None,
             "professor_fetched": False,
             "needs_sql_search":  True,
+            "mentioned_school_ids": [],
+            "mentioned_school_names": [],
+            "verified_docs":      [],
+            "is_sufficient":      True,
+            "insufficiency_reason": "",
         }
 
         result_state = _get_graph().invoke(initial_state, {"recursion_limit": max_steps * 4})

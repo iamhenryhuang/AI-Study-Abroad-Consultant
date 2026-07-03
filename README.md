@@ -51,7 +51,7 @@ flowchart LR
 flowchart TD
     Start(["原始問題"]) --> D
 
-    D["🔍 decompose<br/>─────────────<br/>• 拆解子問題（多校比較時各校一題）<br/>• 偵測 school_id（別名比對）<br/>• 偵測教授查詢意圖 professor_query<br/>• 判斷 needs_sql_search"]
+    D["🔍 decompose<br/>─────────────<br/>• 拆解子問題（多校比較時各校一題）<br/>• 偵測 school_id（別名比對）+ 原始學校名稱<br/>• 偵測教授查詢意圖 professor_query<br/>• 判斷 needs_sql_search"]
 
     D -->|"needs_sql_search = true"| S
     D -->|"professor_query ≠ null"| E
@@ -59,27 +59,35 @@ flowchart TD
     S["📊 search<br/>─────────────<br/>對每個子問題執行 text-to-SQL<br/>查詢 program_requirements"]
     E["🎓 extension_function<br/>─────────────<br/>呼叫 SerpAPI 抓取教授<br/>研究領域 / 近期論文"]
 
-    S --> F
-    E --> F
+    S --> V
+    E --> V
 
-    F["✍️ finalize<br/>─────────────<br/>合併去重 collected_docs + extension_docs<br/>呼叫 LLM 生成繁中答案（附來源連結）<br/>經 SSE 串流回傳"]
+    V["🛡️ verify<br/>─────────────<br/>合併去重 collected_docs + extension_docs<br/>LLM 判斷資料是否文不對題 / 足夠回答<br/>（只判斷，不重試、不重新查詢）"]
+
+    V --> F
+
+    F["✍️ finalize<br/>─────────────<br/>is_sufficient=true → 生成繁中答案（附來源連結）<br/>is_sufficient=false → 誠實告知資料不足 / 不符<br/>經 SSE 串流回傳"]
 
     F --> End(["最終答案"])
 
     classDef nodeStyle fill:#f8f9fa,stroke:#5f6368,stroke-width:1.5px,text-align:left
-    class D,S,E,F nodeStyle
+    class D,S,E,V,F nodeStyle
 ```
 
 **路由規則**：
 | 問題類型 | professor_query | needs_sql_search | 執行路徑 |
 |---|---|---|---|
-| 一般申請要求（GPA/TOEFL/deadline） | 無 | true | `decompose → search → finalize` |
-| 純教授查詢（研究領域/論文） | 有 | false | `decompose → extension_function → finalize` |
-| 教授 + 申請要求混合 | 有 | true | `decompose → (search ‖ extension_function) → finalize` |
+| 一般申請要求（GPA/TOEFL/deadline） | 無 | true | `decompose → search → verify → finalize` |
+| 純教授查詢（研究領域/論文） | 有 | false | `decompose → extension_function → verify → finalize` |
+| 教授 + 申請要求混合 | 有 | true | `decompose → (search ‖ extension_function) → verify → finalize` |
+
+**Verifier 的判斷標準**：只攔截明顯「文不對題」或「完全無關」的資料（例如同名教授撈錯人、查詢命中錯誤學校），允許部分足夠的資料通過（缺的細節由 finalize 生成階段自然告知使用者），不做多輪重新查詢。
 
 ### 重點特色
 - **Text-to-SQL 檢索**：OpenAI 依 schema 產生唯讀 SQL，執行前會做白名單表格 / 唯讀 / 單一語句檢查，不會誤刪改資料。
 - **教授即時查詢**：問題提到具體教授姓名時，Agent 會呼叫 SerpAPI 即時抓取教授資料。
+- **檢索結果驗證**：生成答案前，Verifier 節點會先判斷檢索到的資料是否文不對題（如同名教授撈錯人、命中錯誤學校），避免 LLM 憑錯誤上下文自信作答。
+- **未收錄學校辨識**：Decomposer 會分辨「問題問的學校根本不在系統收錄範圍」與「學校有收錄但查無該欄位」，給出對應的誠實回覆。
 - **串流回應**：透過 SSE 傳送 `thinking`、`tool_call`、`tool_result`、`llm_call`、`answer_chunk`、`answer`、`error` 事件。
 - **來源可追溯**：答案中會附上官網來源連結。
 - **不需要 embedding / 向量資料庫**：整套系統已移除 embedding pipeline，資料庫是純 PostgreSQL 結構化表格。
@@ -279,7 +287,7 @@ python backend/scripts/professor_fetcher/run_fetch.py \
 `db/init_db.sql` 定義兩張表：
 
 - `universities`：學校基本資料（school_id、name、domain）
-- `program_requirements`：每校一筆申請要求，含 GPA、TOEFL/IELTS/Duolingo、GRE、各截止日期、來源連結
+- `program_requirements`：每校一筆申請要求，含 GPA、TOEFL/IELTS/Duolingo、GRE、各截止日期、學費/獎助學金、申請文件要求（SOP/推薦信/履歷）、來源連結
 
 `db/schools_data.json` 目前收錄 30 間北美 CS 研究所（CMU、MIT、Stanford、Berkeley、UIUC 等），由 `db/load_schools.py` 讀取後直接寫入資料庫，之後要接入真實資料時只需替換這份 JSON，schema 與 text-to-SQL Agent 不需要改動。
 
