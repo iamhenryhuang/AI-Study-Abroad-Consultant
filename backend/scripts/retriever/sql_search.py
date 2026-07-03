@@ -44,6 +44,12 @@ SCHEMA_DESCRIPTION = """
   - deadline_fall        DATE       -- 秋季入學申請截止日
   - deadline_spring      DATE       -- 春季入學申請截止日
   - priority_deadline    DATE       -- 優先申請截止日
+  - tuition_per_year      INTEGER    -- 年度學費（美金）
+  - funding_available     BOOLEAN    -- 是否有獎學金 / RA / TA 機會
+  - funding_note          TEXT       -- 獎助學金說明（申請方式、覆蓋範圍等）
+  - requires_sop          BOOLEAN    -- 是否需要 Statement of Purpose
+  - num_recommendation_letters INTEGER -- 需要幾封推薦信
+  - requires_resume       BOOLEAN    -- 是否需要履歷 / CV
   - source_url           TEXT       -- 官方資料來源網址
 
 兩表可用 school_id 關聯（JOIN universities ON program_requirements.school_id = universities.school_id）。
@@ -134,6 +140,22 @@ def _execute_readonly_query(sql: str) -> list[dict]:
     except Exception as e:
         print(f"[SQLSearch] SQL 執行失敗：{e}\nSQL: {sql}")
         return []
+    finally:
+        conn.close()
+
+
+def get_known_school_ids() -> set[str]:
+    """回傳資料庫中已收錄的 school_id 集合，供判斷「查無資料」原因用。"""
+    conn = get_connection()
+    if not conn:
+        return set()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT school_id FROM universities")
+            return {row[0] for row in cur.fetchall()}
+    except Exception as e:
+        print(f"[SQLSearch] 查詢已收錄學校清單失敗：{e}")
+        return set()
     finally:
         conn.close()
 
