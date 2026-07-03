@@ -1,7 +1,7 @@
 services:
 
   db:
-    image: pgvector/pgvector:pg16
+    image: postgres:16
     environment:
       POSTGRES_DB: studyabroad
       POSTGRES_USER: postgres
@@ -24,14 +24,8 @@ services:
       - backend/.env
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/studyabroad
-      HF_HOME: /models
-      TRANSFORMERS_CACHE: /models
-      SENTENCE_TRANSFORMERS_HOME: /models
-      BGE_EMBED_MODEL_PATH: /models/hub/models--BAAI--bge-m3
-      BGE_RERANKER_MODEL_PATH: /models/hub/models--BAAI--bge-reranker-v2-m3
       CRAWLER_DATA_DIR: /app/crawler/data
     volumes:
-      - hf_models:/models
       - ./crawler/data:/app/crawler/data:ro
     depends_on:
       db:
@@ -40,16 +34,5 @@ services:
       - "8000:8000"
     restart: unless-stopped
 
-  frontend:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
 volumes:
   pgdata:
-  hf_models:

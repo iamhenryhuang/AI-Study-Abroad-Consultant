@@ -60,15 +60,3 @@ db/exported_data.sql
 *.sqlite
 *.sqlite3
 
-# Node / Frontend
-node_modules/
-dist/
-dist-ssr/
-*.local
-.eslintcache
-.prettiercache
-
-# Vite
-.vite/
-frontend/dist/
-frontend/.vite/

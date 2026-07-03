@@ -3,7 +3,6 @@
   1. search_professor_id()  — 用 google_scholar engine 搜尋 "{name}" "{school}"，
                               從論文結果的 publication_info.authors[].link 中取出 author_id
   2. fetch_recent_papers()  — 搜尋該教授的近兩年論文，過濾年份
-  3. fetch_author_profile() — 返回基本的 author_id metadata（節省 API 配額）
 """
 
 from __future__ import annotations
@@ -284,22 +283,6 @@ def search_professor_id(name: str, affiliation: str = "") -> str | None:
         affiliation: 學校名稱或關鍵字
     """
     return _search_via_papers(name, affiliation)
-
-
-def fetch_author_profile(author_id: str) -> dict:
-    """
-    透過 google_scholar_author engine 取得教授的 profile 與論文列表。
-    使用 author_id 精確鎖定該教授，不會混入其他人的資料。
-    """
-    try:
-        return _get({
-            "engine":    "google_scholar_author",
-            "author_id": author_id,
-            "hl":        "en",
-        })
-    except Exception as e:
-        print(f"  profile 抓取失敗：{e}")
-        return {"search_parameters": {"author_id": author_id}}
 
 
 def _extract_recent_papers(

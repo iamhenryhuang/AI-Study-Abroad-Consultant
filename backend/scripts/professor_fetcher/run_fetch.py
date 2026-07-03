@@ -108,16 +108,6 @@ def save_result(records: list[dict], school_id: str) -> Path:
     return out_path
 
 
-def run_embed(json_path: Path) -> None:
-    """執行入庫 pipeline（school_data/ 格式）。"""
-    try:
-        from embedder.pipeline import run_pipeline
-        print(f"\n>>> Running embedding pipeline for {json_path.name}...")
-        run_pipeline(data_dirname="crawler/data")
-    except Exception as e:
-        print(f"!!! Embedding failed: {e}")
-
-
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -129,7 +119,6 @@ def main():
     parser.add_argument("--cutoff-year", type=int,     help="Min year for papers")
     parser.add_argument("--max-papers",  type=int, default=20)
     parser.add_argument("--delay",       type=float, default=1.0, help="Seconds delay between API steps")
-    parser.add_argument("--embed",       action="store_true", help="Run embedding after fetch")
 
     args = parser.parse_args()
 
@@ -140,9 +129,7 @@ def main():
     )
 
     if res:
-        path = save_result(res, sid)
-        if args.embed:
-            run_embed(path)
+        save_result(res, sid)
     else:
         print("Done (No results).")
 
