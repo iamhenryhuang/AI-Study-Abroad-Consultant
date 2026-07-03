@@ -12,13 +12,70 @@
 各校申請要求（GPA、TOEFL/IELTS、GRE、截止日期）以結構化資料存在 PostgreSQL 中；
 使用者用自然語言提問，後端 Agent 會自動產生 SQL 查詢資料庫並整理成答案。
 
-**核心流程（LangGraph）**：
+### 系統架構
+
+```mermaid
+flowchart LR
+    Client(["🧑 使用者<br/>curl / Swagger UI / Client"])
+
+    subgraph Backend["backend container — FastAPI"]
+        direction TB
+        API["POST /api/chat<br/>SSE 串流端點"]
+        Agent["LangGraph Agent<br/>(詳見下方 Agent 流程圖)"]
+        API --> Agent
+    end
+
+    subgraph External["外部服務"]
+        direction TB
+        OpenAI[["🤖 OpenAI API<br/>text-to-SQL・decompose・answer 生成"]]
+        SerpAPI[["🔍 SerpAPI<br/>Google Scholar 教授資料"]]
+    end
+
+    DB[("🗄️ db container<br/>PostgreSQL<br/>universities / program_requirements")]
+
+    Client -- "① 自然語言問題" --> API
+    Agent -- "② SQL 查詢 / LLM 呼叫" --> OpenAI
+    Agent -- "③ 教授查詢" --> SerpAPI
+    Agent -- "④ 唯讀 SQL 查詢" --> DB
+    Agent -- "⑤ SSE 事件串流<br/>(thinking/tool_call/answer)" --> Client
+
+    style Client fill:#e8f0fe,stroke:#4285f4
+    style DB fill:#fef7e0,stroke:#f9ab00
+    style OpenAI fill:#e6f4ea,stroke:#34a853
+    style SerpAPI fill:#e6f4ea,stroke:#34a853
 ```
-decompose（拆解問題/偵測學校/偵測教授查詢）
-   ├─ sql_search（text-to-SQL 查資料庫）
-   └─ extension_function（若問到教授，呼叫 SerpAPI 即時抓資料）
-        └─ finalize（OpenAI 彙整成繁中答案，附來源連結）
+
+### Agent 內部流程（LangGraph StateGraph）
+
+```mermaid
+flowchart TD
+    Start(["原始問題"]) --> D
+
+    D["🔍 decompose<br/>─────────────<br/>• 拆解子問題（多校比較時各校一題）<br/>• 偵測 school_id（別名比對）<br/>• 偵測教授查詢意圖 professor_query<br/>• 判斷 needs_sql_search"]
+
+    D -->|"needs_sql_search = true"| S
+    D -->|"professor_query ≠ null"| E
+
+    S["📊 search<br/>─────────────<br/>對每個子問題執行 text-to-SQL<br/>查詢 program_requirements"]
+    E["🎓 extension_function<br/>─────────────<br/>呼叫 SerpAPI 抓取教授<br/>研究領域 / 近期論文"]
+
+    S --> F
+    E --> F
+
+    F["✍️ finalize<br/>─────────────<br/>合併去重 collected_docs + extension_docs<br/>呼叫 LLM 生成繁中答案（附來源連結）<br/>經 SSE 串流回傳"]
+
+    F --> End(["最終答案"])
+
+    classDef nodeStyle fill:#f8f9fa,stroke:#5f6368,stroke-width:1.5px,text-align:left
+    class D,S,E,F nodeStyle
 ```
+
+**路由規則**：
+| 問題類型 | professor_query | needs_sql_search | 執行路徑 |
+|---|---|---|---|
+| 一般申請要求（GPA/TOEFL/deadline） | 無 | true | `decompose → search → finalize` |
+| 純教授查詢（研究領域/論文） | 有 | false | `decompose → extension_function → finalize` |
+| 教授 + 申請要求混合 | 有 | true | `decompose → (search ‖ extension_function) → finalize` |
 
 ### 重點特色
 - **Text-to-SQL 檢索**：OpenAI 依 schema 產生唯讀 SQL，執行前會做白名單表格 / 唯讀 / 單一語句檢查，不會誤刪改資料。
