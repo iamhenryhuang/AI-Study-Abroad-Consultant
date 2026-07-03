@@ -40,6 +40,16 @@ CREATE TABLE program_requirements (
     deadline_spring DATE,
     priority_deadline DATE,
 
+    -- 學費 / 獎助學金
+    tuition_per_year   INTEGER,             -- 年度學費（USD）
+    funding_available  BOOLEAN DEFAULT FALSE, -- 是否有獎學金 / RA / TA 機會
+    funding_note        TEXT,               -- 獎助學金說明（申請方式、覆蓋範圍等）
+
+    -- 申請文件要求
+    requires_sop              BOOLEAN DEFAULT TRUE,  -- 是否需要 Statement of Purpose
+    num_recommendation_letters INTEGER,               -- 需要幾封推薦信
+    requires_resume           BOOLEAN DEFAULT TRUE,  -- 是否需要履歷/CV
+
     source_url      TEXT,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

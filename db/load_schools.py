@@ -43,11 +43,14 @@ def load() -> bool:
                     INSERT INTO program_requirements (
                         university_id, school_id, min_gpa, toefl_min, ielts_min,
                         gre_required, gre_min_total, gre_min_quant, gre_min_verbal,
-                        deadline_fall, priority_deadline, source_url
+                        deadline_fall, priority_deadline,
+                        tuition_per_year, funding_available, funding_note,
+                        requires_sop, num_recommendation_letters, requires_resume,
+                        source_url
                     )
                     VALUES (
                         (SELECT id FROM universities WHERE school_id = %s),
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
                     ON CONFLICT (school_id) DO UPDATE SET
                         min_gpa = EXCLUDED.min_gpa,
@@ -59,6 +62,12 @@ def load() -> bool:
                         gre_min_verbal = EXCLUDED.gre_min_verbal,
                         deadline_fall = EXCLUDED.deadline_fall,
                         priority_deadline = EXCLUDED.priority_deadline,
+                        tuition_per_year = EXCLUDED.tuition_per_year,
+                        funding_available = EXCLUDED.funding_available,
+                        funding_note = EXCLUDED.funding_note,
+                        requires_sop = EXCLUDED.requires_sop,
+                        num_recommendation_letters = EXCLUDED.num_recommendation_letters,
+                        requires_resume = EXCLUDED.requires_resume,
                         source_url = EXCLUDED.source_url,
                         updated_at = CURRENT_TIMESTAMP
                     """,
@@ -66,7 +75,10 @@ def load() -> bool:
                         s["school_id"], s["school_id"], s["min_gpa"], s["toefl_min"],
                         s["ielts_min"], s["gre_required"], s["gre_min_total"],
                         s["gre_min_quant"], s["gre_min_verbal"], s["deadline_fall"],
-                        s["priority_deadline"], s["source_url"],
+                        s["priority_deadline"],
+                        s.get("tuition_per_year"), s.get("funding_available", False), s.get("funding_note"),
+                        s.get("requires_sop", True), s.get("num_recommendation_letters"), s.get("requires_resume", True),
+                        s["source_url"],
                     ),
                 )
 
