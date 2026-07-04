@@ -159,7 +159,7 @@ def chunk_text(
         splitter = _make_splitter(primary_type)
         chunks = splitter.split_text(text)
 
-    # 3. 注入上下文前綴 & 過濾
+    # 3. 注入上下文前綴 & 過濾  每個 chunk 開頭加上 [學校名 | 類型] 標籤
     final_chunks = []
     prefix = ""
     if school_name or primary_type != "general":
