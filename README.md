@@ -51,7 +51,7 @@ flowchart LR
 flowchart TD
     Start(["原始問題"]) --> D
 
-    D["🔍 decompose<br/>─────────────<br/>• 拆解子問題（多校比較時各校一題）<br/>• 偵測 school_id（別名比對）+ 原始學校名稱<br/>• 偵測教授查詢意圖 professor_query<br/>• 判斷 needs_sql_search"]
+    D["🔍 decompose<br/>─────────────<br/>兩次獨立 LLM 呼叫：<br/>(a) 意圖判斷：學校辨識 + 教授查詢意圖 + needs_sql_search<br/>(b) 子問題拆解（僅在 needs_sql_search=true 時呼叫）"]
 
     D -->|"needs_sql_search = true"| S
     D -->|"professor_query ≠ null"| E
@@ -62,31 +62,50 @@ flowchart TD
     S --> V
     E --> V
 
-    V["🛡️ verify<br/>─────────────<br/>合併去重 collected_docs + extension_docs<br/>LLM 判斷資料是否文不對題 / 足夠回答<br/>（只判斷，不重試、不重新查詢）"]
+    V["🛡️ verify<br/>─────────────<br/>合併去重 collected_docs + extension_docs<br/>LLM 判斷資料是否文不對題 / 足夠回答"]
 
-    V --> F
+    V -->|"is_sufficient = true"| F
+    V -->|"is_sufficient = false 且曾檢索到資料<br/>且尚未重試過"| R
+    V -->|"完全查無資料，或已重試過仍不足"| F
 
-    F["✍️ finalize<br/>─────────────<br/>is_sufficient=true → 生成繁中答案（附來源連結）<br/>is_sufficient=false → 誠實告知資料不足 / 不符<br/>經 SSE 串流回傳"]
+    R["🔁 refine<br/>─────────────<br/>參考 insufficiency_reason<br/>重新改寫子問題 / professor_query<br/>（最多 1 輪，回到 search/extension_function）"]
 
-    F --> End(["最終答案"])
+    R --> S
+    R --> E
+
+    F["✍️ finalize<br/>─────────────<br/>is_sufficient=true → 生成繁中答案（附來源連結）<br/>is_sufficient=false / 查無資料 → 誠實告知，不經 Critic"]
+
+    F -->|"真的生成過答案"| C
+    F -->|"誠實告知 / 生成失敗"| End(["最終答案"])
+
+    C["🧐 critic<br/>─────────────<br/>檢查生成的答案是否有內容<br/>在參考資料中找不到根據（幻覺）<br/>發現問題就附註警告，不重新生成"]
+
+    C --> End
 
     classDef nodeStyle fill:#f8f9fa,stroke:#5f6368,stroke-width:1.5px,text-align:left
-    class D,S,E,V,F nodeStyle
+    class D,S,E,V,R,F,C nodeStyle
 ```
 
 **路由規則**：
 | 問題類型 | professor_query | needs_sql_search | 執行路徑 |
 |---|---|---|---|
-| 一般申請要求（GPA/TOEFL/deadline） | 無 | true | `decompose → search → verify → finalize` |
-| 純教授查詢（研究領域/論文） | 有 | false | `decompose → extension_function → verify → finalize` |
-| 教授 + 申請要求混合 | 有 | true | `decompose → (search ‖ extension_function) → verify → finalize` |
+| 一般申請要求（GPA/TOEFL/deadline） | 無 | true | `decompose → search → verify → finalize → critic` |
+| 純教授查詢（研究領域/論文） | 有 | false | `decompose → extension_function → verify → finalize → critic` |
+| 教授 + 申請要求混合 | 有 | true | `decompose → (search ‖ extension_function) → verify → finalize → critic` |
+| 檢索文不對題但曾找到資料 | - | - | `... → verify → refine → (search ‖ extension_function) → verify → finalize（誠實告知，不經 critic）` |
 
-**Verifier 的判斷標準**：只攔截明顯「文不對題」或「完全無關」的資料（例如同名教授撈錯人、查詢命中錯誤學校），允許部分足夠的資料通過（缺的細節由 finalize 生成階段自然告知使用者），不做多輪重新查詢。
+**Verifier 的判斷標準**：只攔截明顯「文不對題」或「完全無關」的資料（例如同名教授撈錯人、查詢命中錯誤學校），允許部分足夠或能合理推論的資料通過（缺的細節由 finalize 生成階段自然告知使用者），不做多輪重新查詢。
+
+**Refiner**：Verifier 判定資料不足且「曾檢索到資料」時觸發，參考 `insufficiency_reason` 重新改寫子問題或修正 `professor_query` 的學校資訊，最多重試 1 輪，避免無限迴圈；若原問題前提本身錯誤（例如問的教授根本不在該校），重試後仍會誠實拒答而非產生幻覺答案。
+
+**Critic**：只在 finalize 真的呼叫 LLM 生成過答案時才執行，檢查答案內容是否有具體、可查證的陳述在參考資料中找不到根據，發現問題就在答案後面附上警告文字，不重新生成——短路的誠實告知路徑（查無資料、資料不足）不需要跑 Critic。
 
 ### 重點特色
 - **Text-to-SQL 檢索**：OpenAI 依 schema 產生唯讀 SQL，執行前會做白名單表格 / 唯讀 / 單一語句檢查，不會誤刪改資料。
 - **教授即時查詢**：問題提到具體教授姓名時，Agent 會呼叫 SerpAPI 即時抓取教授資料。
 - **檢索結果驗證**：生成答案前，Verifier 節點會先判斷檢索到的資料是否文不對題（如同名教授撈錯人、命中錯誤學校），避免 LLM 憑錯誤上下文自信作答。
+- **查詢重試**：Verifier 判定資料不足但曾檢索到資料時，Refiner 會參考不足原因重新改寫查詢再查一次（最多 1 輪），修正「查詢方式不夠精確」導致的誤判。
+- **答案品質複查**：生成答案後，Critic 節點會檢查是否有內容在參考資料中找不到根據（幻覺），有疑慮就附註警告，不影響回應速度過多。
 - **未收錄學校辨識**：Decomposer 會分辨「問題問的學校根本不在系統收錄範圍」與「學校有收錄但查無該欄位」，給出對應的誠實回覆。
 - **串流回應**：透過 SSE 傳送 `thinking`、`tool_call`、`tool_result`、`llm_call`、`answer_chunk`、`answer`、`error` 事件。
 - **來源可追溯**：答案中會附上官網來源連結。
