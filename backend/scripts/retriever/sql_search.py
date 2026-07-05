@@ -21,6 +21,7 @@ from generator.openai_client import call_llm
 
 SCHEMA_DESCRIPTION = """
 資料表 universities:
+  - id          INTEGER   -- 主鍵，program_requirements.university_id 對應此欄位
   - school_id   VARCHAR   -- 學校代碼（小寫縮寫），常見值：'cmu' = Carnegie Mellon University、
                               'mit' = Massachusetts Institute of Technology、'stanford' = Stanford University、
                               'caltech' = California Institute of Technology、'gatech' = Georgia Institute of Technology。
@@ -28,8 +29,8 @@ SCHEMA_DESCRIPTION = """
   - name        VARCHAR   -- 學校全名
   - domain      VARCHAR   -- 學校官網網域
 
-資料表 program_requirements（每間學校一筆，CS 碩士申請要求）:
-  - school_id         VARCHAR    -- 對應 universities.school_id
+資料表 program_requirements（每間學校一筆，CS 碩士申請要求；不含 school_id，只能透過 university_id 關聯 universities）:
+  - university_id     INTEGER    -- 對應 universities.id（外鍵，唯一）
   - program_name      VARCHAR    -- 學程名稱
   - min_gpa            NUMERIC    -- 最低 GPA 要求（4.0 制）
   - gpa_scale           NUMERIC    -- GPA 滿分制（通常 4.0）
@@ -52,7 +53,7 @@ SCHEMA_DESCRIPTION = """
   - requires_resume       BOOLEAN    -- 是否需要履歷 / CV
   - source_url           TEXT       -- 官方資料來源網址
 
-兩表可用 school_id 關聯（JOIN universities ON program_requirements.school_id = universities.school_id）。
+兩表必須用 university_id 關聯：JOIN universities ON program_requirements.university_id = universities.id。
 """
 
 _ALLOWED_TABLES = {"universities", "program_requirements"}
@@ -72,11 +73,12 @@ def _build_sql_prompt(query: str) -> str:
 【規則】
 1. 只能產生單一個 SELECT 查詢語句，禁止任何寫入/修改語句（INSERT/UPDATE/DELETE/DROP 等）。
 2. 只能查詢 universities、program_requirements 這兩張表。
-3. 需要學校名稱時，JOIN universities 取得 name 欄位（回傳需含 university_name 別名）。
-4. 一律回傳 program_requirements.school_id 欄位方便後續識別。
-5. 若問題提到特定學校（如 CMU、Stanford、MIT 等），請用 WHERE 過濾，優先用 school_id 精確比對（例如問題提到 MIT，用 school_id = 'mit'）；只有在問題給的是完整或部分校名（而非常見縮寫）時才用 name 過濾。
-   - 用 name 過濾時必須用 ILIKE 搭配前後 % 萬用字元，例如 ILIKE '%Stanford%'，不可用精確比對（ILIKE 'Stanford' 是錯的），因為 name 欄位存的是全名（如 "Stanford University"）。
-   - 若不確定縮寫對應的 school_id，可以同時用 OR 比對 school_id ILIKE 與 name ILIKE 兩者，提高命中率。
+3. 查詢 program_requirements 時必須 JOIN universities ON program_requirements.university_id = universities.id
+   （program_requirements 本身沒有 school_id 或校名欄位，一定要透過此 JOIN 才能取得）。
+4. 一律回傳 universities.school_id（回傳需含 school_id 別名）與 universities.name（回傳需含 university_name 別名），方便後續識別。
+5. 若問題提到特定學校（如 CMU、Stanford、MIT 等），請用 WHERE 過濾，優先用 universities.school_id 精確比對（例如問題提到 MIT，用 universities.school_id = 'mit'）；只有在問題給的是完整或部分校名（而非常見縮寫）時才用 name 過濾。
+   - 用 name 過濾時必須用 ILIKE 搭配前後 % 萬用字元，例如 universities.name ILIKE '%Stanford%'，不可用精確比對（ILIKE 'Stanford' 是錯的），因為 name 欄位存的是全名（如 "Stanford University"）。
+   - 若不確定縮寫對應的 school_id，可以同時用 OR 比對 universities.school_id ILIKE 與 universities.name ILIKE 兩者，提高命中率。
 6. 若問題未指定學校，回傳所有學校的相關欄位（不要用 LIMIT 過度限制筆數，最多 20 筆）。
 7. 只 SELECT 與問題相關的欄位，不要 SELECT *。
 8. 只輸出 JSON，格式如下，不要有其他文字或 markdown code fence：
