@@ -41,7 +41,7 @@ def load() -> bool:
                 cur.execute(
                     """
                     INSERT INTO program_requirements (
-                        university_id, school_id, min_gpa, toefl_min, ielts_min,
+                        university_id, min_gpa, toefl_min, ielts_min,
                         gre_required, gre_min_total, gre_min_quant, gre_min_verbal,
                         deadline_fall, priority_deadline,
                         tuition_per_year, funding_available, funding_note,
@@ -50,9 +50,9 @@ def load() -> bool:
                     )
                     VALUES (
                         (SELECT id FROM universities WHERE school_id = %s),
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
-                    ON CONFLICT (school_id) DO UPDATE SET
+                    ON CONFLICT (university_id) DO UPDATE SET
                         min_gpa = EXCLUDED.min_gpa,
                         toefl_min = EXCLUDED.toefl_min,
                         ielts_min = EXCLUDED.ielts_min,
@@ -72,7 +72,7 @@ def load() -> bool:
                         updated_at = CURRENT_TIMESTAMP
                     """,
                     (
-                        s["school_id"], s["school_id"], s["min_gpa"], s["toefl_min"],
+                        s["school_id"], s["min_gpa"], s["toefl_min"],
                         s["ielts_min"], s["gre_required"], s["gre_min_total"],
                         s["gre_min_quant"], s["gre_min_verbal"], s["deadline_fall"],
                         s["priority_deadline"],
