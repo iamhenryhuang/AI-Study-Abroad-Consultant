@@ -53,10 +53,21 @@ desktop.ini
 .coverage
 htmlcov/
 .hypothesis/
+.mypy_cache/
+.ruff_cache/
 
 # 專案：匯出檔與資料庫
 db/exported_data.sql
 *.db
 *.sqlite
 *.sqlite3
+
+# Node（前端已移除，保留規則避免未來重加時忘記排除）
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# 教授資料快取（執行期產生，非版本控管內容）
+crawler/data/*_professors.json
 

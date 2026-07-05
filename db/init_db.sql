@@ -15,8 +15,7 @@ CREATE TABLE universities (
 -- 每間學校的 CS 碩士申請結構化要求
 CREATE TABLE program_requirements (
     id              SERIAL PRIMARY KEY,
-    university_id   INTEGER REFERENCES universities(id) ON DELETE CASCADE,
-    school_id       VARCHAR(100) UNIQUE NOT NULL,
+    university_id   INTEGER UNIQUE NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
     program_name    VARCHAR(255) NOT NULL DEFAULT 'MS in Computer Science',
 
     -- GPA
@@ -54,4 +53,4 @@ CREATE TABLE program_requirements (
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_program_requirements_school ON program_requirements(school_id);
+CREATE INDEX idx_program_requirements_university ON program_requirements(university_id);

@@ -1,8 +1,8 @@
 """
 搜尋策略：
-  1. search_professor_id()  — 用 google_scholar engine 搜尋 "{name}" "{school}"，
-                              從論文結果的 publication_info.authors[].link 中取出 author_id
-  2. fetch_recent_papers()  — 搜尋該教授的近兩年論文，過濾年份
+  1. search_professor_id()                    — 用 google_scholar engine 搜尋 "{name}" "{school}"，
+                                                 從論文結果的 publication_info.authors[].link 中取出 author_id
+  2. fetch_author_profile_and_recent_papers() — 以 author_id 存取個人頁，取得 profile 與近兩年論文
 """
 
 from __future__ import annotations
@@ -136,77 +136,6 @@ def _name_score(search_name: str, candidate_name: str) -> float:
             matched += 0.3                          # 首字母匹配（縮寫情況）
 
     return matched / len(s_parts) if s_parts else 0.0
-
-
-def _affiliation_matches(school: str, profile_affil: str) -> bool:
-    """檢查 school 關鍵字是否出現在 profile 的 affiliation 字串中。"""
-    if not school or not profile_affil:
-        return False
-    school_lower  = school.lower()
-    affil_lower   = profile_affil.lower()
-    # 直接包含
-    if school_lower in affil_lower:
-        return True
-    # 取 school 的第一個有意義詞（≥ 4 字元）作為關鍵字
-    for word in school_lower.split():
-        if len(word) >= 4 and word in affil_lower:
-            return True
-    return False
-
-
-def _search_via_profiles(name: str, affiliation: str) -> str | None:
-    """
-    使用 google_scholar_profiles engine 搜尋教授 profile。
-    該 engine 直接回傳姓名 + affiliation，比從論文作者列表推斷更準確。
-    """
-    query = f"{name} {affiliation}".strip()
-    print(f"  [Profiles] 搜尋：{query!r}")
-
-    try:
-        data = _get({
-            "engine": "google_scholar_profiles",
-            "q": query,
-            "hl": "en",
-        })
-    except Exception as e:
-        print(f"  [Profiles] 搜尋失敗：{e}")
-        return None
-
-    profiles = data.get("profiles", [])
-    if not profiles:
-        print("  [Profiles] 無結果")
-        return None
-
-    best_id    = None
-    best_score = 0.0
-
-    for p in profiles:
-        pid    = p.get("author_id") or _extract_author_id_from_url(p.get("link", ""))
-        if not pid:
-            continue
-
-        p_name  = p.get("name", "")
-        p_affil = p.get("affiliations", "")
-
-        n_score = _name_score(name, p_name)
-        affil_ok = _affiliation_matches(affiliation, p_affil)
-
-        # 必須姓名高度相似（≥ 0.6）且 affiliation 要能對上
-        if n_score < 0.6 or not affil_ok:
-            print(f"    跳過 {p_name!r} @ {p_affil!r}  (name_score={n_score:.2f}, affil={affil_ok})")
-            continue
-
-        combined = n_score + (1.0 if affil_ok else 0.0)
-        if combined > best_score:
-            best_score = combined
-            best_id    = pid
-            print(f"    候選：{p_name!r} @ {p_affil!r}  score={combined:.2f}  id={pid}")
-
-    if best_id:
-        print(f"  [Profiles] 選定 id={best_id}")
-    else:
-        print(f"  [Profiles] 找不到符合條件的 profile（name+affiliation 皆需匹配）")
-    return best_id
 
 
 def _search_via_papers(name: str, affiliation: str) -> str | None:
@@ -352,56 +281,3 @@ def fetch_author_profile_and_recent_papers(
     return data, papers
 
 
-def fetch_recent_papers(
-    author_id: str,
-    professor_name: str = "",
-    cutoff_year: int | None = None,
-    max_papers: int = 20,
-) -> list[dict]:
-    """
-    透過 google_scholar_author engine 抓取該教授的近年論文。
-    以 author_id 直接存取個人頁，保證只回傳該教授的論文。
-    """
-    cutoff = cutoff_year if cutoff_year is not None else RECENT_YEARS_CUTOFF
-
-    try:
-        data = _get({
-            "engine":    "google_scholar_author",
-            "author_id": author_id,
-            "hl":        "en",
-            "sort":      "pubdate",   # 依發表時間排序，優先取近年論文
-        })
-    except Exception as e:
-        print(f"  論文抓取失敗：{e}")
-        return []
-
-    papers = []
-    for article in data.get("articles", []):
-        year = None
-        year_str = str(article.get("year", ""))
-        m = re.search(r"\b(20\d{2}|19\d{2})\b", year_str)
-        if m:
-            year = int(m.group(1))
-
-        if year and year < cutoff:
-            continue
-
-        cited_val = 0
-        cited_raw = article.get("cited_by", {})
-        if isinstance(cited_raw, dict):
-            cited_val = cited_raw.get("value", 0) or 0
-
-        papers.append({
-            "title":          article.get("title", ""),
-            "link":           article.get("link", ""),
-            "authors":        article.get("authors", professor_name),
-            "publication":    article.get("publication", ""),
-            "year":           year or cutoff,
-            "cited_by_value": cited_val,
-            "snippet":        article.get("description", ""),
-        })
-        if len(papers) >= max_papers:
-            break
-
-    print(f"  取得 {cutoff} 年後論文：{len(papers)} 篇")
-    return papers

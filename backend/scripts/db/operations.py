@@ -112,9 +112,10 @@ def verify():
             cur.execute("SELECT COUNT(*) FROM program_requirements")
             print(f"\nprogram_requirements 筆數: {cur.fetchone()[0]}")
             cur.execute("""
-                SELECT school_id, min_gpa, toefl_min, ielts_min, gre_required, deadline_fall
-                FROM program_requirements
-                ORDER BY school_id
+                SELECT u.school_id, pr.min_gpa, pr.toefl_min, pr.ielts_min, pr.gre_required, pr.deadline_fall
+                FROM program_requirements pr
+                JOIN universities u ON pr.university_id = u.id
+                ORDER BY u.school_id
             """)
             for sid, gpa, toefl, ielts, gre_req, deadline in cur.fetchall():
                 print(f"   [{sid}] GPA>={gpa} TOEFL>={toefl} IELTS>={ielts} "
