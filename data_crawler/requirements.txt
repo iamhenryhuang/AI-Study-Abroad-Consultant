@@ -1,0 +1,9 @@
+# data_crawler 額外依賴（專案原本已有 playwright / psycopg / langchain-text-splitters）
+langgraph>=1.1
+langgraph-checkpoint-postgres>=3.0
+openai>=2.0
+python-dotenv>=1.0
+trafilatura>=2.0
+pymupdf>=1.24
+# embedding（ENABLE_EMBEDDING / backfill 時才需要）
+sentence-transformers>=5.0

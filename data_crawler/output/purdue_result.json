@@ -1,0 +1,89 @@
+{
+  "school_id": "purdue",
+  "generated_at": "2026-07-09T00:21:04.443266",
+  "page_results": [
+    {
+      "url": "https://www.cs.purdue.edu/graduate/admission",
+      "title": "Graduate Admissions - Department of Computer Science - Purdue University",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "program",
+          "score": 0.8
+        },
+        {
+          "type": "scholarship",
+          "score": 0.6
+        }
+      ],
+      "types": [
+        {
+          "type": "program",
+          "confidence": 0.8
+        },
+        {
+          "type": "scholarship",
+          "confidence": 0.6
+        }
+      ],
+      "content_hash": "e964acb923afb177d2d4d10130acb914",
+      "program_codes": [
+        {
+          "program_code": "CS MS",
+          "degree_type": "MS",
+          "program_name": "Master of Science in Computer Science",
+          "department": "Computer Science"
+        },
+        {
+          "program_code": "CS PhD",
+          "degree_type": "PhD",
+          "program_name": "Doctor of Philosophy in Computer Science",
+          "department": "Computer Science"
+        }
+      ],
+      "scope": "page",
+      "extraction": {
+        "programs": [],
+        "deadlines": [],
+        "scholarships": [
+          {
+            "program_code": "CS MS",
+            "name": "",
+            "amount_usd": null,
+            "coverage": null,
+            "eligibility": "",
+            "auto_consider": null,
+            "source_excerpt": "Opportunities for graduate funding are abundant."
+          },
+          {
+            "program_code": "CS PhD",
+            "name": "",
+            "amount_usd": null,
+            "coverage": null,
+            "eligibility": "",
+            "auto_consider": null,
+            "source_excerpt": "Opportunities for graduate funding are abundant."
+          }
+        ],
+        "app_materials": []
+      },
+      "confidence": 1.0,
+      "retries": 1,
+      "tags": [
+        "CS MS",
+        "CS PhD",
+        "program",
+        "scholarship"
+      ],
+      "char_count": 21631
+    }
+  ],
+  "review_items": [],
+  "sufficiency_report": {
+    "coverage": {},
+    "sufficient": false,
+    "missing_summary": "沒有任何抽取結果",
+    "seed_urls": []
+  },
+  "chunk_count": 1
+}
