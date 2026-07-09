@@ -58,7 +58,6 @@ CREATE TABLE IF NOT EXISTS programs (
     source_urls           TEXT[],
     extraction_confidence NUMERIC(3,2),
     last_extracted_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    extra                 JSONB,
     created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (university_id, program_code)
 );
