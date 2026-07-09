@@ -1,9 +1,200 @@
 {
   "school_id": "purdue",
-  "generated_at": "2026-07-09T00:21:04.443266",
+  "generated_at": "2026-07-09T14:50:47.202691",
   "page_results": [
     {
       "url": "https://www.cs.purdue.edu/graduate/admission",
+      "title": "Graduate Admissions - Department of Computer Science - Purdue University",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "scholarship",
+          "score": 0.8
+        },
+        {
+          "type": "program",
+          "score": 0.7
+        }
+      ],
+      "types": [
+        {
+          "type": "scholarship",
+          "confidence": 0.8
+        },
+        {
+          "type": "program",
+          "confidence": 0.7
+        }
+      ],
+      "content_hash": "6af1fc511ca5d1d5ac2bce32bbca9835",
+      "program_codes": [],
+      "scope": "page",
+      "extraction": {
+        "programs": [],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": []
+      },
+      "confidence": 1.0,
+      "retries": 0,
+      "tags": [
+        "program",
+        "scholarship"
+      ],
+      "char_count": 21633
+    },
+    {
+      "url": "https://www.cs.purdue.edu/graduate/admission/requirements.html",
+      "title": "Requirements - Department of Computer Science - Purdue University",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 0.9
+        },
+        {
+          "type": "program",
+          "score": 0.8
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 0.9
+        },
+        {
+          "type": "program",
+          "confidence": 0.8
+        }
+      ],
+      "content_hash": "6e7139e70107dbd17a77f00c1f34db84",
+      "program_codes": [
+        {
+          "program_code": "CS MS",
+          "degree_type": "MS",
+          "program_name": "Master of Science in Computer Science",
+          "department": "Computer Science"
+        },
+        {
+          "program_code": "CS PhD",
+          "degree_type": "PhD",
+          "program_name": "Doctor of Philosophy in Computer Science",
+          "department": "Computer Science"
+        }
+      ],
+      "scope": "page",
+      "extraction": {
+        "programs": [
+          {
+            "program_code": "CS MS",
+            "fields": {
+              "gre_required": {
+                "value": "not_accepted",
+                "source_excerpt": "GRE is NOT required."
+              },
+              "gpa_min": {
+                "value": 3.5,
+                "source_excerpt": "Most of the successful applicants have major and cumulative GPAs above 3.5/4.0"
+              }
+            }
+          }
+        ],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": []
+      },
+      "confidence": 1.0,
+      "retries": 1,
+      "tags": [
+        "CS MS",
+        "CS PhD",
+        "admissions",
+        "program"
+      ],
+      "char_count": 26126
+    },
+    {
+      "url": "https://www.cs.purdue.edu/graduate/admission/english.html",
+      "title": "English Proficiency - Department of Computer Science - Purdue University",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 0.9
+        },
+        {
+          "type": "deadlines",
+          "score": 0.7
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 0.9
+        },
+        {
+          "type": "deadlines",
+          "confidence": 0.7
+        }
+      ],
+      "content_hash": "f6e1ebbeca6807e80ab0deb00ca79866",
+      "program_codes": [
+        {
+          "program_code": "CS MS",
+          "degree_type": "MS",
+          "program_name": "Master of Science in Computer Science",
+          "department": "Computer Science"
+        }
+      ],
+      "scope": "page",
+      "extraction": {
+        "programs": [
+          {
+            "program_code": "CS MS",
+            "fields": {
+              "toefl_min": {
+                "value": 100,
+                "source_excerpt": "a total of 100 on the internet-based test"
+              },
+              "ielts_min": {
+                "value": 7.5,
+                "source_excerpt": "overall band score of at least 7.5"
+              },
+              "duolingo_min": {
+                "value": 135,
+                "source_excerpt": "overall score of no less than 135"
+              },
+              "language_waiver": {
+                "value": "waiver of the TOEFL or IELTS requirements",
+                "source_excerpt": "might consider a waiver of the TOEFL or IELTS requirements"
+              }
+            }
+          }
+        ],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": [
+          {
+            "program_code": "CS MS",
+            "material_type": "other",
+            "requirement": "self-report your scores and upload a scan of the score report",
+            "word_limit": null,
+            "note": "You will also need to have ETS send your official English Scores to the Purdue University Graduate School.",
+            "source_excerpt": "You must self-report your scores and upload a scan of the score report into the online application by the deadline."
+          }
+        ]
+      },
+      "confidence": 1.0,
+      "retries": 2,
+      "tags": [
+        "CS MS",
+        "admissions",
+        "deadlines"
+      ],
+      "char_count": 25830
+    },
+    {
+      "url": "https://www.cs.purdue.edu/graduate/admission/index.html",
       "title": "Graduate Admissions - Department of Computer Science - Purdue University",
       "status": "ok",
       "passed_types": [
@@ -13,7 +204,7 @@
         },
         {
           "type": "scholarship",
-          "score": 0.6
+          "score": 0.7
         }
       ],
       "types": [
@@ -23,10 +214,282 @@
         },
         {
           "type": "scholarship",
-          "confidence": 0.6
+          "confidence": 0.7
         }
       ],
-      "content_hash": "e964acb923afb177d2d4d10130acb914",
+      "content_hash": "ed2cf588ec7696b317dcc9efb6ea9026",
+      "program_codes": [
+        {
+          "program_code": "CS MS",
+          "degree_type": "MS",
+          "program_name": "Master of Science in Computer Science",
+          "department": "Computer Science"
+        }
+      ],
+      "scope": "page",
+      "extraction": {
+        "programs": [],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": []
+      },
+      "confidence": 1.0,
+      "retries": 1,
+      "tags": [
+        "CS MS",
+        "program",
+        "scholarship"
+      ],
+      "char_count": 21626
+    },
+    {
+      "url": "https://www.cs.purdue.edu/graduate/admission/steps.html",
+      "title": "Application Steps and Process - Department of Computer Science - Purdue University",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 0.9
+        },
+        {
+          "type": "deadlines",
+          "score": 0.9
+        },
+        {
+          "type": "scholarship",
+          "score": 0.8
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 0.9
+        },
+        {
+          "type": "deadlines",
+          "confidence": 0.9
+        },
+        {
+          "type": "scholarship",
+          "confidence": 0.8
+        }
+      ],
+      "content_hash": "468f99413147746817637076572a4f49",
+      "program_codes": [
+        {
+          "program_code": "CS MS",
+          "degree_type": "MS",
+          "program_name": "Master of Science in Computer Science",
+          "department": "Computer Science"
+        },
+        {
+          "program_code": "CS PhD",
+          "degree_type": "PhD",
+          "program_name": "Doctor of Philosophy in Computer Science",
+          "department": "Computer Science"
+        }
+      ],
+      "scope": "page",
+      "extraction": {
+        "programs": [],
+        "deadlines": [
+          {
+            "program_code": "CS MS",
+            "deadline_type": "regular",
+            "deadline_date": "2025-10-01",
+            "semester": "spring_2026",
+            "note": "",
+            "source_excerpt": "Spring 2026 start—October 1, 2025"
+          },
+          {
+            "program_code": "CS MS",
+            "deadline_type": "regular",
+            "deadline_date": "2025-12-01",
+            "semester": "fall_2026",
+            "note": "",
+            "source_excerpt": "Fall 2026 start—December 1, 2025"
+          },
+          {
+            "program_code": "CS PhD",
+            "deadline_type": "regular",
+            "deadline_date": "2025-10-01",
+            "semester": "spring_2026",
+            "note": "",
+            "source_excerpt": "Spring 2026 start—October 1, 2025"
+          },
+          {
+            "program_code": "CS PhD",
+            "deadline_type": "regular",
+            "deadline_date": "2025-12-01",
+            "semester": "fall_2026",
+            "note": "",
+            "source_excerpt": "Fall 2026 start—December 1, 2025"
+          }
+        ],
+        "scholarships": [
+          {
+            "program_code": "CS PhD",
+            "name": "",
+            "amount_usd": null,
+            "coverage": "full_tuition",
+            "eligibility": "",
+            "auto_consider": true,
+            "source_excerpt": "you will automatically be considered for financial support"
+          }
+        ],
+        "app_materials": []
+      },
+      "confidence": 1.0,
+      "retries": 1,
+      "tags": [
+        "CS MS",
+        "CS PhD",
+        "admissions",
+        "deadlines",
+        "scholarship"
+      ],
+      "char_count": 28807
+    },
+    {
+      "url": "https://www.cs.purdue.edu/graduate/admission/faq.html",
+      "title": "FAQ - Department of Computer Science - Purdue University",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 0.9
+        },
+        {
+          "type": "faq",
+          "score": 0.8
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 0.9
+        },
+        {
+          "type": "faq",
+          "confidence": 0.8
+        }
+      ],
+      "content_hash": "6a03da365cff70af8ab23636abc93591",
+      "program_codes": [
+        {
+          "program_code": "CS MS",
+          "degree_type": "MS",
+          "program_name": "Master of Science in Computer Science",
+          "department": "Computer Science"
+        },
+        {
+          "program_code": "CS PhD",
+          "degree_type": "PhD",
+          "program_name": "Doctor of Philosophy in Computer Science",
+          "department": "Computer Science"
+        }
+      ],
+      "scope": "page",
+      "extraction": {
+        "programs": [
+          {
+            "program_code": "CS MS",
+            "fields": {
+              "toefl_min": {
+                "value": 100,
+                "source_excerpt": "total TOEFL scores of at least 100"
+              },
+              "ielts_min": {
+                "value": 7.5,
+                "source_excerpt": "IELTS scores of at least 7.5"
+              },
+              "duolingo_min": {
+                "value": 135,
+                "source_excerpt": "Duolingo with an overall score of no less than 135"
+              },
+              "gre_required": {
+                "value": "not_accepted",
+                "source_excerpt": "GRE scores are not required"
+              },
+              "gpa_min": {
+                "value": 3.5,
+                "source_excerpt": "GPA of at least 3.5/4"
+              }
+            }
+          }
+        ],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": []
+      },
+      "confidence": 1.0,
+      "retries": 2,
+      "tags": [
+        "CS MS",
+        "CS PhD",
+        "admissions",
+        "faq"
+      ],
+      "char_count": 36981
+    },
+    {
+      "url": "https://www.cs.purdue.edu/graduate/financial_support/english-proficiency.html",
+      "title": "Oral English Proficiency - Department of Computer Science - Purdue University",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 0.9
+        },
+        {
+          "type": "faq",
+          "score": 0.7
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 0.9
+        },
+        {
+          "type": "faq",
+          "confidence": 0.7
+        }
+      ],
+      "content_hash": "8b2b22b4fd103de4aa7a25d23ee7d9a9",
+      "program_codes": [],
+      "scope": "page",
+      "extraction": {
+        "programs": [],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": []
+      },
+      "confidence": 1.0,
+      "retries": 0,
+      "tags": [
+        "admissions",
+        "faq"
+      ],
+      "char_count": 27790
+    },
+    {
+      "url": "https://www.cs.purdue.edu/graduate/curriculum/index.html",
+      "title": "Curriculum - Department of Computer Science - Purdue University",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "program",
+          "score": 0.9
+        }
+      ],
+      "types": [
+        {
+          "type": "program",
+          "confidence": 0.9
+        }
+      ],
+      "content_hash": "957dbd1bba98097244b8b7dd8cfa2a05",
       "program_codes": [
         {
           "program_code": "CS MS",
@@ -45,26 +508,7 @@
       "extraction": {
         "programs": [],
         "deadlines": [],
-        "scholarships": [
-          {
-            "program_code": "CS MS",
-            "name": "",
-            "amount_usd": null,
-            "coverage": null,
-            "eligibility": "",
-            "auto_consider": null,
-            "source_excerpt": "Opportunities for graduate funding are abundant."
-          },
-          {
-            "program_code": "CS PhD",
-            "name": "",
-            "amount_usd": null,
-            "coverage": null,
-            "eligibility": "",
-            "auto_consider": null,
-            "source_excerpt": "Opportunities for graduate funding are abundant."
-          }
-        ],
+        "scholarships": [],
         "app_materials": []
       },
       "confidence": 1.0,
@@ -72,18 +516,98 @@
       "tags": [
         "CS MS",
         "CS PhD",
-        "program",
-        "scholarship"
+        "program"
       ],
-      "char_count": 21631
+      "char_count": 21667
+    },
+    {
+      "url": "https://www.cs.purdue.edu/future-students/index.html",
+      "status": "dropped",
+      "types": [],
+      "reason": "頁面內容僅包含與招生相關的聯絡資訊，未提供任何申請或學程相關的具體資訊。",
+      "char_count": 0
+    },
+    {
+      "url": "https://gradapply.purdue.edu/apply",
+      "title": "Application Management",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 0.9
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 0.9
+        }
+      ],
+      "content_hash": "8ee726d9f60114d8c8e1371d535e8474",
+      "program_codes": [
+        {
+          "program_code": "CS MS",
+          "scope": "school_wide"
+        }
+      ],
+      "scope": "school_wide",
+      "extraction": {
+        "programs": [],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": []
+      },
+      "confidence": 1.0,
+      "retries": 1,
+      "tags": [
+        "CS MS",
+        "admissions"
+      ],
+      "char_count": 8542
     }
   ],
   "review_items": [],
   "sufficiency_report": {
-    "coverage": {},
+    "coverage": {
+      "CS MS": {
+        "fields_extracted": [
+          "duolingo_min",
+          "gpa_min",
+          "gre_required",
+          "ielts_min",
+          "language_waiver",
+          "toefl_min"
+        ],
+        "deadline_count": 2,
+        "missing_important": [
+          "toefl_ibt_min",
+          "application_fee_usd",
+          "tuition_per_year_usd",
+          "rec_letter_count"
+        ]
+      },
+      "CS PhD": {
+        "fields_extracted": [],
+        "deadline_count": 2,
+        "missing_important": [
+          "toefl_ibt_min",
+          "ielts_min",
+          "gre_required",
+          "application_fee_usd",
+          "tuition_per_year_usd",
+          "rec_letter_count"
+        ]
+      }
+    },
     "sufficient": false,
-    "missing_summary": "沒有任何抽取結果",
-    "seed_urls": []
+    "missing_summary": "CS MS 和 CS PhD 都缺少多個重要欄位，包括 TOEFL IBT 最低分數、申請費、學費和推薦信數量。",
+    "seed_urls": [
+      "https://www.cs.purdue.edu/",
+      "https://www.cs.purdue.edu/graduate/curriculum/masters.html",
+      "https://www.cs.purdue.edu/graduate/financial_support/finding-support.html",
+      "https://www.cs.purdue.edu/graduate/financial_support/ta-expectations.html",
+      "https://www.cs.purdue.edu/graduate/financial_support/ra-expectations.html"
+    ]
   },
-  "chunk_count": 1
+  "chunk_count": 29
 }
