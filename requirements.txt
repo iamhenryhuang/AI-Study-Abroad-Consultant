@@ -5,8 +5,10 @@ psycopg[binary]>=3.1.0
 python-dotenv>=1.0.0
 
 # -- LLM / Agent --
-openai>=1.40.0
-langgraph>=0.2.0
+openai>=2.0.0
+langgraph>=1.1
+langgraph-checkpoint-postgres>=3.0
+typing-extensions>=4.0
 
 # -- API Server --
 fastapi>=0.115.0
@@ -18,3 +20,9 @@ requests>=2.28.0
 # -- Crawler --
 playwright>=1.40.0
 # After install run: playwright install chromium
+
+# -- data_crawler pipeline (LangGraph 資料擷取) --
+trafilatura>=2.0            # DOM → markdown
+pymupdf>=1.24               # PDF 抽文字
+langchain-text-splitters>=1.0   # chunking (Node 11)
+sentence-transformers>=5.0  # embedding（ENABLE_EMBEDDING / backfill 時才需要）

@@ -8,7 +8,8 @@
 ## 使用方式
 
 ```bash
-pip install -r data_crawler/requirements.txt   # 專案已有 playwright/psycopg 等，只補缺的
+pip install -r requirements.txt   # data_crawler 依賴已整併進專案根 requirements.txt
+python -m playwright install chromium
 
 # 先小範圍跑通再擴大（在專案根目錄執行）
 python -m data_crawler.main --school-id purdue --max-depth 1 --max-pages 10 --dry-run

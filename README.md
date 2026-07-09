@@ -9,8 +9,9 @@
 
 ## 系統概覽
 
-各校申請要求（GPA、TOEFL/IELTS、GRE、截止日期）以結構化資料存在 PostgreSQL 中；
-使用者用自然語言提問，後端 Agent 會自動產生 SQL 查詢資料庫並整理成答案。
+各校申請要求（GPA、TOEFL/IELTS、GRE、截止日期、學費、獎助）由 `data_crawler` 爬蟲抽取後，
+以結構化資料存進 PostgreSQL；頁面全文則切段存入 `document_chunks` 供全文檢索。
+使用者用自然語言提問，後端 Agent 先用 text-to-SQL 查結構化欄位，查不到再 fallback 到全文檢索，最後整理成答案。
 
 ### 系統架構
 
@@ -31,13 +32,17 @@ flowchart LR
         SerpAPI[["🔍 SerpAPI<br/>Google Scholar 教授資料"]]
     end
 
-    DB[("🗄️ db container<br/>PostgreSQL<br/>universities / program_requirements")]
+    DB[("🗄️ db container<br/>PostgreSQL + pgvector<br/>programs 家族（結構化）<br/>+ document_chunks（內文/全文檢索）")]
+    Crawler["🕷️ data_crawler<br/>LangGraph 爬蟲<br/>抽取結構化欄位 + 頁面全文"]
 
+    Crawler -- "抽取後寫入" --> DB
     Client -- "① 自然語言問題" --> API
     Agent -- "② SQL 查詢 / LLM 呼叫" --> OpenAI
     Agent -- "③ 教授查詢" --> SerpAPI
-    Agent -- "④ 唯讀 SQL 查詢" --> DB
+    Agent -- "④ 唯讀 SQL / 全文檢索" --> DB
     Agent -- "⑤ SSE 事件串流<br/>(thinking/tool_call/answer)" --> Client
+
+    style Crawler fill:#f3e8fd,stroke:#a142f4
 
     style Client fill:#e8f0fe,stroke:#4285f4
     style DB fill:#fef7e0,stroke:#f9ab00
@@ -49,67 +54,56 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Start(["原始問題"]) --> D
+    Start(["原始問題"]) --> D["🔍 decompose<br/>意圖判斷 + 子問題拆解"]
 
-    D["🔍 decompose<br/>─────────────<br/>兩次獨立 LLM 呼叫：<br/>(a) 意圖判斷：學校辨識 + 教授查詢意圖 + needs_sql_search<br/>(b) 子問題拆解（僅在 needs_sql_search=true 時呼叫）"]
-
-    D -->|"needs_sql_search = true"| S
-    D -->|"professor_query ≠ null"| E
-
-    S["📊 search<br/>─────────────<br/>對每個子問題執行 text-to-SQL<br/>查詢 program_requirements"]
-    E["🎓 extension_function<br/>─────────────<br/>呼叫 SerpAPI 抓取教授<br/>研究領域 / 近期論文"]
+    D -->|needs_sql_search| S["📊 search<br/>text-to-SQL"]
+    D -->|professor_query| E["🎓 extension_function<br/>SerpAPI 抓教授"]
 
     S --> V
     E --> V
 
-    V["🛡️ verify<br/>─────────────<br/>合併去重 collected_docs + extension_docs<br/>LLM 判斷資料是否文不對題 / 足夠回答"]
+    V{"🛡️ verify<br/>資料足夠？"}
 
-    V -->|"is_sufficient = true"| F
-    V -->|"is_sufficient = false 且曾檢索到資料<br/>且尚未重試過"| R
-    V -->|"完全查無資料，或已重試過仍不足"| F
+    V -->|足夠| F["✍️ finalize<br/>生成答案 / 誠實告知"]
+    V -->|"不足 · 尚未全文檢索"| FT["🔎 fulltext<br/>document_chunks 全文檢索"]
+    V -->|"仍不足 · 尚未重試"| R["🔁 refine<br/>改寫查詢"]
+    V -->|"查無資料 / 已重試過"| F
 
-    R["🔁 refine<br/>─────────────<br/>參考 insufficiency_reason<br/>重新改寫子問題 / professor_query<br/>（最多 1 輪，回到 search/extension_function）"]
+    FT -.補資料後重判.-> V
+    R -.重跑一輪.-> S
 
-    R --> S
-    R --> E
-
-    F["✍️ finalize<br/>─────────────<br/>is_sufficient=true → 生成繁中答案（附來源連結）<br/>is_sufficient=false / 查無資料 → 誠實告知，不經 Critic"]
-
-    F -->|"真的生成過答案"| C
-    F -->|"誠實告知 / 生成失敗"| End(["最終答案"])
-
-    C["🧐 critic<br/>─────────────<br/>檢查生成的答案是否有內容<br/>在參考資料中找不到根據（幻覺）<br/>發現問題就附註警告，不重新生成"]
-
+    F -->|生成過答案| C["🧐 critic<br/>幻覺複查"]
+    F -->|誠實告知| End(["最終答案"])
     C --> End
 
-    classDef nodeStyle fill:#f8f9fa,stroke:#5f6368,stroke-width:1.5px,text-align:left
-    class D,S,E,V,R,F,C nodeStyle
+    classDef nodeStyle fill:#f8f9fa,stroke:#5f6368,stroke-width:1.5px
+    classDef decision fill:#fef7e0,stroke:#f9ab00,stroke-width:1.5px
+    class D,S,E,FT,R,F,C nodeStyle
+    class V decision
 ```
+
+> 各節點的詳細行為見下方「路由規則」與 Verifier / Refiner / Critic 說明。
 
 **路由規則**：
 | 問題類型 | professor_query | needs_sql_search | 執行路徑 |
 |---|---|---|---|
 | 一般申請要求（GPA/TOEFL/deadline） | 無 | true | `decompose → search → verify → finalize → critic` |
+| SQL 結構化欄位查不到（如學分數） | 無 | true | `... → search → verify(不足) → fulltext → verify(足夠) → finalize → critic` |
 | 純教授查詢（研究領域/論文） | 有 | false | `decompose → extension_function → verify → finalize → critic` |
 | 教授 + 申請要求混合 | 有 | true | `decompose → (search ‖ extension_function) → verify → finalize → critic` |
-| 檢索文不對題但曾找到資料 | - | - | `... → verify → refine → (search ‖ extension_function) → verify → finalize（誠實告知，不經 critic）` |
+| 全文檢索後仍不足但曾找到資料 | - | - | `... → verify → fulltext → verify → refine → (search ‖ extension_function) → verify → finalize` |
 
-**Verifier 的判斷標準**：只攔截明顯「文不對題」或「完全無關」的資料（例如同名教授撈錯人、查詢命中錯誤學校），允許部分足夠或能合理推論的資料通過（缺的細節由 finalize 生成階段自然告知使用者），不做多輪重新查詢。
+**分層檢索（fallback 順序）**：text-to-SQL 查結構化欄位 → 不足時 fulltext 對 `document_chunks` 全文檢索 → 仍不足時 refine 改寫重查（最多 1 輪）。觸發 fallback 的條件是「Verifier 判定資料不足」，不是「SQL 回傳 0 筆」，因此「SQL 查到 program 列但缺該欄位」（如學分數不在結構化欄位）也能正確觸發全文檢索。
 
-**Refiner**：Verifier 判定資料不足且「曾檢索到資料」時觸發，參考 `insufficiency_reason` 重新改寫子問題或修正 `professor_query` 的學校資訊，最多重試 1 輪，避免無限迴圈；若原問題前提本身錯誤（例如問的教授根本不在該校），重試後仍會誠實拒答而非產生幻覺答案。
-
-**Critic**：只在 finalize 真的呼叫 LLM 生成過答案時才執行，檢查答案內容是否有具體、可查證的陳述在參考資料中找不到根據，發現問題就在答案後面附上警告文字，不重新生成——短路的誠實告知路徑（查無資料、資料不足）不需要跑 Critic。
+> Verifier / Refiner / Critic 各節點的判斷標準、以及分層檢索的完整實作細節，見 [後端技術細節](backend/README.md)。
 
 ### 重點特色
-- **Text-to-SQL 檢索**：OpenAI 依 schema 產生唯讀 SQL，執行前會做白名單表格 / 唯讀 / 單一語句檢查，不會誤刪改資料。
-- **教授即時查詢**：問題提到具體教授姓名時，Agent 會呼叫 SerpAPI 即時抓取教授資料。
-- **檢索結果驗證**：生成答案前，Verifier 節點會先判斷檢索到的資料是否文不對題（如同名教授撈錯人、命中錯誤學校），避免 LLM 憑錯誤上下文自信作答。
-- **查詢重試**：Verifier 判定資料不足但曾檢索到資料時，Refiner 會參考不足原因重新改寫查詢再查一次（最多 1 輪），修正「查詢方式不夠精確」導致的誤判。
-- **答案品質複查**：生成答案後，Critic 節點會檢查是否有內容在參考資料中找不到根據（幻覺），有疑慮就附註警告，不影響回應速度過多。
-- **未收錄學校辨識**：Decomposer 會分辨「問題問的學校根本不在系統收錄範圍」與「學校有收錄但查無該欄位」，給出對應的誠實回覆。
-- **串流回應**：透過 SSE 傳送 `thinking`、`tool_call`、`tool_result`、`llm_call`、`answer_chunk`、`answer`、`error` 事件。
-- **來源可追溯**：答案中會附上官網來源連結。
-- **不需要 embedding / 向量資料庫**：整套系統已移除 embedding pipeline，資料庫是純 PostgreSQL 結構化表格。
+- **分層檢索**：SQL 查結構化欄位 → 不足時全文檢索補內文 → 仍不足才改寫重查，兼顧精準與涵蓋率。
+- **不亂編答案**：檢索結果先經 Verifier 判斷是否文不對題，生成後再經 Critic 複查有無幻覺，有疑慮就誠實告知或附上警告。
+- **教授即時查詢**：問題提到教授姓名時即時呼叫 SerpAPI 抓取研究領域 / 論文。
+- **未收錄學校辨識**：分辨「學校不在收錄範圍」與「有收錄但查無該欄位」，給對應的誠實回覆。
+- **來源可追溯**：答案附上官網來源連結。
+- **串流回應**：透過 SSE 即時回傳思考與檢索過程。
 
 ---
 
@@ -124,9 +118,10 @@ flowchart TD
 │       ├── retriever/           # sql_search（text-to-SQL）+ LangGraph agent
 │       ├── generator/           # OpenAI 答案生成
 │       └── professor_fetcher/   # SerpAPI 教授資料抓取
-├── crawler/                 # Playwright 爬蟲（原始網頁蒐集，供人工整理用）
-├── db/                      # PostgreSQL schema（init_db.sql）+ 學校資料（load_schools.py）
-└── requirements.txt          # 所有 Python 依賴（backend + crawler）
+├── data_crawler/            # LangGraph 爬蟲：抓取頁面 → LLM 抽取結構化欄位 + 切段全文 → 寫入 DB（正式資料源）
+├── crawler/                 # 舊版 Playwright 爬蟲 + 設定（root_url / 黑名單，data_crawler 沿用其設定）
+├── db/                      # PostgreSQL schema（init_db.sql）+ 測試資料（schools_data.json / load_schools.py）
+└── requirements.txt          # 所有 Python 依賴（backend + data_crawler + crawler）
 ```
 
 ---
@@ -150,24 +145,45 @@ pip install -r requirements.txt
 建立 `backend/.env`：
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/study_abroad_rag
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/studyabroad
 OPENAI_API_KEY=your_openai_api_key   # decomposer / text-to-SQL / 答案生成都用這把 key
 OPENAI_MODEL=gpt-4o-mini
 SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 ```
 
-### 4. 初始化資料庫（建表 + 灌入學校資料）
+> 註：Windows + Docker Desktop 下建議用 `127.0.0.1` 而非 `localhost`，避免 IPv6 解析 fallback 造成連線延遲。
+
+### 4. 初始化資料庫
+
+所有指令從專案根目錄執行，入口為 `backend/scripts/run.py`：
+
+| 指令 | 說明 |
+|------|------|
+| `python backend/scripts/run.py init-all` | 一次完成 `setup` + `load-schools` |
+| `python backend/scripts/run.py setup` | 檢查連線，資料庫不存在則建立 |
+| `python backend/scripts/run.py init-schema` | 依 `db/init_db.sql` 重建資料表（會清空重建） |
+| `python backend/scripts/run.py load-schools` | 灌入 `db/schools_data.json` 的測試資料 |
+| `python backend/scripts/run.py verify-db` | 檢查目前資料庫內容 |
 
 ```bash
-python backend/scripts/run.py setup          # 若資料庫不存在則建立
-python backend/scripts/run.py load-schools   # 建表 + 灌入 db/schools_data.json 的學校資料
+python backend/scripts/run.py init-all   # 建表 + 灌入測試資料
+python backend/scripts/run.py verify-db   # 確認資料已寫入
 ```
 
-### 5. 啟動服務
+### 5. 測試檢索與問答（CLI）
+
+| 指令 | 說明 |
+|------|------|
+| `python backend/scripts/run.py search "問題"` | 只測 text-to-SQL：印出產生的 SQL 與查詢結果 |
+| `python backend/scripts/run.py rag "問題"` | 單次 SQL 查詢 + LLM 生成答案（不跑 LangGraph 迴圈） |
+| `python backend/scripts/run.py agent "問題"` | 完整跑一次 LangGraph Agent 流程（正式問答用這個） |
 
 ```bash
-python -m uvicorn backend.api:app --reload --port 8000
+python backend/scripts/run.py agent "Compare Stanford and CMU GPA requirements"
+python backend/scripts/run.py search "MIT TOEFL 最低幾分"
 ```
+
+> `--max-steps N`：Agent 模式最大迭代次數（預設 5）。
 
 ---
 
@@ -255,36 +271,6 @@ docker compose exec backend python backend/scripts/run.py agent "Compare Stanfor
 
 ---
 
-## 系統怎麼用（CLI 指令一覽）
-
-所有指令從專案根目錄執行，入口為 `backend/scripts/run.py`：
-
-| 指令 | 說明 |
-|------|------|
-| `init-all` | 一次完成 `setup` + `load-schools` |
-| `setup` | 檢查連線，資料庫不存在則建立 |
-| `init-schema` | 依 `db/init_db.sql` 重建資料表結構（會清空重建） |
-| `load-schools` | 建表 + 灌入 `db/schools_data.json` 的學校資料 |
-| `verify-db` | 檢查目前資料庫內容 |
-| `search "問題"` | 只測試 text-to-SQL：印出產生的 SQL 與查詢結果 |
-| `rag "問題"` | 單次 SQL 查詢 + 生成答案（不跑 LangGraph 迴圈） |
-| `agent "問題"` | 完整跑一次 LangGraph Agent 流程（正式問答用這個） |
-
-範例：
-
-```bash
-python backend/scripts/run.py agent "Compare Stanford and CMU GPA requirements"
-python backend/scripts/run.py search "MIT TOEFL 最低幾分"
-```
-
-Docker 環境下同樣指令加上 `docker compose exec backend` 前綴即可：
-
-```bash
-docker compose exec backend python backend/scripts/run.py agent "MIT deadline?"
-```
-
----
-
 ## 教授資料查詢
 
 **1. 即時查詢（推薦）**：問題中直接提到教授姓名，Agent 會自動偵測意圖並呼叫 SerpAPI 即時抓取，不需要手動操作。
@@ -303,16 +289,26 @@ python backend/scripts/professor_fetcher/run_fetch.py \
 
 ## 資料庫 Schema
 
-`db/init_db.sql` 定義兩張表：
+`db/init_db.sql` 定義 8 張表，分「結構化」「內文」「品質控管」三類：
 
+**結構化資料（供 text-to-SQL 查詢）** —— 以 `programs` 為核心的主表-子表結構：
 - `universities`：學校基本資料（school_id、name、domain）
-- `program_requirements`：每校一筆申請要求，含 GPA、TOEFL/IELTS/Duolingo、GRE、各截止日期、學費/獎助學金、申請文件要求（SOP/推薦信/履歷）、來源連結
+- `programs`：每個學位項目一列（一校可有多個 program，如 CS MS / CS PhD），含 GPA、TOEFL/IELTS/Duolingo、GRE、學費、申請費、推薦信數、CV 等單值申請要求欄位
+- `program_deadlines` / `program_scholarships` / `program_app_materials`：截止日 / 獎助 / 特殊申請材料（各為「一 program 可多筆」的子表，靠 `program_id` 關聯）
 
-`db/schools_data.json` 目前收錄 30 間北美 CS 研究所（CMU、MIT、Stanford、Berkeley、UIUC 等），由 `db/load_schools.py` 讀取後直接寫入資料庫，之後要接入真實資料時只需替換這份 JSON，schema 與 text-to-SQL Agent 不需要改動。
+**內文資料（供全文檢索）**：
+- `web_pages`：每個爬取頁面的清洗後全文
+- `document_chunks`：全文切段後的 chunk，`fts_vector` 供全文檢索（trigger 自動生成）、`embedding` 為預留向量欄位
+
+**品質控管**：
+- `review_queue`：爬蟲抽取時驗證失敗（如幻覺）的欄位，進佇列等人工複查
+
+**資料來源**：正式資料由 `data_crawler/` 爬蟲抽取後寫入。`db/schools_data.json` 是對應此 schema 的**測試假資料**（目前 5 校），結構為 `universities` + 巢狀 `programs`（每個 program 內含 `deadlines`/`scholarships`/`app_materials` 陣列），欄位名與資料表一一對應，由 `db/load_schools.py` 讀取寫入。
 
 新增學校時記得同步更新 `backend/scripts/retriever/agent.py` 的 `_SCHOOL_ALIASES` 對照表，Decomposer 才能正確辨識學校縮寫/別名。
 
 ---
 
 ## 文件連結
-- [後端文件](backend/README.md)
+- [後端技術細節](backend/README.md) —— 分層檢索、品質控管節點、事件串流、教授查詢實作
+- [爬蟲文件](data_crawler/README.md) —— data_crawler 資料擷取 pipeline 的用法、graph 結構、抽取邏輯
