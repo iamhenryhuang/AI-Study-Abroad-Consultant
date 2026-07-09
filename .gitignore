@@ -71,3 +71,5 @@ dist-ssr/
 # 教授資料快取（執行期產生，非版本控管內容）
 crawler/data/*_professors.json
 
+# claude setting
+.claude/

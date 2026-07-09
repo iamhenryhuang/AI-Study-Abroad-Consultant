@@ -37,6 +37,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.types import Send
 
 from retriever.sql_search import sql_search, get_known_school_ids
+from retriever.fulltext_search import fulltext_search
 from generator.openai_client import call_llm, generate_answer, generate_answer_stream, format_context_for_prompt
 from professor_fetcher.fetch_for_agent import run_professor_fetch
 
@@ -92,10 +93,12 @@ class AgentState(TypedDict):
     original_query:    str
     sub_queries:       list[str]
     collected_docs:    list[dict]    # SQL 查詢結果（每輪由 searcher_node 整份覆寫，重試時不與前一輪疊加）
+    fulltext_docs:     list[dict]    # 全文檢索結果（SQL 不足時才由 fulltext_search_node 補上）
+    fulltext_done:     bool          # 是否已對本輪子問題做過全文檢索 fallback（避免重複做）
     extension_docs:    list[dict]    # 教授資料（每輪由 extension_function_node 整份覆寫，重試時不與前一輪疊加）
     final_answer:      str
     professor_query:   dict | None   # Decomposer 偵測到的教授查詢 {name, school, school_id}
-    needs_sql_search:  bool         # Decomposer 判斷是否需要查 program_requirements
+    needs_sql_search:  bool         # Decomposer 判斷是否需要查 programs 申請要求資料
     mentioned_school_ids: list[str]   # Decomposer 從已知清單中偵測到的 school_id（不代表資料庫已收錄）
     mentioned_school_names: list[str] # Decomposer 偵測到的學校名稱原文（不限於已知清單）
     verified_docs:     list[dict]    # Verifier 去重後的資料（search + extension 合併）
@@ -200,7 +203,7 @@ def _build_intent_prompt(query: str) -> str:
 ====================
 【任務三：是否需要查詢結構化申請要求資料庫（needs_sql_search）】
 ====================
-資料庫（program_requirements）只有 GPA、TOEFL/IELTS/GRE、申請截止日期等「申請要求」欄位，
+資料庫（programs 及其子表）只有 GPA、TOEFL/IELTS/GRE、申請截止日期、學費、獎助等「申請要求」欄位，
 不包含教授的研究領域、發表論文、經歷等資訊。
 
 - 若使用者問題只在詢問教授本人相關資訊（如研究領域、論文、背景等），且完全沒有詢問任何申請要求，
@@ -321,6 +324,8 @@ def decomposer_node(state: AgentState) -> dict:
     return {
         "sub_queries":            sub_queries,
         "collected_docs":         [],
+        "fulltext_docs":          [],
+        "fulltext_done":          False,
         "final_answer":           "",
         "professor_query":        professor_query,
         "needs_sql_search":       needs_sql_search,
@@ -414,7 +419,7 @@ def searcher_node(state: AgentState) -> dict:
     for q in sub_queries:
         _check_cancel()
         results = _search_one_query(q, original_query)
-        print(f"     查詢：{q}  取得 {len(results)} 筆")
+        print(f"     查詢：{q}  取得 {len(results)} 筆（SQL）")
         new_docs.extend(results)
 
     print(f"\n[Searcher] 共取得 {len(new_docs)} 筆資料")
@@ -422,21 +427,78 @@ def searcher_node(state: AgentState) -> dict:
     return {"collected_docs": new_docs}
 
 
+# ─── Node 2.5：Fulltext Search（SQL 不足時的 fallback）────────────────────────
+
+def _fulltext_one_query(q: str, original_query: str) -> list[dict]:
+    """對單一子問題做 document_chunks 全文檢索。"""
+    school_ids = _detect_school_ids(q) or _detect_school_ids(original_query)
+    school_id = school_ids[0] if school_ids else None
+
+    _emit({
+        "type": "tool_call",
+        "tool": "fulltext_search",
+        "args": {"query": q, **({"school_id": school_id} if school_id else {})},
+    })
+
+    results = fulltext_search(q, school_id=school_id)
+
+    for item in results:
+        item["query"] = q
+
+    _emit({
+        "type": "tool_result",
+        "tool": "fulltext_search",
+        "preview": f"全文檢索找到 {len(results)} 筆相關段落",
+    })
+
+    return results
+
+
+def fulltext_search_node(state: AgentState) -> dict:
+    """
+    text-to-SQL 檢索結果被 Verifier 判定不足時，才對 document_chunks 做全文檢索補充。
+    這是分層 fallback 的第二層：先靠 SQL 查結構化欄位，SQL 答不出來（文不對題或缺欄位）
+    才擴大到原始頁面全文，把 chunk 併入 collected_docs 後回到 verify 重新判斷。
+    """
+    sub_queries    = state.get("sub_queries", [])
+    original_query = state["original_query"]
+
+    print(f"\n[Fulltext] SQL 結果不足，對 {len(sub_queries)} 個子問題做全文檢索 fallback")
+    _emit({"type": "thinking", "step": "fulltext"})
+
+    ft_docs: list[dict] = []
+    for q in sub_queries:
+        _check_cancel()
+        results = _fulltext_one_query(q, original_query)
+        print(f"     查詢：{q}  取得 {len(results)} 筆（全文檢索）")
+        ft_docs.extend(results)
+
+    print(f"\n[Fulltext] 共取得 {len(ft_docs)} 筆全文檢索資料")
+
+    return {"fulltext_docs": ft_docs, "fulltext_done": True}
+
+
 # ─── Node 3：Verifier ─────────────────────────────────────────────────────────
 
 def _build_verify_prompt(query: str, context_text: str) -> str:
     return f"""你是一個檢索結果品質檢查員，負責判斷「檢索到的參考資料」是否真的能回答使用者的問題。
 
-【判斷重點】
-1. 資料是否與問題「文不對題」：例如問的是 A 學校，資料卻是 B 學校；問的是某位教授，資料卻是同名的另一個人。
-2. 資料是否「足夠完整」：若問題涉及多個面向（如多所學校比較、多個欄位），資料是否涵蓋了大部分核心面向。
-3. 允許「合理推論」：不需要資料逐字明講問題的關鍵詞才算足夠。只要資料內容能讓一般人合理推論出答案，
-   就算 sufficient=true。例如問「研究領域」，資料即使沒有寫「研究領域：xxx」這種明講句子，
-   只要列出了該教授近期論文的標題/摘要，就足以合理歸納出研究方向，應判定為足夠。
-4. 允許「部分足夠」：只要資料裡有能實際回答問題核心的部分，即使不是每個細節都涵蓋，也算 sufficient=true，
-   缺的部分由後續生成階段自然告知使用者「部分資料不足」即可，不需要在這裡整批判定為不足。
-5. 只有在資料明顯「文不對題」或「完全無關」時，才判定 sufficient=false。判定為不足前，先自問：
-   「如果我是使用者，看到這些資料，能不能合理猜出答案？」若答案是能，就算 sufficient=true。
+【判斷步驟（務必依序執行）】
+第一步：先用一句話點出「問題到底想知道哪個具體資訊點」（例如：是否提供論文/非論文選項、某課程的學分數、某獎學金金額、GPA 門檻…）。
+第二步：逐筆檢查參考資料，找有沒有「任何一句話實際觸及那個資訊點」。
+        ⚠️ 只是「同一所學校 / 同一個 program 的其他不相干欄位」不算數。
+        例如問「有沒有論文選項」，但資料只有 program_name、degree_type、GPA、TOEFL 這類欄位，
+        完全沒有一句話提到論文/thesis/課程結構——這就是「命中學校但沒命中資訊點」。
+第三步：
+  - 若第二步找到了觸及該資訊點的內容（哪怕只是片段、需要合理推論）→ sufficient=true。
+  - 若第二步「完全沒有任何一句話觸及該資訊點」→ sufficient=false，
+    reason 寫「資料只有 XXX，未觸及問題問的 YYY」，讓系統改用全文檢索補真正相關的內文。
+
+【其他原則】
+- 文不對題（問 A 校給 B 校、問某教授給同名他人）一律 sufficient=false。
+- 允許合理推論：資料不必逐字明講關鍵詞，能讓人合理推論出答案即可（例如問研究領域，給論文標題摘要就算足夠）。
+- 允許部分足夠：只要「觸及了資訊點」，細節不全也算 true，缺的由生成階段告知使用者——但前提是真的觸及（見第二步）。
+- 判 true 前最後自問：「這些資料裡，有沒有任何一句真的在回答使用者問的那件事？」若答不出具體是哪一句，就該判 false。
 
 【使用者問題】
 {query}
@@ -447,7 +509,7 @@ def _build_verify_prompt(query: str, context_text: str) -> str:
 【輸出格式（嚴格遵守）】
 只輸出 JSON，禁止輸出任何說明文字：
 
-{{"sufficient": true or false, "reason": "若 sufficient=false，用一句話說明資料為何文不對題或無關；否則留空字串"}}
+{{"sufficient": true or false, "reason": "若 sufficient=false，用一句話說明資料未觸及哪個資訊點；否則留空字串"}}
 """
 
 
@@ -459,10 +521,11 @@ def verifier_node(state: AgentState) -> dict:
     query = state["original_query"]
 
     search_docs    = state.get("collected_docs", [])
+    fulltext_docs  = state.get("fulltext_docs", [])
     extension_docs = state.get("extension_docs", [])
 
-    # extension_docs 放在前面（教授資料優先作為上下文）
-    all_docs = _deduplicate_docs(extension_docs + search_docs)
+    # extension_docs 放在前面（教授資料優先作為上下文），全文檢索補充資料放最後
+    all_docs = _deduplicate_docs(extension_docs + search_docs + fulltext_docs)
 
     if not all_docs:
         return {"verified_docs": [], "is_sufficient": False, "insufficiency_reason": ""}
@@ -490,14 +553,20 @@ def verifier_node(state: AgentState) -> dict:
 
 def after_verify(state: AgentState) -> str:
     """
-    Verifier 完成後的路由：
+    Verifier 完成後的路由（分層 fallback：SQL → 全文檢索 → 改寫重查）：
     - is_sufficient=True → finalize
-    - is_sufficient=False 且「曾檢索到資料但文不對題/不足」且尚未重試過 → refine（重新產生查詢再查一次，最多 1 輪）
-    - 完全查無資料（verified_docs 為空，如未收錄該校），或已重試過仍不足 → finalize（誠實告知）
+    - is_sufficient=False 且「本輪還沒做過全文檢索」→ fulltext（對 document_chunks 補查後回到 verify）
+    - is_sufficient=False 且「已做過全文檢索」且曾檢索到資料且尚未重試過 → refine（改寫查詢再跑一輪 SQL）
+    - 完全查無資料，或已重試過仍不足 → finalize（誠實告知）
     """
     if state.get("is_sufficient", True):
         return "finalize"
 
+    # 第一層 fallback：SQL 不足時先擴大到全文檢索（本輪只做一次）
+    if not state.get("fulltext_done", False):
+        return "fulltext"
+
+    # 第二層 fallback：全文檢索仍不足，且曾檢索到資料、尚未重試過，才改寫查詢重跑
     if state.get("verified_docs") and state.get("retry_count", 0) < 1:
         return "refine"
 
@@ -567,6 +636,8 @@ def refiner_node(state: AgentState) -> dict:
         "sub_queries":     new_sub_queries,
         "professor_query": new_professor_query,
         "retry_count":     retry_count + 1,
+        "fulltext_docs":   [],      # 清掉上一輪全文檢索結果
+        "fulltext_done":   False,   # 允許改寫後的新查詢再走一次全文檢索
     }
 
 
@@ -588,12 +659,12 @@ def finalizer_node(state: AgentState) -> dict:
         mentioned_names = state.get("mentioned_school_names", [])
         known = get_known_school_ids()
 
+        # mentioned_school_ids 與 mentioned_school_names 是兩組獨立偵測結果，可能同時存在
+        # （例如同時問已知的 MIT 和清單外的 University of Toronto），故分別判斷、不互斥。
         # school_ids 已限定在已知別名清單內，該清單與 DB 收錄範圍同步，故其恆在 known 中；
         # 真正判斷「有沒有收錄」要看 mentioned_school_names（含清單外的學校原文）。
         unknown_ids   = [sid for sid in mentioned_ids if sid not in known]
-        unknown_names = mentioned_names if not mentioned_ids else []
-
-        unrecognized = unknown_ids + unknown_names
+        unrecognized = unknown_ids + mentioned_names
 
         if unrecognized:
             names = "、".join(unrecognized)
@@ -711,22 +782,24 @@ def critic_node(state: AgentState) -> dict:
 
 def _build_graph():
     """
-    流程：
+    流程（分層 fallback：SQL → 全文檢索 → 改寫重查）：
       decompose
-        ├─ Send → search ──────────────────────────┐
+        ├─ Send → search（text-to-SQL）────────────┐
         │                                          ▼
         └─ Send → extension_function ──────────► verify ─┬─→ finalize ─┬─→ critic → END
-                                                           │             │
-                                          （is_sufficient=false 且尚未重試過）（誠實告知 / 生成失敗，不需要 Critic）
-                                                           ▼             └─→ END
-                                                        refine
-                                                           │
-                                            ┌─ Send → search ┤
-                                            └─ Send → extension_function
-                                                （回到 verify 再判斷一次，最多 1 輪）
+                                                     │  ▲              │
+                        （不足且本輪未做過全文檢索）  │  │（誠實告知 / 生成失敗，不需要 Critic）
+                                                     ▼  │              └─→ END
+                                                  fulltext（document_chunks 全文檢索）
+                                                     （補資料後回到 verify 再判斷一次）
+                                                     │
+                        （全文檢索仍不足且尚未重試）  ▼
+                                                  refine → search/extension_function（最多 1 輪）
 
-    verify 判斷資料是否文不對題/足夠：足夠就交給 finalize；不足夠但曾檢索到資料且還沒重試過，
-    交給 refine 依 insufficiency_reason 重新改寫查詢，再跑一次 search/extension_function → verify；
+    verify 判斷資料是否文不對題/足夠：足夠就交給 finalize。
+    不足時分兩層 fallback：
+      1) 本輪還沒做過全文檢索 → fulltext：對 document_chunks 全文檢索補資料，回 verify 再判斷。
+      2) 全文檢索仍不足且曾檢索到資料、尚未重試過 → refine：改寫查詢重跑一輪 SQL（會 reset fulltext_done）。
     仍不足或本來就查無資料，直接交給 finalize 誠實告知，最多重試 1 輪，不會無限迴圈。
     finalize 只在真的呼叫 LLM 生成出答案時才交給 critic 複查有無幻覺；誠實告知/生成失敗則直接結束。
     """
@@ -735,6 +808,7 @@ def _build_graph():
     builder.add_node("decompose",          decomposer_node)
     builder.add_node("extension_function", extension_function_node)
     builder.add_node("search",             searcher_node)
+    builder.add_node("fulltext",           fulltext_search_node)
     builder.add_node("verify",             verifier_node)
     builder.add_node("refine",             refiner_node)
     builder.add_node("finalize",           finalizer_node)
@@ -747,6 +821,7 @@ def _build_graph():
 
     builder.add_edge("extension_function", "verify")
     builder.add_edge("search", "verify")
+    builder.add_edge("fulltext", "verify")
     builder.add_conditional_edges("verify", after_verify)
 
     builder.add_conditional_edges("finalize", after_finalize)
@@ -801,6 +876,8 @@ def run_agent(
             "original_query":    query,
             "sub_queries":       [],
             "collected_docs":    [],
+            "fulltext_docs":     [],
+            "fulltext_done":     False,
             "extension_docs":    [],
             "final_answer":      "",
             "professor_query":   None,
@@ -817,7 +894,7 @@ def run_agent(
         result_state = _get_graph().invoke(initial_state, {"recursion_limit": max_steps * 4})
 
         if verbose:
-            total_docs = len(_deduplicate_docs(result_state.get("collected_docs", [])))
+            total_docs = len(result_state.get("verified_docs", []))
             print(f"\n{'='*60}")
             print(f"完成！彙整 {total_docs} 筆去重資料")
             print(f"{'='*60}")

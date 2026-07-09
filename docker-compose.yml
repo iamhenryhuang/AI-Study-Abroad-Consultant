@@ -1,11 +1,13 @@
 services:
 
   db:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: studyabroad
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
@@ -16,23 +18,26 @@ services:
       retries: 10
     restart: unless-stopped
 
-  backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    env_file:
-      - backend/.env
-    environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/studyabroad
-      CRAWLER_DATA_DIR: /app/crawler/data
-    volumes:
-      - ./crawler/data:/app/crawler/data:ro
-    depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
+  # ── backend（FastAPI API server）目前不啟用 ──
+  # 現階段只用 docker 跑 DB，backend 在本機用 .venv 直接跑 CLI（run.py agent/search…）連此 DB。
+  # 之後要對外提供 POST /api/chat 服務時，取消以下註解並 `docker compose up backend` 即可。
+  # backend:
+  #   build:
+  #     context: .
+  #     dockerfile: backend/Dockerfile
+  #   env_file:
+  #     - backend/.env
+  #   environment:
+  #     DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/studyabroad
+  #   volumes:
+  #     # professor_fetcher 會寫入 {school_id}_professors.json 快取，需可寫（不可設 :ro）
+  #     - ./crawler/data:/app/crawler/data
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   ports:
+  #     - "8000:8000"
+  #   restart: unless-stopped
 
 volumes:
   pgdata:
