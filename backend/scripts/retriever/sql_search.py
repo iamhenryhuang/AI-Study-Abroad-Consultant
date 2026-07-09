@@ -21,7 +21,7 @@ from generator.openai_client import call_llm
 
 SCHEMA_DESCRIPTION = """
 資料表 universities:
-  - id          INTEGER   -- 主鍵，program_requirements.university_id 對應此欄位
+  - id          INTEGER   -- 主鍵，programs.university_id 對應此欄位
   - school_id   VARCHAR   -- 學校代碼（小寫縮寫），常見值：'cmu' = Carnegie Mellon University、
                               'mit' = Massachusetts Institute of Technology、'stanford' = Stanford University、
                               'caltech' = California Institute of Technology、'gatech' = Georgia Institute of Technology。
@@ -29,34 +29,76 @@ SCHEMA_DESCRIPTION = """
   - name        VARCHAR   -- 學校全名
   - domain      VARCHAR   -- 學校官網網域
 
-資料表 program_requirements（每間學校一筆，CS 碩士申請要求；不含 school_id，只能透過 university_id 關聯 universities）:
-  - university_id     INTEGER    -- 對應 universities.id（外鍵，唯一）
-  - program_name      VARCHAR    -- 學程名稱
-  - min_gpa            NUMERIC    -- 最低 GPA 要求（4.0 制）
-  - gpa_scale           NUMERIC    -- GPA 滿分制（通常 4.0）
-  - toefl_min           INTEGER    -- 最低 TOEFL iBT 分數（滿分 120）
-  - ielts_min           NUMERIC    -- 最低 IELTS 分數（滿分 9.0）
-  - duolingo_min        INTEGER    -- 最低 Duolingo 分數（滿分 160）
-  - english_waiver_note TEXT       -- 英語測驗免試條件說明
-  - gre_required        BOOLEAN    -- 是否需要 GRE
-  - gre_min_total       INTEGER    -- GRE 總分最低要求（滿分 340）
-  - gre_min_quant       INTEGER    -- GRE 數學最低要求（滿分 170）
-  - gre_min_verbal      INTEGER    -- GRE 語文最低要求（滿分 170）
-  - deadline_fall        DATE       -- 秋季入學申請截止日
-  - deadline_spring      DATE       -- 春季入學申請截止日
-  - priority_deadline    DATE       -- 優先申請截止日
-  - tuition_per_year      INTEGER    -- 年度學費（美金）
-  - funding_available     BOOLEAN    -- 是否有獎學金 / RA / TA 機會
-  - funding_note          TEXT       -- 獎助學金說明（申請方式、覆蓋範圍等）
-  - requires_sop          BOOLEAN    -- 是否需要 Statement of Purpose
-  - num_recommendation_letters INTEGER -- 需要幾封推薦信
-  - requires_resume       BOOLEAN    -- 是否需要履歷 / CV
-  - source_url           TEXT       -- 官方資料來源網址
+資料表 programs（每間學校可有多個 program，例如 'CS MS' / 'CS PhD'；透過 university_id 關聯 universities）:
+  - id                  INTEGER    -- 主鍵，program_deadlines / program_scholarships / program_app_materials.program_id 對應此欄位
+  - university_id       INTEGER    -- 對應 universities.id（外鍵）
+  - program_code        VARCHAR    -- program 代碼，存的就是 'CS MS' / 'CS PhD' 這類簡寫。使用者說「CS MS」「CS 碩士」時用這欄過濾（program_code = 'CS MS'），不要用 program_name。
+  - degree_type         VARCHAR    -- 學位別，值為 'MS' / 'PhD' / 'MEng' / 'MPS' / 'MBA'。使用者只說「碩士 / master」未指定領域時用這欄（degree_type = 'MS'）。
+  - program_name        VARCHAR    -- 學程全名，存的是完整名稱如 'Master of Science in Computer Science'，不含 'CS MS' 這種簡寫，勿用它比對簡寫。
+  - department          VARCHAR    -- 系所名稱
+  - toefl_min           INTEGER    -- 最低 TOEFL 分數
+  - toefl_ibt_min       INTEGER    -- 最低 TOEFL iBT 分數
+  - ielts_min           NUMERIC    -- 最低 IELTS 分數
+  - duolingo_min        INTEGER    -- 最低 Duolingo 分數
+  - language_waiver     TEXT       -- 語言測驗豁免條件說明
+  - gre_required        VARCHAR    -- GRE 要求：'required' / 'optional' / 'not_accepted'（非布林）
+  - gre_quant_min       INTEGER    -- GRE 數學最低要求
+  - gre_verbal_min      INTEGER    -- GRE 語文最低要求
+  - gre_awa_min         NUMERIC    -- GRE 寫作最低要求
+  - gpa_min             NUMERIC    -- 最低 GPA 要求
+  - gpa_scale           VARCHAR    -- GPA 滿分制（例如 '4.0'）
+  - gpa_note            TEXT       -- GPA 補充說明
+  - transcript_copies   INTEGER    -- 需繳交幾份成績單
+  - transcript_format   VARCHAR    -- 成績單格式（自由文字，例如 electronic / paper / WES_required；查詢用 ILIKE 模糊比對）
+  - rec_letter_count    INTEGER    -- 需要幾封推薦信
+  - sop_word_limit      INTEGER    -- 讀書計畫字數限制
+  - sop_prompt          TEXT       -- 讀書計畫題目 / 要求說明
+  - cv_required         BOOLEAN    -- 是否需要履歷 / CV
+  - writing_sample_required BOOLEAN -- 是否需要寫作樣本
+  - application_fee_usd INTEGER    -- 申請費（美金）
+  - fee_waiver_available BOOLEAN   -- 是否提供申請費減免
+  - fee_waiver_criteria TEXT       -- 申請費減免條件
+  - tuition_per_year_usd INTEGER   -- 年度學費（美金）
+  - tuition_note        TEXT       -- 學費補充說明
+  - application_url     TEXT       -- 申請入口網址
+  - application_system  VARCHAR    -- 申請系統（自由文字，例如 GradCAS / Slate / self_hosted；查詢用 ILIKE 模糊比對）
+  - source_urls         TEXT[]     -- 官方資料來源網址（陣列）
 
-兩表必須用 university_id 關聯：JOIN universities ON program_requirements.university_id = universities.id。
+資料表 program_deadlines（一個 program 可有多筆截止日；透過 program_id 關聯 programs）:
+  - program_id     INTEGER    -- 對應 programs.id
+  - deadline_type  VARCHAR    -- 'early' / 'regular' / 'international' / 'rolling'
+  - deadline_date  DATE       -- 截止日期
+  - semester       VARCHAR    -- 學期，例如 'fall_2026'
+  - note           TEXT       -- 補充說明
+
+資料表 program_scholarships（一個 program 可有多筆獎助；透過 program_id 關聯 programs）:
+  - program_id     INTEGER    -- 對應 programs.id
+  - name           VARCHAR    -- 獎助名稱，例如 'RA/TA funding'
+  - amount_usd     INTEGER    -- 金額（美金）
+  - coverage       VARCHAR    -- full_tuition / partial / stipend_only
+  - eligibility    TEXT       -- 資格 / 說明
+  - auto_consider  BOOLEAN    -- 是否自動被考慮（否則需另外申請）
+
+資料表 program_app_materials（一個 program 可有多筆特殊申請材料；透過 program_id 關聯 programs）:
+  - program_id     INTEGER    -- 對應 programs.id
+  - material_type  VARCHAR    -- additional_essay / portfolio / video / writing_sample / other
+  - requirement    TEXT       -- 材料要求說明
+  - word_limit     INTEGER    -- 字數限制
+  - note           TEXT       -- 補充說明
+
+關聯方式：
+  - programs JOIN universities ON programs.university_id = universities.id
+  - program_deadlines JOIN programs ON program_deadlines.program_id = programs.id
+  - program_scholarships JOIN programs ON program_scholarships.program_id = programs.id
+  - program_app_materials JOIN programs ON program_app_materials.program_id = programs.id
+查詢申請要求（GPA/TOEFL/GRE/學費/推薦信/CV 等）用 programs；查截止日用 program_deadlines；
+查獎助用 program_scholarships；查特殊申請材料（portfolio/video/writing sample 等）用 program_app_materials。
 """
 
-_ALLOWED_TABLES = {"universities", "program_requirements"}
+_ALLOWED_TABLES = {
+    "universities", "programs", "program_deadlines",
+    "program_scholarships", "program_app_materials",
+}
 
 _SQL_FORBIDDEN_PATTERN = re.compile(
     r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE|EXECUTE|CALL)\b",
@@ -72,16 +114,22 @@ def _build_sql_prompt(query: str) -> str:
 
 【規則】
 1. 只能產生單一個 SELECT 查詢語句，禁止任何寫入/修改語句（INSERT/UPDATE/DELETE/DROP 等）。
-2. 只能查詢 universities、program_requirements 這兩張表。
-3. 查詢 program_requirements 時必須 JOIN universities ON program_requirements.university_id = universities.id
-   （program_requirements 本身沒有 school_id 或校名欄位，一定要透過此 JOIN 才能取得）。
+2. 只能查詢 universities、programs、program_deadlines、program_scholarships、program_app_materials 這幾張表。
+3. 查詢 programs 時必須 JOIN universities ON programs.university_id = universities.id
+   （programs 本身沒有 school_id 或校名欄位，一定要透過此 JOIN 才能取得）；
+   查截止日再 JOIN program_deadlines ON program_deadlines.program_id = programs.id，
+   查獎助再 JOIN program_scholarships ON program_scholarships.program_id = programs.id，
+   查特殊申請材料再 JOIN program_app_materials ON program_app_materials.program_id = programs.id。
 4. 一律回傳 universities.school_id（回傳需含 school_id 別名）與 universities.name（回傳需含 university_name 別名），方便後續識別。
 5. 若問題提到特定學校（如 CMU、Stanford、MIT 等），請用 WHERE 過濾，優先用 universities.school_id 精確比對（例如問題提到 MIT，用 universities.school_id = 'mit'）；只有在問題給的是完整或部分校名（而非常見縮寫）時才用 name 過濾。
    - 用 name 過濾時必須用 ILIKE 搭配前後 % 萬用字元，例如 universities.name ILIKE '%Stanford%'，不可用精確比對（ILIKE 'Stanford' 是錯的），因為 name 欄位存的是全名（如 "Stanford University"）。
    - 若不確定縮寫對應的 school_id，可以同時用 OR 比對 universities.school_id ILIKE 與 universities.name ILIKE 兩者，提高命中率。
-6. 若問題未指定學校，回傳所有學校的相關欄位（不要用 LIMIT 過度限制筆數，最多 20 筆）。
-7. 只 SELECT 與問題相關的欄位，不要 SELECT *。
-8. 只輸出 JSON，格式如下，不要有其他文字或 markdown code fence：
+6. 若問題提到特定學程（如「CS MS」「CS 碩士」「CS PhD」），用 programs.program_code 精確比對（例如 programs.program_code = 'CS MS'），
+   絕對不要用 programs.program_name ILIKE '%CS MS%'（program_name 存的是全名 'Master of Science in Computer Science'，不含 'CS MS' 簡寫，這樣一定查不到）。
+   若問題只說「碩士 / master」未指定領域，改用 programs.degree_type = 'MS'。若問題沒特別指定學程，就不要對 program 加過濾條件，回傳該校所有 program。
+7. 若問題未指定學校，回傳所有學校的相關欄位（不要用 LIMIT 過度限制筆數，最多 20 筆）。
+8. 只 SELECT 與問題相關的欄位，不要 SELECT *。
+9. 只輸出 JSON，格式如下，不要有其他文字或 markdown code fence：
 
 {{"sql": "SELECT ... ;"}}
 

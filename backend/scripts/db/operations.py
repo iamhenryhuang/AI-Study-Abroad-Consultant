@@ -43,7 +43,7 @@ def setup_db():
 # ── init_schema ──────────────────────────────────────────────
 
 def init_schema():
-    """依 db/init_db.sql 建表（重置 universities / program_requirements）。"""
+    """依 db/init_db.sql 建表（重置 universities / programs / program_deadlines / program_scholarships）。"""
     conn = get_connection()
     if not conn:
         print("請在 .env 設定 DATABASE_URL。")
@@ -109,17 +109,18 @@ def verify():
             for sid, name, domain in cur.fetchall():
                 print(f"   - {sid}: {name} ({domain})")
 
-            cur.execute("SELECT COUNT(*) FROM program_requirements")
-            print(f"\nprogram_requirements 筆數: {cur.fetchone()[0]}")
+            cur.execute("SELECT COUNT(*) FROM programs")
+            print(f"\nprograms 筆數: {cur.fetchone()[0]}")
             cur.execute("""
-                SELECT u.school_id, pr.min_gpa, pr.toefl_min, pr.ielts_min, pr.gre_required, pr.deadline_fall
-                FROM program_requirements pr
-                JOIN universities u ON pr.university_id = u.id
+                SELECT u.school_id, p.gpa_min, p.toefl_min, p.ielts_min, p.gre_required,
+                       (SELECT MIN(d.deadline_date) FROM program_deadlines d WHERE d.program_id = p.id)
+                FROM programs p
+                JOIN universities u ON p.university_id = u.id
                 ORDER BY u.school_id
             """)
             for sid, gpa, toefl, ielts, gre_req, deadline in cur.fetchall():
                 print(f"   [{sid}] GPA>={gpa} TOEFL>={toefl} IELTS>={ielts} "
-                      f"GRE required={gre_req} deadline={deadline}")
+                      f"GRE={gre_req} deadline={deadline}")
 
         conn.close()
         print("\n驗證通過：資料已存在於資料庫。")
