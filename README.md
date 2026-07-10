@@ -28,18 +28,18 @@ flowchart LR
 
     subgraph External["外部服務"]
         direction TB
-        OpenAI[["🤖 OpenAI API<br/>text-to-SQL・decompose・answer 生成"]]
+        OpenAI[["🤖 OpenAI API<br/>分級模型：判斷型 gpt-4o-mini<br/>答案生成 gpt-4o"]]
         SerpAPI[["🔍 SerpAPI<br/>Google Scholar 教授資料"]]
     end
 
-    DB[("🗄️ db container<br/>PostgreSQL + pgvector<br/>programs 家族（結構化）<br/>+ document_chunks（內文/全文檢索）")]
+    DB[("🗄️ db container<br/>PostgreSQL + pgvector<br/>programs 家族（結構化）<br/>+ document_chunks（內文/全文檢索）<br/>+ applicant_reports（申請經驗回報）")]
     Crawler["🕷️ data_crawler<br/>LangGraph 爬蟲<br/>抽取結構化欄位 + 頁面全文"]
 
     Crawler -- "抽取後寫入" --> DB
     Client -- "① 自然語言問題" --> API
     Agent -- "② SQL 查詢 / LLM 呼叫" --> OpenAI
     Agent -- "③ 教授查詢" --> SerpAPI
-    Agent -- "④ 唯讀 SQL / 全文檢索" --> DB
+    Agent -- "④ 唯讀 SQL / 全文 / 經驗檢索" --> DB
     Agent -- "⑤ SSE 事件串流<br/>(thinking/tool_call/answer)" --> Client
 
     style Crawler fill:#f3e8fd,stroke:#a142f4
@@ -58,13 +58,16 @@ flowchart TD
 
     D -->|needs_sql_search| S["📊 search<br/>text-to-SQL"]
     D -->|professor_query| E["🎓 extension_function<br/>SerpAPI 抓教授"]
+    D -->|needs_experience| X["🗣️ experience_search<br/>applicant_reports 錄取經驗"]
 
     S --> V
     E --> V
+    X --> V
 
     V{"🛡️ verify<br/>資料足夠？"}
 
     V -->|足夠| F["✍️ finalize<br/>生成答案 / 誠實告知"]
+    V -->|"經驗題 · 有撈到案例"| F
     V -->|"不足 · 尚未全文檢索"| FT["🔎 fulltext<br/>document_chunks 全文檢索"]
     V -->|"仍不足 · 尚未重試"| R["🔁 refine<br/>改寫查詢"]
     V -->|"查無資料 / 已重試過"| F
@@ -78,20 +81,21 @@ flowchart TD
 
     classDef nodeStyle fill:#f8f9fa,stroke:#5f6368,stroke-width:1.5px
     classDef decision fill:#fef7e0,stroke:#f9ab00,stroke-width:1.5px
-    class D,S,E,FT,R,F,C nodeStyle
+    class D,S,E,X,FT,R,F,C nodeStyle
     class V decision
 ```
 
 > 各節點的詳細行為見下方「路由規則」與 Verifier / Refiner / Critic 說明。
 
-**路由規則**：
-| 問題類型 | professor_query | needs_sql_search | 執行路徑 |
-|---|---|---|---|
-| 一般申請要求（GPA/TOEFL/deadline） | 無 | true | `decompose → search → verify → finalize → critic` |
-| SQL 結構化欄位查不到（如學分數） | 無 | true | `... → search → verify(不足) → fulltext → verify(足夠) → finalize → critic` |
-| 純教授查詢（研究領域/論文） | 有 | false | `decompose → extension_function → verify → finalize → critic` |
-| 教授 + 申請要求混合 | 有 | true | `decompose → (search ‖ extension_function) → verify → finalize → critic` |
-| 全文檢索後仍不足但曾找到資料 | - | - | `... → verify → fulltext → verify → refine → (search ‖ extension_function) → verify → finalize` |
+**路由規則**（三條檢索支線 `search` / `extension_function` / `experience_search` 依旗標並行觸發）：
+| 問題類型 | professor_query | needs_sql_search | needs_experience | 執行路徑 |
+|---|---|---|---|---|
+| 一般申請要求（GPA/TOEFL/deadline） | 無 | true | false | `decompose → search → verify → finalize → critic` |
+| SQL 結構化欄位查不到（如學分數） | 無 | true | false | `... → search → verify(不足) → fulltext → verify(足夠) → finalize → critic` |
+| 純教授查詢（研究領域/論文） | 有 | false | false | `decompose → extension_function → verify → finalize → critic` |
+| 教授 + 申請要求混合 | 有 | true | false | `decompose → (search ‖ extension_function) → verify → finalize → critic` |
+| 錄取經驗 / 某分數有無機會 | 無 | 視情況 | true | `decompose → (search ‖ experience_search) → verify(經驗題短路放行) → finalize → critic` |
+| 全文檢索後仍不足但曾找到資料 | - | - | - | `... → verify → fulltext → verify → refine → (search ‖ …) → verify → finalize` |
 
 **分層檢索（fallback 順序）**：text-to-SQL 查結構化欄位 → 不足時 fulltext 對 `document_chunks` 全文檢索 → 仍不足時 refine 改寫重查（最多 1 輪）。觸發 fallback 的條件是「Verifier 判定資料不足」，不是「SQL 回傳 0 筆」，因此「SQL 查到 program 列但缺該欄位」（如學分數不在結構化欄位）也能正確觸發全文檢索。
 
@@ -99,9 +103,11 @@ flowchart TD
 
 ### 重點特色
 - **分層檢索**：SQL 查結構化欄位 → 不足時全文檢索補內文 → 仍不足才改寫重查，兼顧精準與涵蓋率。
+- **申請經驗回報**：問「錄取者背景 / 某分數有無機會」時查 GradCafe / 一畝三分地的錄取案例，並標註「非官方經驗談」、禁止當成錄取門檻。
 - **不亂編答案**：檢索結果先經 Verifier 判斷是否文不對題，生成後再經 Critic 複查有無幻覺，有疑慮就誠實告知或附上警告。
 - **教授即時查詢**：問題提到教授姓名時即時呼叫 SerpAPI 抓取研究領域 / 論文。
 - **未收錄學校辨識**：分辨「學校不在收錄範圍」與「有收錄但查無該欄位」，給對應的誠實回覆。
+- **模型分級**：判斷型任務用 `gpt-4o-mini`、答案生成用 `gpt-4o`，兼顧成本與品質。
 - **來源可追溯**：答案附上官網來源連結。
 - **串流回應**：透過 SSE 即時回傳思考與檢索過程。
 
@@ -115,12 +121,12 @@ flowchart TD
 │   ├── api.py                 # API 入口（SSE 串流）
 │   └── scripts/
 │       ├── db/                  # DB 連線與操作
-│       ├── retriever/           # sql_search（text-to-SQL）+ LangGraph agent
-│       ├── generator/           # OpenAI 答案生成
+│       ├── retriever/           # sql_search + fulltext_search + applicant_search（經驗）+ LangGraph agent
+│       ├── generator/           # OpenAI 答案生成（分級模型）
 │       └── professor_fetcher/   # SerpAPI 教授資料抓取
 ├── data_crawler/            # LangGraph 爬蟲：抓取頁面 → LLM 抽取結構化欄位 + 切段全文 → 寫入 DB（正式資料源）
 ├── crawler/                 # 舊版 Playwright 爬蟲 + 設定（root_url / 黑名單，data_crawler 沿用其設定）
-├── db/                      # PostgreSQL schema（init_db.sql）+ 測試資料（schools_data.json / load_schools.py）
+├── db/                      # schema（init_db.sql）+ migrations（applicant_reports）+ 測試資料（data/）+ 載入腳本
 └── requirements.txt          # 所有 Python 依賴（backend + data_crawler + crawler）
 ```
 
@@ -146,10 +152,13 @@ pip install -r requirements.txt
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/studyabroad
-OPENAI_API_KEY=your_openai_api_key   # decomposer / text-to-SQL / 答案生成都用這把 key
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_API_KEY=your_openai_api_key   # 判斷型任務與答案生成共用這把 key
+OPENAI_MODEL=gpt-4o-mini             # 判斷/結構型任務（decomposer/verifier/critic/text-to-SQL）
+OPENAI_ANSWER_MODEL=gpt-4o           # 最終答案生成（面向使用者的長文，用強一點的模型）
 SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 ```
+
+> 模型分級：判斷型任務只需輸出 JSON，用便宜快的 `gpt-4o-mini`；最終答案生成面向使用者，預設用 `gpt-4o`。兩者皆可用上述環境變數各自覆寫。
 
 > 註：Windows + Docker Desktop 下建議用 `127.0.0.1` 而非 `localhost`，避免 IPv6 解析 fallback 造成連線延遲。
 
@@ -162,12 +171,19 @@ SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 | `python backend/scripts/run.py init-all` | 一次完成 `setup` + `load-schools` |
 | `python backend/scripts/run.py setup` | 檢查連線，資料庫不存在則建立 |
 | `python backend/scripts/run.py init-schema` | 依 `db/init_db.sql` 重建資料表（會清空重建） |
-| `python backend/scripts/run.py load-schools` | 灌入 `db/schools_data.json` 的測試資料 |
+| `python backend/scripts/run.py load-schools` | 灌入 `db/data/schools_data.json` 的測試資料 |
 | `python backend/scripts/run.py verify-db` | 檢查目前資料庫內容 |
 
 ```bash
 python backend/scripts/run.py init-all   # 建表 + 灌入測試資料
 python backend/scripts/run.py verify-db   # 確認資料已寫入
+```
+
+**（選配）載入申請經驗回報**：GradCafe / 一畝三分地的錄取案例，清洗後寫入獨立的 `applicant_reports` 表（加法式 migration，不影響上面的 programs 家族表）。
+
+```bash
+python db/load_applicant_reports.py --migrate   # 首次：建表 + 載入
+python db/load_applicant_reports.py             # 之後重跑：只載入（去重 upsert）
 ```
 
 ### 5. 測試檢索與問答（CLI）
@@ -289,7 +305,7 @@ python backend/scripts/professor_fetcher/run_fetch.py \
 
 ## 資料庫 Schema
 
-`db/init_db.sql` 定義 8 張表，分「結構化」「內文」「品質控管」三類：
+`db/init_db.sql` 定義 8 張核心表（分「結構化」「內文」「品質控管」三類），另有 `db/migrations/` 加法式補上的 `applicant_reports`：
 
 **結構化資料（供 text-to-SQL 查詢）** —— 以 `programs` 為核心的主表-子表結構：
 - `universities`：學校基本資料（school_id、name、domain）
@@ -303,7 +319,10 @@ python backend/scripts/professor_fetcher/run_fetch.py \
 **品質控管**：
 - `review_queue`：爬蟲抽取時驗證失敗（如幻覺）的欄位，進佇列等人工複查
 
-**資料來源**：正式資料由 `data_crawler/` 爬蟲抽取後寫入。`db/schools_data.json` 是對應此 schema 的**測試假資料**（目前 5 校），結構為 `universities` + 巢狀 `programs`（每個 program 內含 `deadlines`/`scholarships`/`app_materials` 陣列），欄位名與資料表一一對應，由 `db/load_schools.py` 讀取寫入。
+**申請經驗回報（獨立 migration，非 init_db.sql）**：
+- `applicant_reports`：GradCafe / 一畝三分地的個別錄取/被拒案例（含申請者 GPA、結果、背景），屬非官方、有樣本偏誤的經驗資料，只用來回答「錄取者背景 / 某分數有無機會」這類問題。由 `db/migrations/001_applicant_reports.sql` 建表、`db/load_applicant_reports.py` 清洗載入，`fts_vector` 供全文檢索。與官方 `programs` 門檻性質不同，生成答案時會標註「非官方經驗談」並禁止當成錄取門檻。
+
+**資料來源**：正式資料由 `data_crawler/` 爬蟲抽取後寫入。`db/data/schools_data.json` 是對應此 schema 的**測試假資料**（目前 5 校），結構為 `universities` + 巢狀 `programs`（每個 program 內含 `deadlines`/`scholarships`/`app_materials` 陣列），欄位名與資料表一一對應，由 `db/load_schools.py` 讀取寫入。
 
 新增學校時記得同步更新 `backend/scripts/retriever/agent.py` 的 `_SCHOOL_ALIASES` 對照表，Decomposer 才能正確辨識學校縮寫/別名。
 

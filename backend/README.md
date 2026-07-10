@@ -15,6 +15,18 @@ Agent 的檢索分三層 fallback，觸發條件是「Verifier 判定資料不�
 
 **語意向量檢索為預留能力**：`document_chunks.embedding`（vector 1024 維）+ HNSW 索引已在 schema 就緒但目前未使用；接上 embedding model 即可啟用，無需改 schema。
 
+## 申請經驗檢索（意圖觸發的並行支線）
+
+與上面三層 fallback 不同，經驗檢索由 Decomposer 的意圖判斷（`needs_experience`）觸發，走獨立的並行節點 `experience_search`（`retriever/applicant_search.py`），查 `applicant_reports` 表：
+
+- 只在使用者問「錄取機會 / 錄取者背景 / 案例 / 某分數有無機會」這類問題時才觸發；問官方申請要求時不查。
+- 這是非官方、有樣本偏誤的經驗談。generator 的 `_SYSTEM_PROMPT` 有硬性護欄：引用須標註「網路申請經驗回報（非官方）」，禁止把個案當成錄取門檻或保證。
+- 經驗題在 Verifier 會短路放行（其「資訊點是否被觸及」的檢查對無標準答案的經驗題不適用），確保撈到案例就能作答。
+
+## 模型分級
+
+判斷/結構型任務（decomposer、verifier、critic、text-to-SQL）用 `OPENAI_MODEL`（預設 `gpt-4o-mini`，只需輸出 JSON）；最終答案生成用 `OPENAI_ANSWER_MODEL`（預設 `gpt-4o`）。判斷型呼叫 `call_llm` 固定 `temperature=0` 以求輸出穩定。皆可用環境變數覆寫。
+
 ## 品質控管節點（Verifier / Refiner / Critic）
 
 **Verifier**：檢索完、生成前判斷資料是否足以回答。只攔截明顯「文不對題」或「完全無關」的資料（例如同名教授撈錯人、查詢命中錯誤學校），允許部分足夠或能合理推論的資料通過（缺的細節由 finalize 生成階段自然告知使用者）。它本身不重試，只輸出 `is_sufficient` 與 `insufficiency_reason` 供路由決定下一步。
@@ -44,7 +56,8 @@ python backend/scripts/professor_fetcher/run_fetch.py --name "Andrew Ng" --schoo
 ```
 backend/scripts/
 ├── db/                  # DB 連線與 setup/init-schema/verify-db 操作
-├── retriever/           # sql_search（text-to-SQL）+ fulltext_search（全文檢索）+ LangGraph agent
-├── generator/           # OpenAI 答案生成
+├── retriever/           # sql_search（text-to-SQL）+ fulltext_search（全文檢索）
+│                        #  + applicant_search（申請經驗）+ LangGraph agent
+├── generator/           # OpenAI 答案生成（分級模型）
 └── professor_fetcher/   # SerpAPI 教授資料抓取
 ```
