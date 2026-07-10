@@ -36,6 +36,8 @@ class SchoolState(TypedDict, total=False):
     dropped_urls: dict         # url -> reason
     external_urls: list[str]
     total_crawled: int
+    url_filter_candidates: list[dict]  # 本層待 LLM 判斷的 URL + anchor/source/depth
+    url_filter_decisions: list[dict]   # 累積的 LLM 決策，供人工排查輸出
 
     # ── Phase 2：scrape fan-out 收集 ─────────────────────
     scraped_pages: Annotated[list[dict], operator.add]

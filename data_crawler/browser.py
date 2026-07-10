@@ -1,8 +1,8 @@
 """Playwright 相關：BFS 逐層爬取（Node 2）與單頁全文擷取（Node 4）。
 
 - extract_links / crawl_page / block_resources / run_worker 邏輯搬自
-  crawler/url_crawler.py（extract_links 額外補上 anchor text，供未來
-  Node 3 選用，主流程目前不用）
+  crawler/url_crawler.py（extract_links 額外帶 anchor text，供批次 LLM
+  URL filter 判斷）
 - extract_page_content_with_js 完整搬自 crawler/score.py（15 種 DOM 來源 +
   展開 accordion / lazy-load），另新增：
     * structured_markdown：展開後的 DOM 丟 trafilatura 轉 markdown（保留標題階層/表格）
@@ -57,7 +57,7 @@ def _new_browser(p, headless=True):
 # ══════════════════════════════════════════════
 
 def extract_links(page, current_url: str, root_info: dict) -> dict:
-    """搬自 url_crawler.extract_links，補抓 anchor text（keep_anchors）。"""
+    """抽取同 root 且可爬的連結；語意相關性留給後續 LLM 判斷。"""
     raw_links = page.evaluate("""
         () => Array.from(document.querySelectorAll('a[href]'))
                    .map(a => ({href: a.href, text: (a.innerText || '').trim().slice(0, 120)}))

@@ -17,7 +17,7 @@
 
 ```mermaid
 flowchart LR
-    Client(["🧑 使用者<br/>curl / Swagger UI / Client"])
+    Client(["🧑 使用者<br/>經驗分享前端 / Swagger UI / Client"])
 
     subgraph Backend["backend container — FastAPI"]
         direction TB
@@ -124,6 +124,7 @@ flowchart TD
 │       ├── retriever/           # sql_search + fulltext_search + applicant_search（經驗）+ LangGraph agent
 │       ├── generator/           # OpenAI 答案生成（分級模型）
 │       └── professor_fetcher/   # SerpAPI 教授資料抓取
+├── frontend/                # React/Vite：申請經驗上傳與依學校查詢
 ├── data_crawler/            # LangGraph 爬蟲：抓取頁面 → LLM 抽取結構化欄位 + 切段全文 → 寫入 DB（正式資料源）
 ├── crawler/                 # 舊版 Playwright 爬蟲 + 設定（root_url / 黑名單，data_crawler 沿用其設定）
 ├── db/                      # schema（init_db.sql）+ migrations（applicant_reports）+ 測試資料（data/）+ 載入腳本
@@ -171,6 +172,7 @@ SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 | `python backend/scripts/run.py init-all` | 一次完成 `setup` + `load-schools` |
 | `python backend/scripts/run.py setup` | 檢查連線，資料庫不存在則建立 |
 | `python backend/scripts/run.py init-schema` | 依 `db/init_db.sql` 重建資料表（會清空重建） |
+| `python backend/scripts/run.py init-experience` | 冪等建立使用者申請經驗表（不清除既有資料） |
 | `python backend/scripts/run.py load-schools` | 灌入 `db/data/schools_data.json` 的測試資料 |
 | `python backend/scripts/run.py verify-db` | 檢查目前資料庫內容 |
 
@@ -178,6 +180,24 @@ SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 python backend/scripts/run.py init-all   # 建表 + 灌入測試資料
 python backend/scripts/run.py verify-db   # 確認資料已寫入
 ```
+
+### 啟動經驗上傳與查詢網頁
+
+先啟動 FastAPI：
+
+```bash
+uvicorn backend.api:app --reload --host 0.0.0.0 --port 8000
+```
+
+再開另一個終端啟動前端：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+開啟 `http://localhost:5173`。開發模式會自動將 `/api` 代理至本機 8000 port；部署到不同網域時可在前端 `.env` 設定 `VITE_API_BASE_URL`，並在後端以 `CORS_ORIGINS` 設定允許的前端來源。
 
 **（選配）載入申請經驗回報**：GradCafe / 一畝三分地的錄取案例，清洗後寫入獨立的 `applicant_reports` 表（加法式 migration，不影響上面的 programs 家族表）。
 
@@ -205,7 +225,7 @@ python backend/scripts/run.py search "MIT TOEFL 最低幾分"
 
 ## Docker 快速開始（推薦）
 
-目前 `docker-compose.yml` 只有兩個 service：`db`（PostgreSQL）與 `backend`（FastAPI + Agent）。**沒有 frontend service**——整個專案已改為 API-only，前端已從 repo 移除。
+目前 `docker-compose.yml` 只有 `db` 與預留的 `backend` service，尚未加入 frontend service。經驗分享前端請先依上方步驟以 Vite 在本機啟動。
 
 若要用 `professor_fetcher` 的 CLI 手動抓取教授資料並保留到本機，需在 compose 的 `backend` 取消註解那段 `./crawler/data:/app/crawler/data` volume（該目錄需可寫，勿設 `:ro`）；即時查詢（Agent 自動抓取）不寫檔，無此需求。
 

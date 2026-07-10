@@ -15,12 +15,15 @@ from .url_tools import normalize_url, filter_url
 from .browser import crawl_one_layer, scrape_url
 from .text_clean import clean_noise
 from .llm import call_llm_json
-from .prompts import sufficiency_prompt
+from .prompts import sufficiency_prompt, url_filter_prompt
 from . import db as dbm
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+URL_RESULT_DIR = Path(__file__).resolve().parent / "url"
 
 DEFAULT_MAX_SUFFICIENCY_ITERATIONS = 2
+URL_FILTER_BATCH_SIZE = max(1, int(os.getenv("URL_FILTER_BATCH_SIZE", "40")))
+URL_FILTER_DROP_MIN_CONFIDENCE = float(os.getenv("URL_FILTER_DROP_MIN_CONFIDENCE", "0.8"))
 
 # 重要欄位（sufficiency 覆蓋率評估用）
 IMPORTANT_FIELDS = ["toefl_ibt_min", "ielts_min", "gre_required",
@@ -77,6 +80,8 @@ def init_crawl(state: SchoolState) -> dict:
         "dropped_urls": {},
         "external_urls": [],
         "total_crawled": 0,
+        "url_filter_candidates": [],
+        "url_filter_decisions": [],
         "unique_pages": [],
         "sufficiency_iterations": 0,
         "max_sufficiency_iterations": state.get("max_sufficiency_iterations")
@@ -116,7 +121,7 @@ def discover_urls(state: SchoolState) -> dict:
     external = set(state.get("external_urls", []))
     root_index_by_url = {item["url"]: item["root_index"] for item in layer}
 
-    next_layer = []
+    candidates_by_url: dict[str, dict] = {}
     max_depth = state.get("max_depth", CONFIG.MAX_DEPTH)
 
     for url, dep, result in layer_results:
@@ -131,8 +136,13 @@ def discover_urls(state: SchoolState) -> dict:
             if child_url not in visited:
                 visited.add(child_url)
                 if dep + 1 <= max_depth:
-                    next_layer.append({"url": child_url, "depth": dep + 1,
-                                       "root_index": root_index_by_url.get(url, 0)})
+                    candidates_by_url[child_url] = {
+                        "url": child_url,
+                        "source_url": url,
+                        "anchor_text": result.get("keep_anchors", {}).get(child_url, ""),
+                        "depth": dep + 1,
+                        "root_index": root_index_by_url.get(url, 0),
+                    }
 
     # drop 統計（沿用 crawl_tree 的層級摘要）
     reasons: dict = {}
@@ -145,12 +155,156 @@ def discover_urls(state: SchoolState) -> dict:
 
     return {
         "current_depth": depth + 1,
-        "url_queue": next_layer,
+        "url_queue": [],
         "visited_urls": sorted(visited),
         "discovered_urls": discovered,
         "dropped_urls": dropped,
         "external_urls": sorted(external),
         "total_crawled": total_crawled,
+        "url_filter_candidates": list(candidates_by_url.values()),
+    }
+
+
+def _normalize_url_filter_batch(candidates: list[dict], raw: object) -> list[dict]:
+    """把不可信的 LLM JSON 整理成一個候選 URL 對應一筆決策。"""
+    expected = {item["url"]: item for item in candidates}
+    raw_items = raw.get("decisions", []) if isinstance(raw, dict) else []
+    received: dict[str, list[dict]] = {}
+    for item in raw_items if isinstance(raw_items, list) else []:
+        if not isinstance(item, dict) or item.get("url") not in expected:
+            continue
+        received.setdefault(item["url"], []).append(item)
+
+    normalized = []
+    for url, candidate in expected.items():
+        items = received.get(url, [])
+        raw_decisions = {str(item.get("decision", "")).strip().lower() for item in items}
+        reason = next((str(item.get("reason", "")).strip() for item in items
+                       if str(item.get("reason", "")).strip()), "")
+        try:
+            confidence = max(float(item.get("confidence", 0)) for item in items)
+        except (TypeError, ValueError):
+            confidence = 0.0
+        confidence = min(1.0, max(0.0, confidence))
+
+        fallback_reason = ""
+        if not items:
+            decision, fallback_reason = "keep", "LLM 未回傳此 URL，依保守策略保留"
+        elif "keep" in raw_decisions:
+            decision = "keep"
+            if len(items) > 1:
+                fallback_reason = "LLM 重複回傳且至少一筆為 keep，依保留優先策略保留"
+        elif raw_decisions != {"drop"}:
+            decision, fallback_reason = "keep", "LLM decision 格式無效，依保守策略保留"
+        elif not reason:
+            decision, fallback_reason = "keep", "LLM 未提供過濾理由，依保守策略保留"
+        elif confidence < URL_FILTER_DROP_MIN_CONFIDENCE:
+            decision = "keep"
+            fallback_reason = (f"LLM drop 信心 {confidence:.2f} 低於門檻 "
+                               f"{URL_FILTER_DROP_MIN_CONFIDENCE:.2f}，依保守策略保留")
+        else:
+            decision = "drop"
+
+        normalized.append({
+            **candidate,
+            "decision": decision,
+            "reason": fallback_reason or reason or "LLM 未提供理由，依保守策略保留",
+            "confidence": confidence,
+            "decision_source": "fallback" if fallback_reason else "llm",
+        })
+    return normalized
+
+
+def _write_json_atomic(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_suffix(path.suffix + ".tmp")
+    with open(temp, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    temp.replace(path)
+
+
+def _write_url_filter_review(state: SchoolState, decisions: list[dict]) -> str:
+    """每層覆寫完整 audit，並依 keep/drop 拆檔供人工排查。"""
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUTPUT_DIR / f"{state['school_id']}_url_filter_review.json"
+    kept = sum(1 for item in decisions if item["decision"] == "keep")
+    payload = {
+        "school_id": state["school_id"],
+        "generated_at": datetime.now().isoformat(),
+        "summary": {
+            "total": len(decisions),
+            "kept": kept,
+            "dropped": len(decisions) - kept,
+            "fallback_kept": sum(1 for item in decisions
+                                 if item.get("decision_source") == "fallback"),
+        },
+        "decisions": decisions,
+    }
+    _write_json_atomic(out, payload)
+
+    common = {
+        "school_id": state["school_id"],
+        "generated_at": payload["generated_at"],
+    }
+    keep_items = [item for item in decisions if item["decision"] == "keep"]
+    drop_items = [item for item in decisions if item["decision"] == "drop"]
+    _write_json_atomic(
+        URL_RESULT_DIR / "keep" / f"{state['school_id']}.json",
+        {**common, "decision": "keep", "count": len(keep_items), "urls": keep_items},
+    )
+    _write_json_atomic(
+        URL_RESULT_DIR / "drop" / f"{state['school_id']}.json",
+        {**common, "decision": "drop", "count": len(drop_items), "urls": drop_items},
+    )
+    # all_url 刻意只存 URL 字串陣列：root + keep/drop 前完整候選清單。
+    all_urls = list(dict.fromkeys([
+        *state.get("roots", []),
+        *(item["url"] for item in decisions if item.get("url")),
+    ]))
+    _write_json_atomic(
+        URL_RESULT_DIR / "all_url" / f"{state['school_id']}.json",
+        all_urls,
+    )
+    return str(out)
+
+
+def filter_discovered_urls(state: SchoolState) -> dict:
+    """批次 LLM 初篩本層新 URL，整理成下一層 BFS queue 並寫 audit。"""
+    candidates = state.get("url_filter_candidates", [])
+    previous = list(state.get("url_filter_decisions", []))
+    if not candidates:
+        _write_url_filter_review(state, previous)
+        return {"url_queue": [], "url_filter_candidates": []}
+
+    current: list[dict] = []
+    for start in range(0, len(candidates), URL_FILTER_BATCH_SIZE):
+        batch = candidates[start:start + URL_FILTER_BATCH_SIZE]
+        try:
+            raw = call_llm_json(url_filter_prompt(state["school_id"], state["roots"], batch))
+            current.extend(_normalize_url_filter_batch(batch, raw))
+        except Exception as exc:
+            reason = f"LLM 批次判斷失敗，依保守策略保留：{str(exc)[:200]}"
+            current.extend([{**item, "decision": "keep", "reason": reason,
+                             "confidence": 0.0, "decision_source": "fallback"}
+                            for item in batch])
+
+    queue = [{"url": item["url"], "depth": item["depth"],
+              "root_index": item["root_index"]}
+             for item in current if item["decision"] == "keep"]
+    dropped = dict(state.get("dropped_urls", {}))
+    for item in current:
+        if item["decision"] == "drop":
+            dropped[item["url"]] = f"llm:{item['reason']}"
+
+    decisions = previous + current
+    audit_file = _write_url_filter_review(state, decisions)
+    print(f"  [URL FILTER] batches={(len(candidates) + URL_FILTER_BATCH_SIZE - 1) // URL_FILTER_BATCH_SIZE} "
+          f"keep={len(queue)} drop={len(current) - len(queue)} audit={audit_file}")
+    return {
+        "url_queue": queue,
+        "dropped_urls": dropped,
+        "url_filter_candidates": [],
+        "url_filter_decisions": decisions,
     }
 
 
@@ -247,7 +401,11 @@ def _coverage_report(page_results: list[dict]) -> dict:
         report[code] = {
             "fields_extracted": sorted(got["fields"]),
             "deadline_count": got["deadlines"],
-            "missing_important": [f for f in IMPORTANT_FIELDS if f not in got["fields"]],
+            "missing_important": [
+                f for f in IMPORTANT_FIELDS
+                if f not in got["fields"]
+                and not (f == "toefl_ibt_min" and "toefl_min" in got["fields"])
+            ],
         }
     return report
 
@@ -396,9 +554,39 @@ def embedding(state: SchoolState) -> dict:
 # Node 13：db_writer
 # ──────────────────────────────────────────────
 
+def _validate_school_write_scope(state: SchoolState, ok_results: list[dict]) -> None:
+    """阻止 checkpoint/state 混線時把 A 校 URL 寫入 B 校。"""
+    school_id = state["school_id"]
+    school = next((item for item in SCHOOLS if item["school_id"] == school_id), None)
+    if not school:
+        raise RuntimeError(f"DB 寫入中止：找不到 school_id={school_id} 的 root 設定")
+
+    allowed_domains = {
+        _registrable_domain(urlparse(root).netloc)
+        for root in school.get("roots", []) if root and root.startswith("http")
+    }
+    if not allowed_domains:
+        raise RuntimeError(f"DB 寫入中止：school_id={school_id} 沒有有效 root domain")
+
+    scoped_urls = [
+        *(state.get("roots") or []),
+        *(result.get("url", "") for result in ok_results),
+        *(chunk.get("url", "") for chunk in state.get("chunks", [])),
+    ]
+    invalid = [url for url in scoped_urls
+               if url and _registrable_domain(urlparse(url).netloc) not in allowed_domains]
+    if invalid:
+        samples = ", ".join(invalid[:5])
+        raise RuntimeError(
+            f"DB 寫入中止：{school_id} state 混入其他學校 domain；"
+            f"允許={sorted(allowed_domains)}，異常 URL={samples}"
+        )
+
+
 def db_writer(state: SchoolState) -> dict:
     school_id = state["school_id"]
     ok_results = [r for r in state.get("page_results", []) if r.get("status") == "ok"]
+    _validate_school_write_scope(state, ok_results)
 
     if state.get("dry_run"):
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -411,6 +599,7 @@ def db_writer(state: SchoolState) -> dict:
                                  "char_count": len(r.get("full_text", ""))}
                              for r in state.get("page_results", [])],
             "review_items": state.get("review_items", []),
+            "url_filter_decisions": state.get("url_filter_decisions", []),
             "sufficiency_report": state.get("sufficiency_report", {}),
             "chunk_count": len(state.get("chunks", [])),
         }
@@ -420,7 +609,11 @@ def db_writer(state: SchoolState) -> dict:
         return {"summary": {"db": "dry_run", "output_file": str(out)}}
 
     conn = dbm.get_connection()
-    university_id = state["university_id"]
+    # 不信任 checkpoint 內可能過期的 university_id；每次寫入都依 school_id 重新解析。
+    university_id = dbm.get_or_create_university(conn, school_id)
+    stale_id = state.get("university_id")
+    if stale_id is not None and stale_id != university_id:
+        print(f"  ⚠️ stale university_id corrected: state={stale_id} db={university_id} ({school_id})")
     stats = {"pages": 0, "programs": 0, "deadlines": 0, "scholarships": 0,
              "materials": 0, "review": 0, "chunks": 0}
     chunks_by_url: dict[str, list] = {}
@@ -514,6 +707,10 @@ def finalize_school(state: SchoolState) -> dict:
         "school_id": state["school_id"],
         "skipped": bool(state.get("skip_school")),
         "urls_discovered": len(state.get("discovered_urls", [])),
+        "urls_llm_kept": sum(1 for item in state.get("url_filter_decisions", [])
+                             if item.get("decision") == "keep"),
+        "urls_llm_dropped": sum(1 for item in state.get("url_filter_decisions", [])
+                                if item.get("decision") == "drop"),
         "pages_kept": ok,
         "pages_dropped": dropped,
         "review_items": len(state.get("review_items", [])),

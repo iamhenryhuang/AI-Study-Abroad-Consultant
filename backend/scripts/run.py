@@ -6,12 +6,13 @@ SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from db.operations import init_schema, load_schools, setup_db, verify
+from db.operations import init_experience_schema, init_schema, load_schools, setup_db, verify
 from retriever.rag_pipeline import run_rag_pipeline, run_agent_pipeline
 
 COMMANDS = {
     "setup":     ("檢查連線並建立資料庫",                       setup_db),
     "init-schema": ("依 db/init_db.sql 建表（重置資料表）",      init_schema),
+    "init-experience": ("建立使用者申請經驗表（冪等、不清資料）", init_experience_schema),
     "load-schools": ("建表 + 灌入 db/data/schools_data.json 的學校資料", load_schools),
     "verify-db": ("檢查 SQL 資料是否已寫入",                     verify),
     "search":    ("執行 text-to-SQL 查詢測試 [query]",           None),  # 特殊處理

@@ -78,6 +78,18 @@ def init_schema():
         return False
 
 
+def init_experience_schema():
+    """冪等建立使用者申請經驗表，不影響既有資料。"""
+    try:
+        from .experiences import ensure_experience_schema
+        ensure_experience_schema()
+        print("已建立或確認 user_experiences 資料表。")
+        return True
+    except Exception as e:
+        print(f"申請經驗表初始化失敗: {e}")
+        return False
+
+
 def load_schools():
     """建表後灌入 db/data/schools_data.json 的學校資料。"""
     if not init_schema():

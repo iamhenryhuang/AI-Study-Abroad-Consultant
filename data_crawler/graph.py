@@ -1,7 +1,7 @@
 """LangGraph 組裝。
 
 主圖（SchoolState，thread_id = school_id）：
-  init_crawl ─▶ discover_urls ⟲（逐層 BFS，每層 checkpoint）
+  init_crawl ─▶ discover_urls ─▶ filter_discovered_urls(批次 LLM) ⟲
       └▶ plan_scrape ═Send═▶ scrape_page(Node 4) ─▶ collect_scraped（content-hash 去重）
       └▶ ═Send═▶ process_page（頁面子圖）─▶ sufficiency_evaluator(Node 9)
             ├─ 不足 ─▶ seed_more_urls ─▶ discover_urls（同一棵 BFS 繼續爬）
@@ -56,6 +56,7 @@ def build_school_graph(checkpointer=None):
     g = StateGraph(SchoolState)
     g.add_node("init_crawl", ns.init_crawl)
     g.add_node("discover_urls", ns.discover_urls)
+    g.add_node("filter_discovered_urls", ns.filter_discovered_urls)
     g.add_node("plan_scrape", ns.plan_scrape)
     g.add_node("scrape_page", ns.scrape_page)
     g.add_node("collect_scraped", ns.collect_scraped)
@@ -71,7 +72,8 @@ def build_school_graph(checkpointer=None):
     g.add_edge(START, "init_crawl")
     g.add_conditional_edges("init_crawl", ns.after_init,
                             ["discover_urls", "finalize_school"])
-    g.add_conditional_edges("discover_urls", ns.should_continue_bfs,
+    g.add_edge("discover_urls", "filter_discovered_urls")
+    g.add_conditional_edges("filter_discovered_urls", ns.should_continue_bfs,
                             ["discover_urls", "plan_scrape"])
     g.add_conditional_edges("plan_scrape", ns.dispatch_scrape,
                             ["scrape_page", "collect_scraped"])

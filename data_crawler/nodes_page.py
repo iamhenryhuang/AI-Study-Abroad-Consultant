@@ -16,6 +16,52 @@ MAX_EXTRACTION_RETRIES = 2
 CONFIDENCE_THRESHOLD = 0.6  # 分類信心低於此值視為不相關
 
 
+def _page_text(page: dict) -> str:
+    """以 Playwright 完整文字為主，補上 markdown 的標題／表格結構。
+
+    UCLA 等網站的 accordion 內容會存在 full_text，卻常被 trafilatura markdown
+    省略；不能再用 `structured_markdown or full_text` 讓短 markdown 蓋掉全文。
+    """
+    full_text = page.get("full_text") or ""
+    markdown = page.get("structured_markdown") or ""
+    if full_text and markdown:
+        return f"{full_text}\n\n## Structured page view\n{markdown}"
+    return full_text or markdown
+
+
+def _common_requirements_override(url: str, text: str) -> tuple[str, str] | None:
+    """用強 URL + 內容證據保住適用所有目標 program 的共用申請頁。"""
+    path = url.lower()
+    low = text[:12_000].lower()
+    rules = [
+        ("admissions",
+         ("english-requirement", "english-language", "language-requirement", "proficiency"),
+         ("toefl", "ielts", "english language proficiency"),
+         "頁面明確包含研究所英語檢定／語言門檻，屬於目標學程共用申請資訊"),
+        ("tuition",
+         ("tuition", "fees", "living-expenses", "cost-of-attendance"),
+         ("tuition", "student fees", "cost of attendance"),
+         "頁面明確包含研究所學費或就學成本，屬於目標學程共用資訊"),
+        ("deadlines",
+         ("deadline", "calendar"),
+         ("application deadline", "deadline"),
+         "頁面明確包含研究所申請截止日期或時程"),
+        ("admissions",
+         ("required-academic-record", "transcript", "materials-to-be-uploaded",
+          "recommendation", "steps-to-apply", "application-for-graduate"),
+         ("transcript", "letter of recommendation", "application materials", "graduate application"),
+         "頁面明確包含研究所申請文件或流程，屬於目標學程共用資訊"),
+        ("scholarship",
+         ("scholarship", "fellowship", "financial-aid", "funding"),
+         ("scholarship", "fellowship", "financial aid", "funding"),
+         "頁面明確包含研究所獎助或 funding 資訊"),
+    ]
+    for page_type, path_hints, content_hints, reason in rules:
+        if any(hint in path for hint in path_hints) and any(hint in low for hint in content_hints):
+            return page_type, reason
+    return None
+
+
 # ──────────────────────────────────────────────
 # Node 5：content_classification（取代 score_page 關鍵字評分）
 # ──────────────────────────────────────────────
@@ -23,7 +69,7 @@ CONFIDENCE_THRESHOLD = 0.6  # 分類信心低於此值視為不相關
 def content_classification(state: ProcessState) -> dict:
     page = state["page"]
     url = page["url"]
-    text = page.get("structured_markdown") or page.get("full_text") or ""
+    text = _page_text(page)
     excerpt = text[:CLASSIFY_EXCERPT_CHARS]
 
     if len(excerpt.strip()) < 80:
@@ -32,14 +78,30 @@ def content_classification(state: ProcessState) -> dict:
 
     # score_url_path 保留為便宜訊號，放進 prompt 供 LLM 參考（最終決定權在 LLM）
     bonuses = score_url_path(url)
+    override = _common_requirements_override(url, text)
     try:
         result = call_llm_json(classification_prompt(url, page.get("title", ""), bonuses, excerpt))
     except Exception as e:
+        if override:
+            page_type, reason = override
+            print(f"  [classification fallback] {url} → {page_type}（LLM 失敗）")
+            return {"classification": {
+                "is_relevant": True,
+                "types": [{"type": page_type, "confidence": 1.0}],
+                "reason": f"{reason}；LLM 分類失敗時由程式證據保留",
+            }}
         return {"classification": {"is_relevant": False, "types": [],
                                    "reason": f"LLM 分類失敗：{e}"}}
 
     types = [t for t in result.get("types", [])
              if isinstance(t, dict) and t.get("type")]
+    has_keep_type = any(t.get("type") in KEEP_TYPES for t in types)
+    if override and (not result.get("is_relevant") or not has_keep_type):
+        page_type, reason = override
+        print(f"  [classification override] {url} → {page_type}")
+        result["is_relevant"] = True
+        types = [{"type": page_type, "confidence": 1.0}]
+        result["reason"] = reason
     return {"classification": {
         "is_relevant": bool(result.get("is_relevant")),
         "types": types,
@@ -75,7 +137,7 @@ def discard_page(state: ProcessState) -> dict:
 
 def identify_programs(state: ProcessState) -> dict:
     page = state["page"]
-    text = (page.get("structured_markdown") or page.get("full_text") or "")[:CLASSIFY_EXCERPT_CHARS]
+    text = _page_text(page)[:CLASSIFY_EXCERPT_CHARS]
     known = state.get("known_program_codes") or []
 
     try:
@@ -86,6 +148,15 @@ def identify_programs(state: ProcessState) -> dict:
 
     programs = [p for p in result.get("programs", []) if isinstance(p, dict) and p.get("program_code")]
     school_wide = bool(result.get("school_wide"))
+
+    # admissions/語言/學費等共用頁常不會寫出特定 program 名稱；LLM 即使漏標
+    # school_wide，也要套用既有目標 program，否則抓到全文卻完全不做欄位抽取。
+    classification = state.get("classification") or {}
+    generic_types = {"admissions", "deadlines", "tuition", "scholarship", "faq"}
+    classified_types = {t.get("type") for t in classification.get("types", [])
+                        if isinstance(t, dict)}
+    if not programs and classified_types & generic_types:
+        school_wide = True
 
     if not programs and school_wide:
         # 全校通用頁：套用到既有 program（DB 已知的），都沒有時以 CS MS 為主要目標
@@ -111,7 +182,7 @@ def has_program_target(state: ProcessState) -> str:
 def structured_extraction(state: ProcessState) -> dict:
     page = state["page"]
     codes = [p["program_code"] for p in state.get("program_codes", [])]
-    markdown = page.get("structured_markdown") or page.get("full_text") or ""
+    markdown = _page_text(page)
     if page.get("structured_tables"):
         markdown = markdown + "\n\n## 表格\n" + page["structured_tables"]
     markdown = markdown[:EXTRACT_EXCERPT_CHARS]

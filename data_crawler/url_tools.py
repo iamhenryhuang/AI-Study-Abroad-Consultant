@@ -1,15 +1,13 @@
-"""URL 工具 — 邏輯原封不動搬自 crawler/url_crawler.py 與 crawler/score.py。
+"""URL 工具 — URL 正規化、爬蟲邊界檢查與便宜的路徑訊號。
 
-normalize_url / get_root_info / is_same_root / filter_url 是既有已驗證的規則式
-過濾，依 v4 規格直接沿用；score_url_path 保留為便宜訊號（餵給 LLM prompt 參考，
-最終分類決定權在 LLM）。
+filter_url 只處理確定性的格式／檔案類型檢查；URL 是否與研究所資料相關，
+由主圖的批次 LLM URL filter 決定。score_url_path 則保留給內容分類參考。
 """
 from urllib.parse import urlparse, urlunparse
 
 from .settings_bridge import (
     CONFIG,
     IGNORED_EXTENSIONS,
-    BLACKLIST_PATH_FRAGMENTS,
     URL_PATH_HINTS,
 )
 
@@ -52,7 +50,7 @@ def is_pdf(url: str) -> bool:
 
 
 def filter_url(url: str, allow_pdf: bool = False) -> tuple[bool, str]:
-    """黑名單過濾。allow_pdf=True 時放行 .pdf（Node 4 有 PDF 分支可處理）。"""
+    """確定性 URL 檢查；不在此判斷內容是否與研究所資料相關。"""
     if not url.startswith(("http://", "https://")):
         return False, "non-http"
     if has_ignored_extension(url):
@@ -60,10 +58,6 @@ def filter_url(url: str, allow_pdf: bool = False) -> tuple[bool, str]:
             pass
         else:
             return False, "ext"
-    full_low = url.lower()
-    for frag in BLACKLIST_PATH_FRAGMENTS:
-        if frag in full_low:
-            return False, f"black:{frag}"
     return True, "keep"
 
 
