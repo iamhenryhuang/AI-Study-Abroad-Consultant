@@ -79,7 +79,7 @@ def init_schema():
 
 
 def load_schools():
-    """建表後灌入 db/schools_data.json 的學校資料。"""
+    """建表後灌入 db/data/schools_data.json 的學校資料。"""
     if not init_schema():
         return False
 

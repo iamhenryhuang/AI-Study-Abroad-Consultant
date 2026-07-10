@@ -9,7 +9,13 @@ load_dotenv()
 
 _client = None
 
+# 分級模型：
+#   DEFAULT_MODEL —— 判斷/結構型任務（decomposer 意圖、子問題拆解、verifier、critic、
+#                    refiner、text-to-SQL）。這些只需輸出 JSON 判斷，用便宜快的 mini 即可。
+#   ANSWER_MODEL  —— 最終答案生成（面向使用者的長文），值得用強一點的模型。
+# 兩者皆可用環境變數各自覆寫，不需改 code。
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+ANSWER_MODEL = os.getenv("OPENAI_ANSWER_MODEL", "gpt-4o")
 
 
 def _sanitize_ssl_env() -> None:
@@ -37,12 +43,17 @@ def get_openai_client() -> OpenAI:
     return _client
 
 
-def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
-    """呼叫 OpenAI Chat Completions，回傳純文字。"""
+def call_llm(prompt: str, model_name: str = DEFAULT_MODEL, temperature: float = 0.0) -> str:
+    """呼叫 OpenAI Chat Completions，回傳純文字。
+
+    預設 temperature=0：decomposer / verifier / critic / text-to-SQL 這些判斷型任務
+    需要輸出穩定可重現，避免同一問題時而通過時而拒答。
+    """
     client = get_openai_client()
     response = client.chat.completions.create(
         model=model_name,
         messages=[{"role": "user", "content": prompt}],
+        temperature=temperature,
     )
     return (response.choices[0].message.content or "").strip()
 
@@ -74,7 +85,14 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
         sid = doc.get("school_id", "")
         url = doc.get("source_url", "")
 
-        if doc.get("chunk_text"):
+        if doc.get("type") == "applicant_experience":
+            # 申請經驗回報（非官方，個別案例）——標頭明確標示，避免被當官方資料
+            formatted_docs.append(
+                f"【網路申請經驗回報（非官方，個別案例）】\n{doc['chunk_text'].strip()}"
+            )
+            if url:
+                sources_list.append({"school": sid, "type": "applicant_experience", "url": url})
+        elif doc.get("chunk_text"):
             # 教授資料（沿用純文字格式）
             univ = doc.get("university_name", sid.upper() if sid else "未知學校")
             formatted_docs.append(f"【{univ} 教授資料】\n{doc['chunk_text'].strip()}")
@@ -105,6 +123,15 @@ _SYSTEM_PROMPT = """你是一位北美 CS 研究所申請諮詢助理。你只�
 1. 嚴禁幻覺：不得憑空捏造任何數字、日期、政策或要求。若參考資料中找不到答案，必須明確說「我沒有找到相關資訊」，並請使用者前往官方網站查詢。
 2. 不確定就說不知道：若參考資料只有部分相關、不夠明確，請直接告知「資料不足，建議前往官方網站確認」，並提供相關 URL。
 3. 禁止補充自己的知識：即使你知道答案，也不得提供參考資料以外的資訊。
+4. 經驗回報資料的引用護欄（標示為「網路申請經驗回報（非官方，個別案例）」的資料）：
+   - 這是個別申請者在 GradCafe / 論壇的主觀回報，非官方、有樣本偏誤，僅供參考。
+   - 引用時必須明確標示「根據網路申請經驗回報（非官方）」，不得寫成官方數據或規定。
+   - 嚴禁把個別案例當成錄取門檻或保證（例如不得因「有人 GPA 3.1 錄取」就說「3.1 即可錄取」）。
+   - 但只要參考資料中有相關的經驗回報案例，就「應該」據實整理呈現，不要因為是非官方就說「資料不足/不明」而拒答。
+     正確作法：把案例的 GPA、結果（錄取/被拒/waitlist）具體列出來，描述大致落點與分布，
+     例如「回報案例中，錄取者 GPA 多在 X–Y 之間，也有 GPA Z 被拒的案例」，並附上「這是個別回報、僅供參考、實際因人而異」。
+     當使用者問「我這個分數有沒有機會」時，用案例的落點給出參考判斷（例如「你的 GPA 落在有錄取案例的區間內，但錄取與否還取決於其他因素」），而不是直接說無法判斷。
+   - 官方申請要求（programs 資料）與經驗回報同時存在時，以官方要求為準，經驗回報僅作補充。
 
 【答案格式規定（重點）】：
 - 主要答案內容務必保持「流暢可讀」，不要在句子中間穿插長 URL（嚴禁）
@@ -174,7 +201,7 @@ def _build_prompt(query: str, context_docs: list[dict]) -> str:
 """
 
 
-def generate_answer_stream(query: str, context_docs: list[dict], model_name: str = DEFAULT_MODEL):
+def generate_answer_stream(query: str, context_docs: list[dict], model_name: str = ANSWER_MODEL):
     """串流版本：逐 chunk yield 原始文字。若 API 失敗則 raise Exception。"""
     client = get_openai_client()
     prompt = _build_prompt(query, context_docs)
@@ -189,7 +216,7 @@ def generate_answer_stream(query: str, context_docs: list[dict], model_name: str
         yield delta or ""
 
 
-def generate_answer(query: str, context_docs: list[dict], model_name: str = DEFAULT_MODEL) -> str | None:
+def generate_answer(query: str, context_docs: list[dict], model_name: str = ANSWER_MODEL) -> str | None:
     """根據檢索到的結構化資料生成回答。"""
     client = get_openai_client()
     prompt = _build_prompt(query, context_docs)

@@ -39,6 +39,7 @@ from langgraph.types import Send
 
 from retriever.sql_search import sql_search, get_known_school_ids
 from retriever.fulltext_search import fulltext_search
+from retriever.applicant_search import applicant_search
 from generator.openai_client import (
     call_llm, generate_answer, generate_answer_stream,
     format_context_for_prompt, clean_answer_text,
@@ -100,9 +101,11 @@ class AgentState(TypedDict):
     fulltext_docs:     list[dict]    # 全文檢索結果（SQL 不足時才由 fulltext_search_node 補上）
     fulltext_done:     bool          # 是否已對本輪子問題做過全文檢索 fallback（避免重複做）
     extension_docs:    list[dict]    # 教授資料（每輪由 extension_function_node 整份覆寫，重試時不與前一輪疊加）
+    experience_docs:   list[dict]    # 申請經驗回報（needs_experience 時由 experience_search_node 整份覆寫）
     final_answer:      str
     professor_query:   dict | None   # Decomposer 偵測到的教授查詢 {name, school, school_id}
     needs_sql_search:  bool         # Decomposer 判斷是否需要查 programs 申請要求資料
+    needs_experience:  bool         # Decomposer 判斷是否問「錄取背景/機會/案例」，需查 applicant_reports
     mentioned_school_ids: list[str]   # Decomposer 從已知清單中偵測到的 school_id（不代表資料庫已收錄）
     mentioned_school_names: list[str] # Decomposer 偵測到的學校名稱原文（不限於已知清單）
     verified_docs:     list[dict]    # Verifier 去重後的資料（search + extension 合併）
@@ -221,6 +224,19 @@ def _build_intent_prompt(query: str) -> str:
 - 若問題完全沒有教授查詢意圖，needs_sql_search 一律為 true
 
 ====================
+【任務四：是否需要查詢申請經驗回報（needs_experience）】
+====================
+系統另有一批「申請經驗回報」資料（GradCafe / 一畝三分地論壇的個別錄取/被拒案例，含
+申請者 GPA、結果、背景等），屬非官方、有樣本偏誤的經驗談，只適合回答「實際錄取者背景
+長怎樣」「某分數/背景有沒有機會上」「往年錄取案例」這類問題。
+
+- 若使用者問題在詢問「錄取機會 / 錄取者背景 / 案例 / 我這條件上不上得了 / 往年錄取情況」，
+  needs_experience 設為 true
+- 若使用者問題只問官方申請要求（GPA 門檻幾分、截止日、學費等固定規定），
+  needs_experience 設為 false
+- 純教授查詢時 needs_experience 一律為 false
+
+====================
 【使用者問題】
 {query}
 
@@ -236,7 +252,8 @@ def _build_intent_prompt(query: str) -> str:
   "school_ids": ["school_id_1", ...],
   "mentioned_school_names": ["School Name 1", ...],
   "professor_query": {{"name": "教授全名（英文）", "school": "學校名稱（英文）", "school_id": "學校ID"}} or null,
-  "needs_sql_search": true or false
+  "needs_sql_search": true or false,
+  "needs_experience": true or false
 }}
 """
 
@@ -294,12 +311,14 @@ def decomposer_node(state: AgentState) -> dict:
         ]
         professor_query  = _parse_professor_query(parsed.get("professor_query"))
         needs_sql_search = bool(parsed.get("needs_sql_search", True))
+        needs_experience = bool(parsed.get("needs_experience", False))
     except Exception as e:
         print(f"[Decomposer] 意圖判斷失敗（{e}），使用原始問題作為 fallback")
         school_ids             = _detect_school_ids(query)
         mentioned_school_names = []
         professor_query         = None
         needs_sql_search        = True
+        needs_experience        = False
 
     # 任務四：只在需要查 SQL 時才拆解子問題（純教授查詢可省下這次 LLM 呼叫）
     if needs_sql_search:
@@ -327,16 +346,19 @@ def decomposer_node(state: AgentState) -> dict:
               f"[{professor_query.get('school_id', '?')}]")
     else:
         print("[Decomposer] professor_query = None（無教授查詢意圖）")
-    print(f"[Decomposer] needs_sql_search = {needs_sql_search}")
+    print(f"[Decomposer] needs_sql_search = {needs_sql_search}  needs_experience = {needs_experience}")
 
     return {
         "sub_queries":            sub_queries,
         "collected_docs":         [],
         "fulltext_docs":          [],
         "fulltext_done":          False,
+        "extension_docs":         [],
+        "experience_docs":        [],
         "final_answer":           "",
         "professor_query":        professor_query,
         "needs_sql_search":       needs_sql_search,
+        "needs_experience":       needs_experience,
         "mentioned_school_ids":   school_ids,
         "mentioned_school_names": mentioned_school_names,
     }
@@ -345,18 +367,21 @@ def decomposer_node(state: AgentState) -> dict:
 def route_to_retrieval(state: AgentState):
     """
     決定要跑哪些檢索節點（decompose 完成後、以及 refine 重新產生查詢後皆共用此路由）：
-    - 有教授查詢 + 需要 SQL → search + extension_function 並行
-    - 只查教授、不需要 SQL → 只走 extension_function
-    - 一般問題（無教授查詢）→ 只走 search
+    各檢索支線互相獨立，依旗標並行觸發：
+    - needs_sql_search → search（text-to-SQL 官方申請要求）
+    - professor_query   → extension_function（SerpAPI 教授資料）
+    - needs_experience  → experience_search（applicant_reports 錄取經驗）
+    至少會走一個節點；若三者皆無（理論上不會），退回只走 search 保底。
     """
-    professor_query  = state.get("professor_query")
-    needs_sql_search = state.get("needs_sql_search", True)
+    targets = []
+    if state.get("needs_sql_search", True):
+        targets.append(Send("search", state))
+    if state.get("professor_query") is not None:
+        targets.append(Send("extension_function", state))
+    if state.get("needs_experience", False):
+        targets.append(Send("experience_search", state))
 
-    if professor_query is not None:
-        if needs_sql_search:
-            return [Send("search", state), Send("extension_function", state)]
-        return [Send("extension_function", state)]
-    return [Send("search", state)]
+    return targets or [Send("search", state)]
 
 
 # ─── Node 1.5：Extension Function（教授查詢） ─────────────────────────────────
@@ -385,6 +410,44 @@ def extension_function_node(state: AgentState) -> dict:
     return {
         "extension_docs":    extension_docs,
     }
+
+
+# ─── Node 1.6：Experience Search（申請經驗回報） ──────────────────────────────
+
+def experience_search_node(state: AgentState) -> dict:
+    """查 applicant_reports（GradCafe / 一畝三分地錄取回報），寫入 experience_docs。
+
+    與 search / extension_function 並行；資料為非官方經驗談，generator 會加註警語。
+    """
+    _emit({"type": "thinking", "step": "experience_search"})
+
+    original_query = state["original_query"]
+    sub_queries    = state.get("sub_queries", []) or [original_query]
+    school_ids     = _detect_school_ids(original_query)
+    school_id      = school_ids[0] if school_ids else None
+
+    exp_docs: list[dict] = []
+    seen_urls: set = set()
+    for q in sub_queries:
+        _check_cancel()
+        _emit({
+            "type": "tool_call",
+            "tool": "applicant_search",
+            "args": {"query": q, **({"school_id": school_id} if school_id else {})},
+        })
+        for doc in applicant_search(q, school_id=school_id):
+            key = doc.get("source_url") or doc.get("chunk_text", "")[:80]
+            if key not in seen_urls:
+                seen_urls.add(key)
+                exp_docs.append(doc)
+
+    _emit({
+        "type": "tool_result",
+        "tool": "applicant_search",
+        "preview": f"找到 {len(exp_docs)} 筆申請經驗回報",
+    })
+    print(f"[Experience] 共取得 {len(exp_docs)} 筆申請經驗回報")
+    return {"experience_docs": exp_docs}
 
 
 # ─── Node 2：SQL Searcher ─────────────────────────────────────────────────────
@@ -500,6 +563,10 @@ def _build_verify_prompt(query: str, context_text: str) -> str:
 
 【其他原則】
 - 文不對題（問 A 校給 B 校、問某教授給同名他人）一律 sufficient=false。
+- 經驗回報也算有效資料：若問題在問「錄取機會 / 錄取者背景 / 案例 / 某分數有沒有機會」，
+  而參考資料中有標示為「網路申請經驗回報（非官方，個別案例）」的資料且觸及了該校該科系的
+  錄取案例（含申請者 GPA、結果等），就算 sufficient=true——這類問題本來就該用經驗回報回答，
+  不要因為「不是官方數據」或「只有個別案例」而判 false（回答時的非官方警語由生成階段負責）。
 - 允許合理推論：資料不必逐字明講關鍵詞，能讓人合理推論出答案即可（例如問研究領域，給論文標題摘要就算足夠）。
 - 允許部分足夠：只要「觸及了資訊點」，細節不全也算 true，缺的由生成階段告知使用者——但前提是真的觸及（見第二步）。
 - 判 true 前最後自問：「這些資料裡，有沒有任何一句真的在回答使用者問的那件事？」若答不出具體是哪一句，就該判 false。
@@ -524,15 +591,25 @@ def verifier_node(state: AgentState) -> dict:
     """
     query = state["original_query"]
 
-    search_docs    = state.get("collected_docs", [])
-    fulltext_docs  = state.get("fulltext_docs", [])
-    extension_docs = state.get("extension_docs", [])
+    search_docs     = state.get("collected_docs", [])
+    fulltext_docs   = state.get("fulltext_docs", [])
+    extension_docs  = state.get("extension_docs", [])
+    experience_docs = state.get("experience_docs", [])
 
-    # extension_docs 放在前面（教授資料優先作為上下文），全文檢索補充資料放最後
-    all_docs = _deduplicate_docs(extension_docs + search_docs + fulltext_docs)
+    # 順序：教授 → 官方 SQL → 經驗回報 → 全文檢索補充。經驗資料排官方之後，避免喧賓奪主。
+    all_docs = _deduplicate_docs(
+        extension_docs + search_docs + experience_docs + fulltext_docs
+    )
 
     if not all_docs:
         return {"verified_docs": [], "is_sufficient": False, "insufficiency_reason": ""}
+
+    # 經驗類問題短路：needs_experience 且真的撈到經驗回報時直接放行。
+    # Verifier 的「資訊點是否被觸及」檢查是為官方欄位設計的，對「無標準答案的錄取經驗題」
+    # 不適用（案例本身就是答案），送審只會被誤判不足。護欄由 generator 的非官方警語負責。
+    if state.get("needs_experience", False) and experience_docs:
+        print(f"[Verifier] needs_experience 且有 {len(experience_docs)} 筆經驗回報，直接放行")
+        return {"verified_docs": all_docs, "is_sufficient": True, "insufficiency_reason": ""}
 
     _check_cancel()
     context_text = format_context_for_prompt(all_docs)
@@ -804,6 +881,7 @@ def _build_graph():
 
     builder.add_node("decompose",          decomposer_node)
     builder.add_node("extension_function", extension_function_node)
+    builder.add_node("experience_search",  experience_search_node)
     builder.add_node("search",             searcher_node)
     builder.add_node("fulltext",           fulltext_search_node)
     builder.add_node("verify",             verifier_node)
@@ -817,6 +895,7 @@ def _build_graph():
     builder.add_conditional_edges("refine",    route_to_retrieval)
 
     builder.add_edge("extension_function", "verify")
+    builder.add_edge("experience_search", "verify")
     builder.add_edge("search", "verify")
     builder.add_edge("fulltext", "verify")
     builder.add_conditional_edges("verify", after_verify)
@@ -877,9 +956,11 @@ def run_agent(
             "fulltext_docs":     [],
             "fulltext_done":     False,
             "extension_docs":    [],
+            "experience_docs":   [],
             "final_answer":      "",
             "professor_query":   None,
             "needs_sql_search":  True,
+            "needs_experience":  False,
             "mentioned_school_ids": [],
             "mentioned_school_names": [],
             "verified_docs":      [],
