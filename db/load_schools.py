@@ -1,5 +1,5 @@
 """
-從 db/schools_data.json 寫入 universities / programs / program_deadlines /
+從 db/data/schools_data.json 寫入 universities / programs / program_deadlines /
 program_scholarships / program_app_materials。
 
 JSON 結構與欄位名稱對應 db/init_db.sql（與 data_crawler 寫入的 schema 一致）：
@@ -20,7 +20,7 @@ if str(_BACKEND_SCRIPTS) not in sys.path:
 
 from db.connection import get_connection
 
-DATA_PATH = Path(__file__).resolve().parent / "schools_data.json"
+DATA_PATH = Path(__file__).resolve().parent / "data" / "schools_data.json"
 
 _PROGRAM_FIELDS = [
     "degree_type", "program_name", "department",

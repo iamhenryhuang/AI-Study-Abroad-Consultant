@@ -1,7 +1,7 @@
 -- ════════════════════════════════════════════════════════════════
 -- Study Abroad RAG — schema 以 data_crawler 的抽取/寫入能力為準
 -- 真實資料來源：data_crawler（LangGraph 爬蟲）寫入
--- db/schools_data.json 僅為對應此 schema 的測試假資料
+-- db/data/schools_data.json 僅為對應此 schema 的測試假資料
 -- ════════════════════════════════════════════════════════════════
 
 CREATE EXTENSION IF NOT EXISTS vector;

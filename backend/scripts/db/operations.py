@@ -43,7 +43,7 @@ def setup_db():
 # ── init_schema ──────────────────────────────────────────────
 
 def init_schema():
-    """依 db/init_db.sql 建表（重置 universities / programs / program_deadlines / program_scholarships）。"""
+    """依 db/init_db.sql 重置所有資料表（universities / programs 及其子表、web_pages / document_chunks / review_queue）。"""
     conn = get_connection()
     if not conn:
         print("請在 .env 設定 DATABASE_URL。")
@@ -79,7 +79,7 @@ def init_schema():
 
 
 def load_schools():
-    """建表後灌入 db/schools_data.json 的學校資料。"""
+    """建表後灌入 db/data/schools_data.json 的學校資料。"""
     if not init_schema():
         return False
 

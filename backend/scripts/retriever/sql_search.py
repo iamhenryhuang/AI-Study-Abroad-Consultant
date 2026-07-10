@@ -175,14 +175,12 @@ def _execute_readonly_query(sql: str) -> list[dict]:
         print("[SQLSearch] 無法取得資料庫連線")
         return []
 
-    try:
-        conn.read_only = True
-    except Exception:
-        pass
+    # psycopg3：在交易開始前設定 read_only，整條連線的交易都會是唯讀，
+    # 與白名單/正則檢查形成雙重防護（真正防寫入仍以 _is_sql_safe 為主）。
+    conn.read_only = True
 
     try:
         with conn.cursor() as cur:
-            cur.execute("SET TRANSACTION READ ONLY")
             cur.execute(sql)
             columns = [desc[0] for desc in cur.description] if cur.description else []
             rows = cur.fetchall()

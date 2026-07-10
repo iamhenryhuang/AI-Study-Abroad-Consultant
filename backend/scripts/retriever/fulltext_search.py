@@ -46,6 +46,8 @@ def fulltext_search(query: str, school_id: str | None = None, limit: int = 5) ->
         print("[FulltextSearch] 無法取得資料庫連線")
         return []
 
+    conn.read_only = True
+
     sql = """
         SELECT dc.school_id,
                u.name AS university_name,
@@ -65,11 +67,11 @@ def fulltext_search(query: str, school_id: str | None = None, limit: int = 5) ->
 
     try:
         with conn.cursor() as cur:
-            cur.execute("SET TRANSACTION READ ONLY")
             cur.execute(sql, params)
             columns = [desc[0] for desc in cur.description]
             rows = cur.fetchall()
-        return [dict(zip(columns, row)) for row in rows if dict(zip(columns, row)).get("chunk_text")]
+        results = [dict(zip(columns, row)) for row in rows]
+        return [r for r in results if r.get("chunk_text")]
     except Exception as e:
         print(f"[FulltextSearch] 查詢失敗：{e}")
         return []

@@ -41,15 +41,7 @@ def _validate_key() -> None:
 
 
 def _get(params: dict) -> dict:
-    """
-    呼叫 SerpAPI 並處理重試與報錯。
-    
-    Args:
-        params: API 查詢參數
-        
-    Returns:
-        解析後的 JSON 結果
-    """
+    """呼叫 SerpAPI 並處理重試與報錯，回傳解析後的 JSON。"""
     _validate_key()
     all_params = {**params, "api_key": SERPAPI_KEY}
 
@@ -82,7 +74,7 @@ def _get(params: dict) -> dict:
             print(f"  [retry {attempt + 1}/{max_retries}] HTTPError: {str(e)[:100]}")
             time.sleep(2 ** attempt)
 
-        except (requests.RequestException, Exception) as e:
+        except Exception as e:
             if attempt == max_retries - 1:
                 raise
             print(f"  [retry {attempt + 1}/{max_retries}] 網路錯誤: {type(e).__name__}: {str(e)[:100]}")
@@ -97,17 +89,6 @@ def _extract_author_id_from_url(url: str) -> str | None:
         return None
     m = re.search(r"[?&]user=([A-Za-z0-9_-]+)", url)
     return m.group(1) if m else None
-
-
-def _extract_year_from_snippet(snippet: str, publication: str) -> int | None:
-    """從 snippet 或 publication 字串中找年份（4 位數字）。"""
-    for text in (publication, snippet):
-        if not text:
-            continue
-        m = re.search(r"\b(20\d{2}|19\d{2})\b", text)
-        if m:
-            return int(m.group(1))
-    return None
 
 
 # ── 主要功能：搜尋 author_id ─────────────────────────────────────────────────
