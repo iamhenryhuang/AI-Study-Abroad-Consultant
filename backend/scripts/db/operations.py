@@ -43,7 +43,7 @@ def setup_db():
 # ── init_schema ──────────────────────────────────────────────
 
 def init_schema():
-    """依 db/init_db.sql 建表（重置 universities / programs / program_deadlines / program_scholarships）。"""
+    """依 db/init_db.sql 重置所有資料表（universities / programs 及其子表、web_pages / document_chunks / review_queue）。"""
     conn = get_connection()
     if not conn:
         print("請在 .env 設定 DATABASE_URL。")

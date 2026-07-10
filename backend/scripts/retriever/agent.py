@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -38,7 +39,10 @@ from langgraph.types import Send
 
 from retriever.sql_search import sql_search, get_known_school_ids
 from retriever.fulltext_search import fulltext_search
-from generator.openai_client import call_llm, generate_answer, generate_answer_stream, format_context_for_prompt
+from generator.openai_client import (
+    call_llm, generate_answer, generate_answer_stream,
+    format_context_for_prompt, clean_answer_text,
+)
 from professor_fetcher.fetch_for_agent import run_professor_fetch
 
 # ─── 學校別名對照表 ───────────────────────────────────────────────────────────
@@ -131,12 +135,16 @@ def _detect_school_ids(text: str) -> list[str]:
 
 
 def _deduplicate_docs(docs: list[dict]) -> list[dict]:
-    """以 school_id + chunk_text/欄位內容去重複文件。"""
+    """以 school_id + chunk_text/完整欄位內容去重複文件。
+
+    對結構化 SQL doc 用完整內容的 hash 當 key（不截斷），避免只有尾端欄位
+    （如 application_url）不同的兩筆 doc 被前綴截斷誤判為重複。
+    """
     seen: set[str] = set()
     result: list[dict] = []
     for doc in docs:
-        key = doc.get("chunk_text") or json.dumps(doc, sort_keys=True, default=str)
-        key = f"{doc.get('school_id', '')}:{key[:200]}"
+        content = doc.get("chunk_text") or json.dumps(doc, sort_keys=True, default=str)
+        key = f"{doc.get('school_id', '')}:{hashlib.md5(content.encode('utf-8')).hexdigest()}"
         if key not in seen:
             seen.add(key)
             result.append(doc)
@@ -381,15 +389,12 @@ def extension_function_node(state: AgentState) -> dict:
 
 # ─── Node 2：SQL Searcher ─────────────────────────────────────────────────────
 
-def _search_one_query(q: str, original_query: str) -> list[dict]:
-    """對單一子問題執行 text-to-SQL 檢索。"""
-    school_ids = _detect_school_ids(q) or _detect_school_ids(original_query)
-    school_id = school_ids[0] if school_ids else None
-
+def _search_one_query(q: str) -> list[dict]:
+    """對單一子問題執行 text-to-SQL 檢索（學校過濾由 LLM 產生的 SQL WHERE 完成）。"""
     _emit({
         "type": "tool_call",
         "tool": "sql_search",
-        "args": {"query": q, **({"school_id": school_id} if school_id else {})},
+        "args": {"query": q},
     })
 
     results, sql = sql_search(q)
@@ -408,8 +413,7 @@ def _search_one_query(q: str, original_query: str) -> list[dict]:
 
 def searcher_node(state: AgentState) -> dict:
     """對所有子問題執行 text-to-SQL 檢索，一輪到位（無重試迴圈）。"""
-    sub_queries     = state.get("sub_queries", [])
-    original_query = state["original_query"]
+    sub_queries = state.get("sub_queries", [])
 
     print(f"\n[Searcher] 共 {len(sub_queries)} 個子問題")
     _emit({"type": "thinking", "step": 1})
@@ -418,7 +422,7 @@ def searcher_node(state: AgentState) -> dict:
 
     for q in sub_queries:
         _check_cancel()
-        results = _search_one_query(q, original_query)
+        results = _search_one_query(q)
         print(f"     查詢：{q}  取得 {len(results)} 筆（SQL）")
         new_docs.extend(results)
 
@@ -696,20 +700,13 @@ def finalizer_node(state: AgentState) -> dict:
         full_text = generate_answer(query, all_docs) or ""
 
     if full_text:
-        import re as _re
-        clean = full_text.replace("**", "")
-        clean = _re.sub(
-            r"<span[^>]*>\s*(\[[^\]]+\]\([^\)]+\))\s*</span>",
-            r"\1", clean, flags=_re.IGNORECASE,
-        )
-        clean = _re.sub(r"</?span[^>]*>", "", clean, flags=_re.IGNORECASE)
-        clean = clean.strip()
+        clean = clean_answer_text(full_text)
         return {"final_answer": clean, "generated_answer": True}
     else:
         msg = "OpenAI 生成失敗"
         print(f"[Finalizer] {msg}")
         _emit({"type": "error", "message": msg})
-        return {"final_answer": None}
+        return {"final_answer": ""}
 
 
 def after_finalize(state: AgentState) -> str:
@@ -854,7 +851,8 @@ def run_agent(
 
     Args:
         query:     使用者問題
-        max_steps: LangGraph 最大步驟數（安全閥）
+        max_steps: 安全閥。實際 recursion_limit = max_steps * 4
+                   （一輪 decompose→retrieval→verify→fulltext→finalize→critic 約需數個節點步）
         verbose:   是否顯示詳細日誌
         on_event:  SSE 事件 callback，格式：{"type": "thinking"|"tool_call"|..., ...}
 
@@ -921,7 +919,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Agentic RAG（LangGraph）")
     parser.add_argument("query",       nargs="?", help="使用者問題")
-    parser.add_argument("--max-steps", type=int, default=20, help="最大 LangGraph 步驟數")
+    parser.add_argument("--max-steps", type=int, default=20,
+                        help="安全閥（實際 recursion_limit = max_steps * 4）")
     args = parser.parse_args()
 
     q = args.query or input("請輸入問題：").strip()

@@ -47,12 +47,24 @@ def call_llm(prompt: str, model_name: str = DEFAULT_MODEL) -> str:
     return (response.choices[0].message.content or "").strip()
 
 
+def clean_answer_text(text: str) -> str:
+    """移除答案中的 ** 粗體標記與殘留的 <span> 標籤（保留其中的 Markdown 連結）。"""
+    text = text.replace("**", "")
+    text = re.sub(
+        r"<span[^>]*>\s*(\[[^\]]+\]\([^\)]+\))\s*</span>",
+        r"\1", text, flags=re.IGNORECASE,
+    )
+    text = re.sub(r"</?span[^>]*>", "", text, flags=re.IGNORECASE)
+    return text.strip()
+
+
 def format_context_for_prompt(context_docs: list[dict]) -> str:
     """
     將 SQL 查詢結果（結構化 dict）與教授擴充資料格式化為 LLM 易讀的字串。
 
-    每筆 doc 可能是：
-      - 結構化學校要求：{school_id, university_name, fields: {...}, source_url}
+    每筆 doc 為平鋪 dict，可能是：
+      - 結構化學校要求：{school_id, university_name, source_url, <各申請要求欄位>...}
+        （school_id/university_name/source_url 以外的非 None 欄位都視為要顯示的申請要求）
       - 教授資料（chunk 格式）：{chunk_text, source_url, school_id, ...}
     """
     formatted_docs = []
@@ -187,14 +199,7 @@ def generate_answer(query: str, context_docs: list[dict], model_name: str = DEFA
             model=model_name,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = response.choices[0].message.content or ""
-        text = text.replace("**", "")
-        text = re.sub(
-            r"<span[^>]*>\s*(\[[^\]]+\]\([^\)]+\))\s*</span>",
-            r"\1", text, flags=re.IGNORECASE,
-        )
-        text = re.sub(r"</?span[^>]*>", "", text, flags=re.IGNORECASE)
-        return text.strip()
+        return clean_answer_text(response.choices[0].message.content or "")
     except Exception as e:
         print(f"[OpenAI] 生成回答時發生錯誤: {e}")
         return None
