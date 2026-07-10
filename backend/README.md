@@ -32,7 +32,7 @@ Agent 的檢索分三層 fallback，觸發條件是「Verifier 判定資料不�
 
 ## 教授查詢實作
 
-`extension_function_node` 在 Decomposer 偵測到教授意圖時，即時呼叫 SerpAPI 的 `google_scholar_author` API（以 `author_id` 查詢，確保結果只屬於該教授本人）。抓取結果快取到 `crawler/data/{school_id}_professors.json`。
+`extension_function_node` 在 Decomposer 偵測到教授意圖時，即時呼叫 SerpAPI 的 `google_scholar_author` API（以 `author_id` 查詢，確保結果只屬於該教授本人）。即時查詢每次重新抓取、不寫檔快取；只有下方 CLI 手動抓取會把結果存到 `crawler/data/{school_id}_professors.json`。
 
 手動預先抓取：
 ```bash

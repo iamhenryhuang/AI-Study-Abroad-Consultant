@@ -191,7 +191,7 @@ python backend/scripts/run.py search "MIT TOEFL 最低幾分"
 
 目前 `docker-compose.yml` 只有兩個 service：`db`（PostgreSQL）與 `backend`（FastAPI + Agent）。**沒有 frontend service**——整個專案已改為 API-only，前端已從 repo 移除。
 
-`backend` 額外掛載 `./crawler/data:/app/crawler/data:ro`，供 `professor_fetcher` 讀寫教授資料快取用。
+若要用 `professor_fetcher` 的 CLI 手動抓取教授資料並保留到本機，需在 compose 的 `backend` 取消註解那段 `./crawler/data:/app/crawler/data` volume（該目錄需可寫，勿設 `:ro`）；即時查詢（Agent 自動抓取）不寫檔，無此需求。
 
 ### 1. 準備環境變數
 
