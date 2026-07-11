@@ -10,6 +10,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 DROP TABLE IF EXISTS review_queue            CASCADE;
 DROP TABLE IF EXISTS document_chunks         CASCADE;
 DROP TABLE IF EXISTS web_pages               CASCADE;
+DROP TABLE IF EXISTS global_extractions       CASCADE;
 DROP TABLE IF EXISTS program_app_materials   CASCADE;
 DROP TABLE IF EXISTS program_scholarships    CASCADE;
 DROP TABLE IF EXISTS program_deadlines       CASCADE;
@@ -38,16 +39,19 @@ CREATE TABLE programs (
 
     -- 識別資訊
     degree_type   VARCHAR(20),                  -- MS / PhD / MEng / MPS / MBA
-    program_code  VARCHAR(50) NOT NULL,         -- "CS MS" / "CS PhD"
+    program_code  TEXT NOT NULL,                -- "CS MS" / "CS PhD"
     program_name  VARCHAR(200),                 -- "Master of Science in Computer Science"
     department    VARCHAR(100),                 -- "Computer Science"
 
     -- 語言要求
     toefl_min          INTEGER,
     toefl_ibt_min      INTEGER,
+    toefl_ibt_new_scale_min NUMERIC(2,1),       -- 2026-01-21 起 TOEFL iBT 1–6 新制 overall
+    toefl_section_requirements TEXT,             -- TOEFL 各分項門檻，合併為字串
     ielts_min          NUMERIC(3,1),
     duolingo_min       INTEGER,
     language_waiver    TEXT,
+    english_test_notes TEXT,                     -- 英文檢定效期、形式、例外等特殊規定
 
     -- GRE 要求
     gre_required       VARCHAR(20),             -- required / optional / not_accepted
@@ -62,7 +66,7 @@ CREATE TABLE programs (
 
     -- 申請材料（單值欄位放這，多值拆 program_app_materials）
     transcript_copies        INTEGER,
-    transcript_format        VARCHAR(50),
+    transcript_format        TEXT,
     rec_letter_count         INTEGER,
     sop_word_limit           INTEGER,
     sop_prompt               TEXT,
@@ -78,7 +82,7 @@ CREATE TABLE programs (
 
     -- 申請方式
     application_url       TEXT,
-    application_system    VARCHAR(50),
+    application_system    TEXT,
 
     -- 抽取 metadata
     source_urls           TEXT[],
@@ -100,7 +104,10 @@ CREATE TABLE program_deadlines (
     id             SERIAL PRIMARY KEY,
     program_id     INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
     deadline_type  VARCHAR(30),                 -- early / regular / international / rolling
-    deadline_date  DATE,
+    deadline_date  DATE,                        -- 舊版相容：等同 application_close_date
+    application_open_date   DATE,
+    application_close_date  DATE,
+    decision_release_date   DATE,
     semester       VARCHAR(20),                 -- fall_2026 / spring_2027
     note           TEXT,
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -136,7 +143,7 @@ CREATE INDEX idx_scholarships_program ON program_scholarships(program_id);
 CREATE TABLE program_app_materials (
     id             SERIAL PRIMARY KEY,
     program_id     INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-    material_type  VARCHAR(50),                 -- additional_essay / portfolio / video / writing_sample / other
+    material_type  TEXT,                        -- additional_essay / portfolio / video / writing_sample / other
     requirement    TEXT,
     word_limit     INTEGER,
     note           TEXT,
@@ -164,6 +171,22 @@ CREATE TABLE web_pages (
 CREATE INDEX idx_web_pages_university   ON web_pages(university_id);
 CREATE INDEX idx_web_pages_program      ON web_pages(program_id);
 CREATE INDEX idx_web_pages_passed_types ON web_pages USING GIN (passed_types);
+
+-- 全校／CS 系級抽取結果：即使尚未識別出正式 program 也保留結構化資料
+CREATE TABLE global_extractions (
+    id             SERIAL PRIMARY KEY,
+    university_id  INTEGER NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+    page_id         INTEGER NOT NULL REFERENCES web_pages(id) ON DELETE CASCADE,
+    scope           VARCHAR(30) NOT NULL,
+    program_code    TEXT NOT NULL,
+    extraction      JSONB NOT NULL,
+    confidence      NUMERIC(3,2),
+    source_url      TEXT NOT NULL,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (page_id, program_code)
+);
+CREATE INDEX idx_global_extractions_university ON global_extractions(university_id);
 
 
 -- ════════════════════════════════════════════════════════════════
@@ -214,7 +237,7 @@ CREATE TABLE review_queue (
     id             SERIAL PRIMARY KEY,
     university_id  INTEGER REFERENCES universities(id) ON DELETE CASCADE,
     page_id        INTEGER REFERENCES web_pages(id) ON DELETE CASCADE,
-    program_code   VARCHAR(50),
+    program_code   TEXT,
     field_name     VARCHAR(100),
     field_value    TEXT,
     reason         VARCHAR(50),                 -- hallucination_detected 等

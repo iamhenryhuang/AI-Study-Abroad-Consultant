@@ -20,6 +20,7 @@ class SchoolState(TypedDict, total=False):
     school_id: str
     university_id: Optional[int]
     roots: list[str]
+    root_urls_override: list[str]  # CLI --root-url；有值時覆寫學校預設 roots
     max_depth: int
     max_pages: int
     skip_school: bool          # Node 1 SKIP_RECENT 判定
@@ -85,6 +86,7 @@ class ProcessState(TypedDict, total=False):
 
     # Node 8
     validation: dict           # {"passed": bool, "issues": [...], "confidence": float}
+    validation_repair_retries: int
 
     # 輸出（合併回主圖）
     page_results: Annotated[list[dict], operator.add]

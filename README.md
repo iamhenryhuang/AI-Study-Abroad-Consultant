@@ -28,7 +28,7 @@ flowchart LR
 
     subgraph External["外部服務"]
         direction TB
-        OpenAI[["🤖 OpenAI API<br/>分級模型：判斷型 gpt-4o-mini<br/>答案生成 gpt-4o"]]
+        OpenAI[["🤖 OpenAI API<br/>分級模型：判斷型 gpt-4.1<br/>答案生成 gpt-4o"]]
         SerpAPI[["🔍 SerpAPI<br/>Google Scholar 教授資料"]]
     end
 
@@ -107,7 +107,7 @@ flowchart TD
 - **不亂編答案**：檢索結果先經 Verifier 判斷是否文不對題，生成後再經 Critic 複查有無幻覺，有疑慮就誠實告知或附上警告。
 - **教授即時查詢**：問題提到教授姓名時即時呼叫 SerpAPI 抓取研究領域 / 論文。
 - **未收錄學校辨識**：分辨「學校不在收錄範圍」與「有收錄但查無該欄位」，給對應的誠實回覆。
-- **模型分級**：判斷型任務用 `gpt-4o-mini`、答案生成用 `gpt-4o`，兼顧成本與品質。
+- **模型分級**：判斷與結構化任務用 `gpt-4.1`、答案生成用 `gpt-4o`。
 - **來源可追溯**：答案附上官網來源連結。
 - **串流回應**：透過 SSE 即時回傳思考與檢索過程。
 
@@ -154,12 +154,12 @@ pip install -r requirements.txt
 ```env
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/studyabroad
 OPENAI_API_KEY=your_openai_api_key   # 判斷型任務與答案生成共用這把 key
-OPENAI_MODEL=gpt-4o-mini             # 判斷/結構型任務（decomposer/verifier/critic/text-to-SQL）
+OPENAI_MODEL=gpt-4.1                 # 判斷/結構型任務（decomposer/verifier/critic/text-to-SQL）
 OPENAI_ANSWER_MODEL=gpt-4o           # 最終答案生成（面向使用者的長文，用強一點的模型）
 SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 ```
 
-> 模型分級：判斷型任務只需輸出 JSON，用便宜快的 `gpt-4o-mini`；最終答案生成面向使用者，預設用 `gpt-4o`。兩者皆可用上述環境變數各自覆寫。
+> 模型分級：判斷與結構化任務使用 `gpt-4.1`；最終答案生成預設使用 `gpt-4o`。兩者皆可用上述環境變數各自覆寫。
 
 > 註：Windows + Docker Desktop 下建議用 `127.0.0.1` 而非 `localhost`，避免 IPv6 解析 fallback 造成連線延遲。
 
@@ -174,7 +174,8 @@ SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 | `python backend/scripts/run.py init-schema` | 依 `db/init_db.sql` 重建資料表（會清空重建） |
 | `python backend/scripts/run.py init-experience` | 冪等建立使用者申請經驗表（不清除既有資料） |
 | `python backend/scripts/run.py load-schools` | 灌入 `db/data/schools_data.json` 的測試資料 |
-| `python backend/scripts/run.py verify-db` | 檢查目前資料庫內容 |
+| `python backend/scripts/run.py verify-db` | 全局輸出所有學校/program 欄位、deadlines、獎助、材料、頁面摘要、chunks 與 review queue |
+| `python backend/scripts/run.py clear-crawler-data --yes` | 清除所有爬蟲 DB 資料、checkpoints 與生成 JSON；保留 schema 與使用者經驗 |
 
 ```bash
 python backend/scripts/run.py init-all   # 建表 + 灌入測試資料

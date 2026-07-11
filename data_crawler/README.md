@@ -17,13 +17,16 @@ python -m data_crawler.main --school-id purdue --max-depth 1 --max-pages 10 --dr
 # 正式跑（寫 DB + PostgresSaver checkpoint，thread_id = school_id）
 python -m data_crawler.main --school-id ucla --max-depth 2
 
+# 只跑單一 root（覆寫 root_url.py 中該校的 roots，不影響既有 DB 資料）
+python -m data_crawler.main --school-id ucla --root-url https://www.cs.ucla.edu/ --max-depth 2
+
 # 中斷後續跑（PostgresSaver 從上次 checkpoint 繼續，BFS 每爬完一層存一次）
 python -m data_crawler.main --school-id ucla --resume
 
 # 其他開關
 #   --skip-recent-hours 24   SKIP_RECENT：DB 內 last_extracted_at 24h 內就整校跳過
 #   --enable-embedding       Node 12 embedding（預設關，靠 fts_vector 全文檢索）
-#   --max-sufficiency-iterations 2   Node 9 動態補爬輪數上限
+#   --max-sufficiency-iterations     舊指令相容參數；自動補爬目前已停用
 
 # embedding 事後補齊（獨立 backfill）
 python -m data_crawler.backfill_embeddings [--school-id ucla]
@@ -42,8 +45,7 @@ python -m data_crawler.backfill_embeddings [--school-id ucla]
   Node 4  scrape_page           Send fan-out（每頁一分支，semaphore 限流 NUM_WORKERS）
           collect_scraped       content-hash 去重（save_result.py 邏輯）＋去錯誤頁
   Node 5-8 process_page         Send fan-out 到頁面子圖（見下）
-  Node 9  sufficiency_evaluator LLM 評估欄位覆蓋率；不足時挑同校網域的外部連結當種子
-     └─ seed_more_urls          種子塞回同一個 url_queue → 回 Node 2 繼續爬
+  Node 9  sufficiency_evaluator 規則式產生欄位覆蓋率報告；資料不足也不再自動補爬
   Node 10 tagging（規則式：分類類型 + program codes）
   Node 11 chunking（structured_markdown 切；清洗沿用 clean_json_data 關鍵字）
   Node 12 embedding（ENABLE_EMBEDDING 開關，預設關；bge-m3 對齊 backend embedder）
@@ -95,7 +97,7 @@ Node 3（爬取前 URL 相關性 LLM 過濾）依 v4 預設不做；`extract_lin
 （openai SDK singleton + backend/.env）。三個 provider 可用 `LLM_PROVIDER=openai|groq|gemini`
 指定，未指定時依序自動偵測（有 key 就用）：
 
-1. `OPENAI_API_KEY` → OpenAI（`OPENAI_MODEL`，預設 gpt-4o-mini）✅ 已實測
+1. `OPENAI_API_KEY` → OpenAI（`OPENAI_MODEL`，預設 gpt-4.1）
 2. `GROQ_API_KEY` → Groq 免費 API（OpenAI 相容端點；模型沿用
    `backend/scripts/retriever/analyzer.py` 的 `llama-3.3-70b-versatile`，`GROQ_MODEL` 覆寫）✅ 已實測
 3. `GOOGLE_API_KEY` → Gemini 免費 API（OpenAI 相容端點；預設 `gemini-2.5-flash`，

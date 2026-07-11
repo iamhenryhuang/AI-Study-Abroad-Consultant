@@ -61,6 +61,49 @@ def filter_url(url: str, allow_pdf: bool = False) -> tuple[bool, str]:
     return True, "keep"
 
 
+def application_scope_exclusion(url: str, anchor_text: str = "") -> str | None:
+    """排除明確不是研究所申請資訊的 catalog／課程頁，避免送進 LLM 與全文爬取。"""
+    path = urlparse(url).path.lower()
+    evidence = f"{path} {anchor_text.lower()}"
+    application_hints = (
+        "admission", "apply", "application", "deadline", "english requirement",
+        "language requirement", "tuition", "fee waiver", "funding", "scholarship",
+        "fellowship", "financial aid", "toefl", "ielts", "duolingo", "gre",
+        "recommendation", "statement of purpose",
+    )
+    if "/course/" in path:
+        return "hard-drop: individual course page"
+    if "/minor/" in path:
+        return "hard-drop: undergraduate minor page"
+    if "/browse/" in path:
+        browse_keep_hints = (
+            "admission", "apply", "application", "deadline", "tuition", "fee waiver",
+            "funding", "scholarship", "fellowship", "financial aid", "toefl", "ielts", "gre",
+        )
+        if any(hint in evidence for hint in browse_keep_hints):
+            return None
+        return "hard-drop: catalog browse/index page without application evidence"
+    strict_drop_tokens = (
+        "/events", "/event/", "/news", "newsletter", "newsroom", "/announcements",
+        "faculty-award", "faculty-recruit", "faculty-member", "/faculty", "/people",
+        "research-area", "research-lab", "graduate-research", "research-center",
+        "undergraduate", "student-life", "alumni", "timesheet", "job-opening",
+        "staff-position", "academic-and-staff-positions",
+    )
+    if any(token in evidence for token in strict_drop_tokens):
+        return "hard-drop: non-application news/faculty/research/undergraduate page"
+    if any(token in evidence for token in ("login", "sign-in", "privacy", "terms-of-use")):
+        return "hard-drop: login/legal page"
+    if any(token in evidence for token in ("dept-forms", "department-forms")) and not any(
+            hint in evidence for hint in application_hints):
+        return "hard-drop: generic department forms page without application evidence"
+    if any(token in evidence for token in (
+            "faculty-roster", "faculty roster", "research-centers", "research centers",
+            "academic-advising", "academic advising", "honors", "course catalog")):
+        return "hard-drop: non-application academic/faculty page"
+    return None
+
+
 def parse_url_path(url: str) -> str:
     try:
         return urlparse(url).path.lower()

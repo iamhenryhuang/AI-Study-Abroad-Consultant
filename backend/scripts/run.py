@@ -6,7 +6,8 @@ SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from db.operations import init_experience_schema, init_schema, load_schools, setup_db, verify
+from db.operations import (clear_crawler_data, init_experience_schema, init_schema,
+                           load_schools, setup_db, verify)
 from retriever.rag_pipeline import run_rag_pipeline, run_agent_pipeline
 
 COMMANDS = {
@@ -15,6 +16,7 @@ COMMANDS = {
     "init-experience": ("建立使用者申請經驗表（冪等、不清資料）", init_experience_schema),
     "load-schools": ("建表 + 灌入 db/data/schools_data.json 的學校資料", load_schools),
     "verify-db": ("檢查 SQL 資料是否已寫入",                     verify),
+    "clear-crawler-data": ("清除所有爬蟲 DB 資料/checkpoints/結果 JSON（需 --yes）", None),
     "search":    ("執行 text-to-SQL 查詢測試 [query]",           None),  # 特殊處理
     "rag":       ("單次 SQL 檢索 + 生成回答 [query]",            None),  # 特殊處理
     "agent":     ("Agentic RAG LangGraph Loop [query] [--max-steps N]", None),  # 特殊處理
@@ -32,7 +34,13 @@ def main():
     cmd = sys.argv[1]
     _, runner = COMMANDS[cmd]
 
-    if cmd in ["search", "rag", "agent"]:
+    if cmd == "clear-crawler-data":
+        if "--yes" not in sys.argv[2:]:
+            print("拒絕執行：此操作會永久清除所有爬蟲資料與結果檔案。")
+            print("確認後請執行: python backend/scripts/run.py clear-crawler-data --yes")
+            sys.exit(2)
+        ok = clear_crawler_data()
+    elif cmd in ["search", "rag", "agent"]:
         max_steps = 5
         if "--max-steps" in sys.argv:
             idx = sys.argv.index("--max-steps")

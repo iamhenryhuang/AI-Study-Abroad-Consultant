@@ -2,7 +2,7 @@
 
 - SDK 與介面比照 backend/scripts/generator/openai_client.py（openai.OpenAI singleton）
 - 金鑰沿用 backend/.env，支援三個 provider（Groq/Gemini 走 OpenAI 相容端點）：
-    * openai → OPENAI_API_KEY（模型 OPENAI_MODEL，預設 gpt-4o-mini）
+    * openai → OPENAI_API_KEY（模型 OPENAI_MODEL，預設 gpt-4.1）
     * groq   → GROQ_API_KEY（模型 GROQ_MODEL，預設 llama-3.3-70b-versatile，
                沿用 backend/scripts/retriever/analyzer.py）
     * gemini → GOOGLE_API_KEY（模型 GEMINI_MODEL，預設 gemini-2.0-flash）
@@ -37,7 +37,7 @@ _PROVIDERS = {
     "openai": {
         "key_env": "OPENAI_API_KEY",
         "base_url": None,
-        "model": lambda: os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+        "model": lambda: os.getenv("OPENAI_MODEL", "gpt-4.1"),
     },
     "groq": {
         "key_env": "GROQ_API_KEY",

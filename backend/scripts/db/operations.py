@@ -1,3 +1,5 @@
+import json
+
 import psycopg
 
 from .connection import DATABASE_URL, PROJECT_ROOT, get_connection
@@ -90,6 +92,55 @@ def init_experience_schema():
         return False
 
 
+def clear_crawler_data():
+    """清除所有爬蟲 DB 資料、checkpoints 與生成 JSON；保留 schema/使用者經驗。"""
+    conn = get_connection()
+    if not conn:
+        print("錯誤: 無法連線資料庫，未刪除任何資料或檔案。")
+        return False
+
+    try:
+        with conn.cursor() as cur:
+            # universities CASCADE 會清除 programs、子表、web_pages、chunks、review。
+            cur.execute("TRUNCATE TABLE universities RESTART IDENTITY CASCADE")
+            checkpoint_tables = []
+            for table in ("checkpoint_writes", "checkpoint_blobs", "checkpoints"):
+                cur.execute("SELECT to_regclass(%s)", (f"public.{table}",))
+                if cur.fetchone()[0] is not None:
+                    checkpoint_tables.append(table)
+            if checkpoint_tables:
+                # table 名稱來自上方固定白名單，不接受外部輸入。
+                cur.execute(f"TRUNCATE TABLE {', '.join(checkpoint_tables)}")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        print(f"清除資料庫失敗，未刪除 JSON：{e}")
+        return False
+    conn.close()
+
+    crawler_dir = PROJECT_ROOT / "data_crawler"
+    patterns = (
+        crawler_dir / "output" / "*.json",
+        crawler_dir / "url" / "all_url" / "*.json",
+        crawler_dir / "url" / "keep" / "*.json",
+        crawler_dir / "url" / "drop" / "*.json",
+    )
+    removed = []
+    try:
+        for pattern in patterns:
+            for path in pattern.parent.glob(pattern.name):
+                path.unlink()
+                removed.append(path.relative_to(PROJECT_ROOT).as_posix())
+    except Exception as e:
+        print(f"資料庫已清空，但部分 JSON 刪除失敗：{e}")
+        return False
+
+    print("已清除所有爬蟲資料與 LangGraph checkpoints。")
+    print(f"已刪除 {len(removed)} 個爬蟲 JSON 檔案。")
+    return True
+
+
 def load_schools():
     """建表後灌入 db/data/schools_data.json 的學校資料。"""
     if not init_schema():
@@ -106,7 +157,7 @@ def load_schools():
 # ── verify ───────────────────────────────────────────────────
 
 def verify():
-    """檢查資料是否已寫入資料庫。"""
+    """輸出 crawler DB 的全局結構化資料與稽核摘要（不印完整 raw_text/chunks）。"""
     if not DATABASE_URL:
         print("錯誤: 未設定 DATABASE_URL（.env）。")
         return False
@@ -115,24 +166,78 @@ def verify():
         if not conn:
             return False
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM universities")
-            print(f"\nuniversities 筆數: {cur.fetchone()[0]}")
-            cur.execute("SELECT school_id, name, domain FROM universities ORDER BY id")
-            for sid, name, domain in cur.fetchall():
-                print(f"   - {sid}: {name} ({domain})")
+            def show(label: str, sql: str):
+                cur.execute(sql)
+                columns = [desc.name for desc in cur.description]
+                rows = [dict(zip(columns, row)) for row in cur.fetchall()]
+                print(f"\n{'=' * 20} {label} ({len(rows)}) {'=' * 20}")
+                print(json.dumps(rows, ensure_ascii=False, indent=2, default=str))
 
-            cur.execute("SELECT COUNT(*) FROM programs")
-            print(f"\nprograms 筆數: {cur.fetchone()[0]}")
-            cur.execute("""
-                SELECT u.school_id, p.gpa_min, p.toefl_min, p.ielts_min, p.gre_required,
-                       (SELECT MIN(d.deadline_date) FROM program_deadlines d WHERE d.program_id = p.id)
-                FROM programs p
-                JOIN universities u ON p.university_id = u.id
-                ORDER BY u.school_id
+            show("UNIVERSITIES", """
+                SELECT id, school_id, name, domain, created_at
+                FROM universities ORDER BY school_id
             """)
-            for sid, gpa, toefl, ielts, gre_req, deadline in cur.fetchall():
-                print(f"   [{sid}] GPA>={gpa} TOEFL>={toefl} IELTS>={ielts} "
-                      f"GRE={gre_req} deadline={deadline}")
+            show("PROGRAMS - ALL FIELDS", """
+                SELECT u.school_id, p.*
+                FROM programs p
+                JOIN universities u ON u.id = p.university_id
+                ORDER BY u.school_id, p.program_code
+            """)
+            show("GLOBAL EXTRACTIONS - INCLUDING SCHOOLS WITHOUT PROGRAMS", """
+                SELECT u.school_id,
+                       CASE WHEN EXISTS (
+                           SELECT 1 FROM programs p WHERE p.university_id = ge.university_id
+                       ) THEN true ELSE false END AS has_program,
+                       ge.id, ge.scope, ge.program_code, ge.source_url,
+                       ge.confidence, ge.extraction, ge.created_at, ge.updated_at
+                FROM global_extractions ge
+                JOIN universities u ON u.id = ge.university_id
+                ORDER BY u.school_id, ge.scope, ge.id
+            """)
+            show("PROGRAM DEADLINES", """
+                SELECT u.school_id, p.program_code, d.*
+                FROM program_deadlines d
+                JOIN programs p ON p.id = d.program_id
+                JOIN universities u ON u.id = p.university_id
+                ORDER BY u.school_id, p.program_code, d.semester, d.deadline_type
+            """)
+            show("PROGRAM SCHOLARSHIPS", """
+                SELECT u.school_id, p.program_code, s.*
+                FROM program_scholarships s
+                JOIN programs p ON p.id = s.program_id
+                JOIN universities u ON u.id = p.university_id
+                ORDER BY u.school_id, p.program_code, s.name
+            """)
+            show("PROGRAM APPLICATION MATERIALS", """
+                SELECT u.school_id, p.program_code, m.*
+                FROM program_app_materials m
+                JOIN programs p ON p.id = m.program_id
+                JOIN universities u ON u.id = p.university_id
+                ORDER BY u.school_id, p.program_code, m.material_type
+            """)
+            show("WEB PAGES - AUDIT", """
+                SELECT u.school_id, w.id, w.program_id, w.url, w.passed_types,
+                       w.char_count, left(w.raw_text, 300) AS raw_text_preview,
+                       w.created_at
+                FROM web_pages w
+                LEFT JOIN universities u ON u.id = w.university_id
+                ORDER BY u.school_id, w.id
+            """)
+            show("DOCUMENT CHUNKS - SUMMARY", """
+                SELECT school_id, count(*) AS chunk_count,
+                       count(*) FILTER (WHERE embedding IS NOT NULL) AS embedded_count,
+                       min(created_at) AS first_created_at,
+                       max(created_at) AS last_created_at
+                FROM document_chunks GROUP BY school_id ORDER BY school_id
+            """)
+            show("REVIEW QUEUE", """
+                SELECT u.school_id, rq.id, rq.page_id, rq.program_code,
+                       rq.field_name, rq.field_value, rq.reason,
+                       rq.source_excerpt, rq.status, rq.created_at
+                FROM review_queue rq
+                LEFT JOIN universities u ON u.id = rq.university_id
+                ORDER BY u.school_id, rq.id
+            """)
 
         conn.close()
         print("\n驗證通過：資料已存在於資料庫。")

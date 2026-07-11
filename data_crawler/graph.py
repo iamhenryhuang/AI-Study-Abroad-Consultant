@@ -4,16 +4,16 @@
   init_crawl ─▶ discover_urls ─▶ filter_discovered_urls(批次 LLM) ⟲
       └▶ plan_scrape ═Send═▶ scrape_page(Node 4) ─▶ collect_scraped（content-hash 去重）
       └▶ ═Send═▶ process_page（頁面子圖）─▶ sufficiency_evaluator(Node 9)
-            ├─ 不足 ─▶ seed_more_urls ─▶ discover_urls（同一棵 BFS 繼續爬）
-            └─ 足夠 ─▶ tagging ─▶ chunking ─▶ embedding ─▶ db_writer ─▶ finalize_school
+            └─ 產生覆蓋率報告（不再自動補爬）─▶ tagging ─▶ chunking ─▶ embedding
+                                                ─▶ db_writer ─▶ finalize_school
 
 頁面子圖（ProcessState）：
   content_classification(Node 5, LLM)
       ├─ 不相關/faculty ─▶ discard_page
       └─ 相關 ─▶ identify_programs(Node 6) ─▶ structured_extraction(Node 7)
                      ─▶ hallucination_validation(Node 8)
-                          ├─ 有問題且未達重試上限 ─▶ 回 Node 7
-                          └─ 通過/超限 ─▶ finalize_page（失敗欄位收進 review_items）
+                          ─▶ semantic_repair（完整原文分批補漏／修正）
+                          ─▶ 再驗證 ─▶ finalize_page（殘餘問題收進 review_items）
 """
 from langgraph.graph import StateGraph, START, END
 
@@ -29,6 +29,7 @@ def build_page_subgraph():
     g.add_node("identify_programs", np_.identify_programs)
     g.add_node("structured_extraction", np_.structured_extraction)
     g.add_node("hallucination_validation", np_.hallucination_validation)
+    g.add_node("semantic_repair", np_.semantic_repair)
     g.add_node("finalize_page", np_.finalize_page)
 
     g.add_edge(START, "content_classification")
@@ -39,7 +40,8 @@ def build_page_subgraph():
                             ["structured_extraction", "finalize_page"])
     g.add_edge("structured_extraction", "hallucination_validation")
     g.add_conditional_edges("hallucination_validation", np_.extraction_quality_check,
-                            ["structured_extraction", "finalize_page"])
+                            ["semantic_repair", "finalize_page"])
+    g.add_edge("semantic_repair", "hallucination_validation")
     g.add_edge("finalize_page", END)
     return g.compile()
 
