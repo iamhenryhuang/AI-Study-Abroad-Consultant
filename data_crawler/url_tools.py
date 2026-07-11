@@ -1,15 +1,13 @@
-"""URL 工具 — 邏輯原封不動搬自 crawler/url_crawler.py 與 crawler/score.py。
+"""URL 工具 — URL 正規化、爬蟲邊界檢查與便宜的路徑訊號。
 
-normalize_url / get_root_info / is_same_root / filter_url 是既有已驗證的規則式
-過濾，依 v4 規格直接沿用；score_url_path 保留為便宜訊號（餵給 LLM prompt 參考，
-最終分類決定權在 LLM）。
+filter_url 只處理確定性的格式／檔案類型檢查；URL 是否與研究所資料相關，
+由主圖的批次 LLM URL filter 決定。score_url_path 則保留給內容分類參考。
 """
 from urllib.parse import urlparse, urlunparse
 
 from .settings_bridge import (
     CONFIG,
     IGNORED_EXTENSIONS,
-    BLACKLIST_PATH_FRAGMENTS,
     URL_PATH_HINTS,
 )
 
@@ -52,7 +50,7 @@ def is_pdf(url: str) -> bool:
 
 
 def filter_url(url: str, allow_pdf: bool = False) -> tuple[bool, str]:
-    """黑名單過濾。allow_pdf=True 時放行 .pdf（Node 4 有 PDF 分支可處理）。"""
+    """確定性 URL 檢查；不在此判斷內容是否與研究所資料相關。"""
     if not url.startswith(("http://", "https://")):
         return False, "non-http"
     if has_ignored_extension(url):
@@ -60,11 +58,50 @@ def filter_url(url: str, allow_pdf: bool = False) -> tuple[bool, str]:
             pass
         else:
             return False, "ext"
-    full_low = url.lower()
-    for frag in BLACKLIST_PATH_FRAGMENTS:
-        if frag in full_low:
-            return False, f"black:{frag}"
     return True, "keep"
+
+
+def application_scope_exclusion(url: str, anchor_text: str = "") -> str | None:
+    """排除明確不是研究所申請資訊的 catalog／課程頁，避免送進 LLM 與全文爬取。"""
+    path = urlparse(url).path.lower()
+    evidence = f"{path} {anchor_text.lower()}"
+    application_hints = (
+        "admission", "apply", "application", "deadline", "english requirement",
+        "language requirement", "tuition", "fee waiver", "funding", "scholarship",
+        "fellowship", "financial aid", "toefl", "ielts", "duolingo", "gre",
+        "recommendation", "statement of purpose",
+    )
+    if "/course/" in path:
+        return "hard-drop: individual course page"
+    if "/minor/" in path:
+        return "hard-drop: undergraduate minor page"
+    if "/browse/" in path:
+        browse_keep_hints = (
+            "admission", "apply", "application", "deadline", "tuition", "fee waiver",
+            "funding", "scholarship", "fellowship", "financial aid", "toefl", "ielts", "gre",
+        )
+        if any(hint in evidence for hint in browse_keep_hints):
+            return None
+        return "hard-drop: catalog browse/index page without application evidence"
+    strict_drop_tokens = (
+        "/events", "/event/", "/news", "newsletter", "newsroom", "/announcements",
+        "faculty-award", "faculty-recruit", "faculty-member", "/faculty", "/people",
+        "research-area", "research-lab", "graduate-research", "research-center",
+        "undergraduate", "student-life", "alumni", "timesheet", "job-opening",
+        "staff-position", "academic-and-staff-positions",
+    )
+    if any(token in evidence for token in strict_drop_tokens):
+        return "hard-drop: non-application news/faculty/research/undergraduate page"
+    if any(token in evidence for token in ("login", "sign-in", "privacy", "terms-of-use")):
+        return "hard-drop: login/legal page"
+    if any(token in evidence for token in ("dept-forms", "department-forms")) and not any(
+            hint in evidence for hint in application_hints):
+        return "hard-drop: generic department forms page without application evidence"
+    if any(token in evidence for token in (
+            "faculty-roster", "faculty roster", "research-centers", "research centers",
+            "academic-advising", "academic advising", "honors", "course catalog")):
+        return "hard-drop: non-application academic/faculty page"
+    return None
 
 
 def parse_url_path(url: str) -> str:

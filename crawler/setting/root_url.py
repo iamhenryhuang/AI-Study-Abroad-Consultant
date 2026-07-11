@@ -6,6 +6,7 @@ SCHOOLS = [
         "roots": [
             "https://grad.ucla.edu/admissions",
             "https://grad.ucla.edu/programs/school-of-engineering-and-applied-science",
+            "https://www.cs.ucla.edu/"
         ],
     },
     {

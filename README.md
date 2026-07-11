@@ -17,7 +17,7 @@
 
 ```mermaid
 flowchart LR
-    Client(["🧑 使用者<br/>curl / Swagger UI / Client"])
+    Client(["🧑 使用者<br/>經驗分享前端 / Swagger UI / Client"])
 
     subgraph Backend["backend container — FastAPI"]
         direction TB
@@ -28,7 +28,7 @@ flowchart LR
 
     subgraph External["外部服務"]
         direction TB
-        OpenAI[["🤖 OpenAI API<br/>分級模型：判斷型 gpt-4o-mini<br/>答案生成 gpt-4o"]]
+        OpenAI[["🤖 OpenAI API<br/>分級模型：判斷型 gpt-4.1<br/>答案生成 gpt-4o"]]
         SerpAPI[["🔍 SerpAPI<br/>Google Scholar 教授資料"]]
     end
 
@@ -107,7 +107,7 @@ flowchart TD
 - **不亂編答案**：檢索結果先經 Verifier 判斷是否文不對題，生成後再經 Critic 複查有無幻覺，有疑慮就誠實告知或附上警告。
 - **教授即時查詢**：問題提到教授姓名時即時呼叫 SerpAPI 抓取研究領域 / 論文。
 - **未收錄學校辨識**：分辨「學校不在收錄範圍」與「有收錄但查無該欄位」，給對應的誠實回覆。
-- **模型分級**：判斷型任務用 `gpt-4o-mini`、答案生成用 `gpt-4o`，兼顧成本與品質。
+- **模型分級**：判斷與結構化任務用 `gpt-4.1`、答案生成用 `gpt-4o`。
 - **來源可追溯**：答案附上官網來源連結。
 - **串流回應**：透過 SSE 即時回傳思考與檢索過程。
 
@@ -124,6 +124,7 @@ flowchart TD
 │       ├── retriever/           # sql_search + fulltext_search + applicant_search（經驗）+ LangGraph agent
 │       ├── generator/           # OpenAI 答案生成（分級模型）
 │       └── professor_fetcher/   # SerpAPI 教授資料抓取
+├── frontend/                # React/Vite：申請經驗上傳與依學校查詢
 ├── data_crawler/            # LangGraph 爬蟲：抓取頁面 → LLM 抽取結構化欄位 + 切段全文 → 寫入 DB（正式資料源）
 ├── crawler/                 # 舊版 Playwright 爬蟲 + 設定（root_url / 黑名單，data_crawler 沿用其設定）
 ├── db/                      # schema（init_db.sql）+ migrations（applicant_reports）+ 測試資料（data/）+ 載入腳本
@@ -153,12 +154,12 @@ pip install -r requirements.txt
 ```env
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/studyabroad
 OPENAI_API_KEY=your_openai_api_key   # 判斷型任務與答案生成共用這把 key
-OPENAI_MODEL=gpt-4o-mini             # 判斷/結構型任務（decomposer/verifier/critic/text-to-SQL）
+OPENAI_MODEL=gpt-4.1                 # 判斷/結構型任務（decomposer/verifier/critic/text-to-SQL）
 OPENAI_ANSWER_MODEL=gpt-4o           # 最終答案生成（面向使用者的長文，用強一點的模型）
 SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 ```
 
-> 模型分級：判斷型任務只需輸出 JSON，用便宜快的 `gpt-4o-mini`；最終答案生成面向使用者，預設用 `gpt-4o`。兩者皆可用上述環境變數各自覆寫。
+> 模型分級：判斷與結構化任務使用 `gpt-4.1`；最終答案生成預設使用 `gpt-4o`。兩者皆可用上述環境變數各自覆寫。
 
 > 註：Windows + Docker Desktop 下建議用 `127.0.0.1` 而非 `localhost`，避免 IPv6 解析 fallback 造成連線延遲。
 
@@ -171,13 +172,33 @@ SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 | `python backend/scripts/run.py init-all` | 一次完成 `setup` + `load-schools` |
 | `python backend/scripts/run.py setup` | 檢查連線，資料庫不存在則建立 |
 | `python backend/scripts/run.py init-schema` | 依 `db/init_db.sql` 重建資料表（會清空重建） |
+| `python backend/scripts/run.py init-experience` | 冪等建立使用者申請經驗表（不清除既有資料） |
 | `python backend/scripts/run.py load-schools` | 灌入 `db/data/schools_data.json` 的測試資料 |
-| `python backend/scripts/run.py verify-db` | 檢查目前資料庫內容 |
+| `python backend/scripts/run.py verify-db` | 全局輸出所有學校/program 欄位、deadlines、獎助、材料、頁面摘要、chunks 與 review queue |
+| `python backend/scripts/run.py clear-crawler-data --yes` | 清除所有爬蟲 DB 資料、checkpoints 與生成 JSON；保留 schema 與使用者經驗 |
 
 ```bash
 python backend/scripts/run.py init-all   # 建表 + 灌入測試資料
 python backend/scripts/run.py verify-db   # 確認資料已寫入
 ```
+
+### 啟動經驗上傳與查詢網頁
+
+先啟動 FastAPI：
+
+```bash
+uvicorn backend.api:app --reload --host 0.0.0.0 --port 8000
+```
+
+再開另一個終端啟動前端：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+開啟 `http://localhost:5173`。開發模式會自動將 `/api` 代理至本機 8000 port；部署到不同網域時可在前端 `.env` 設定 `VITE_API_BASE_URL`，並在後端以 `CORS_ORIGINS` 設定允許的前端來源。
 
 **（選配）載入申請經驗回報**：GradCafe / 一畝三分地的錄取案例，清洗後寫入獨立的 `applicant_reports` 表（加法式 migration，不影響上面的 programs 家族表）。
 
@@ -205,7 +226,7 @@ python backend/scripts/run.py search "MIT TOEFL 最低幾分"
 
 ## Docker 快速開始（推薦）
 
-目前 `docker-compose.yml` 只有兩個 service：`db`（PostgreSQL）與 `backend`（FastAPI + Agent）。**沒有 frontend service**——整個專案已改為 API-only，前端已從 repo 移除。
+目前 `docker-compose.yml` 只有 `db` 與預留的 `backend` service，尚未加入 frontend service。經驗分享前端請先依上方步驟以 Vite 在本機啟動。
 
 若要用 `professor_fetcher` 的 CLI 手動抓取教授資料並保留到本機，需在 compose 的 `backend` 取消註解那段 `./crawler/data:/app/crawler/data` volume（該目錄需可寫，勿設 `:ro`）；即時查詢（Agent 自動抓取）不寫檔，無此需求。
 

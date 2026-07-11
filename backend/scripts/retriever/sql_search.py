@@ -36,11 +36,14 @@ SCHEMA_DESCRIPTION = """
   - degree_type         VARCHAR    -- 學位別，值為 'MS' / 'PhD' / 'MEng' / 'MPS' / 'MBA'。使用者只說「碩士 / master」未指定領域時用這欄（degree_type = 'MS'）。
   - program_name        VARCHAR    -- 學程全名，存的是完整名稱如 'Master of Science in Computer Science'，不含 'CS MS' 這種簡寫，勿用它比對簡寫。
   - department          VARCHAR    -- 系所名稱
-  - toefl_min           INTEGER    -- 最低 TOEFL 分數
-  - toefl_ibt_min       INTEGER    -- 最低 TOEFL iBT 分數
+  - toefl_min           INTEGER    -- 舊版相容：原文只寫 TOEFL、無法確認考試種類/尺度時的最低分
+  - toefl_ibt_min       INTEGER    -- TOEFL iBT 舊制最低 overall（0–120）
+  - toefl_ibt_new_scale_min NUMERIC -- 2026-01-21 起 TOEFL iBT 新制最低 overall（1–6、每 0.5 一級）
+  - toefl_section_requirements TEXT -- TOEFL 各分項成績要求（合併字串）
   - ielts_min           NUMERIC    -- 最低 IELTS 分數
   - duolingo_min        INTEGER    -- 最低 Duolingo 分數
   - language_waiver     TEXT       -- 語言測驗豁免條件說明
+  - english_test_notes  TEXT       -- 英文檢定效期、接受形式、例外與特殊規定
   - gre_required        VARCHAR    -- GRE 要求：'required' / 'optional' / 'not_accepted'（非布林）
   - gre_quant_min       INTEGER    -- GRE 數學最低要求
   - gre_verbal_min      INTEGER    -- GRE 語文最低要求
@@ -67,7 +70,10 @@ SCHEMA_DESCRIPTION = """
 資料表 program_deadlines（一個 program 可有多筆截止日；透過 program_id 關聯 programs）:
   - program_id     INTEGER    -- 對應 programs.id
   - deadline_type  VARCHAR    -- 'early' / 'regular' / 'international' / 'rolling'
-  - deadline_date  DATE       -- 截止日期
+  - deadline_date  DATE       -- 舊版相容欄位，等同申請截止日期
+  - application_open_date  DATE -- 申請開放日期
+  - application_close_date DATE -- 申請截止日期
+  - decision_release_date  DATE -- 結果公布日期
   - semester       VARCHAR    -- 學期，例如 'fall_2026'
   - note           TEXT       -- 補充說明
 
@@ -128,8 +134,31 @@ def _build_sql_prompt(query: str) -> str:
    絕對不要用 programs.program_name ILIKE '%CS MS%'（program_name 存的是全名 'Master of Science in Computer Science'，不含 'CS MS' 簡寫，這樣一定查不到）。
    若問題只說「碩士 / master」未指定領域，改用 programs.degree_type = 'MS'。若問題沒特別指定學程，就不要對 program 加過濾條件，回傳該校所有 program。
 7. 若問題未指定學校，回傳所有學校的相關欄位（不要用 LIMIT 過度限制筆數，最多 20 筆）。
-8. 只 SELECT 與問題相關的欄位，不要 SELECT *。
-9. 只輸出 JSON，格式如下，不要有其他文字或 markdown code fence：
+8. 只 SELECT 與問題相關的欄位，不要 SELECT *；但以下同義問題必須使用完整欄位組，不能只挑其中一欄：
+   - 問 TOEFL／托福時，一律同時 SELECT programs.toefl_min、programs.toefl_ibt_min、programs.toefl_ibt_new_scale_min、programs.toefl_section_requirements。
+   - 問英文成績／英語門檻時，一律 SELECT 上述 TOEFL 欄位，以及 programs.ielts_min、programs.duolingo_min、programs.language_waiver、programs.english_test_notes。
+   - 問「申請相關資料」「申請條件」「必須知道的內容」「等等」這類廣泛問題時，至少 SELECT：
+     programs.program_code、programs.program_name、programs.gpa_min、programs.gpa_scale、programs.gpa_note、
+     programs.toefl_min、programs.toefl_ibt_min、programs.toefl_ibt_new_scale_min、programs.ielts_min、
+     programs.duolingo_min、programs.language_waiver、programs.english_test_notes、programs.toefl_section_requirements、programs.gre_required、programs.rec_letter_count、
+     programs.sop_word_limit、programs.cv_required、programs.application_fee_usd、programs.fee_waiver_available、
+     programs.tuition_per_year_usd、programs.application_url。
+     並 LEFT JOIN program_deadlines，SELECT application_open_date、application_close_date、decision_release_date、semester。
+9. 新 schema 優先：查申請截止使用 application_close_date，不要只查舊版 deadline_date；查 TOEFL 不得只查 toefl_min。
+10. 範例，問題「給我 UCLA 的申請相關資料，包含 GPA、英文成績、推薦信等等」應產生等價於：
+    SELECT universities.school_id, universities.name AS university_name,
+           programs.program_code, programs.program_name, programs.gpa_min, programs.gpa_scale, programs.gpa_note,
+           programs.toefl_min, programs.toefl_ibt_min, programs.toefl_ibt_new_scale_min,
+           programs.toefl_section_requirements, programs.ielts_min, programs.duolingo_min, programs.language_waiver, programs.english_test_notes,
+           programs.gre_required, programs.rec_letter_count, programs.sop_word_limit, programs.cv_required,
+           programs.application_fee_usd, programs.fee_waiver_available,
+           programs.tuition_per_year_usd, programs.application_url,
+           program_deadlines.application_open_date, program_deadlines.application_close_date,
+           program_deadlines.decision_release_date, program_deadlines.semester
+    FROM programs JOIN universities ON programs.university_id = universities.id
+    LEFT JOIN program_deadlines ON program_deadlines.program_id = programs.id
+    WHERE universities.school_id = 'ucla'
+11. 只輸出 JSON，格式如下，不要有其他文字或 markdown code fence：
 
 {{"sql": "SELECT ... ;"}}
 

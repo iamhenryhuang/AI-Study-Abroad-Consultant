@@ -14,7 +14,7 @@ _client = None
 #                    refiner、text-to-SQL）。這些只需輸出 JSON 判斷，用便宜快的 mini 即可。
 #   ANSWER_MODEL  —— 最終答案生成（面向使用者的長文），值得用強一點的模型。
 # 兩者皆可用環境變數各自覆寫，不需改 code。
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1")
 ANSWER_MODEL = os.getenv("OPENAI_ANSWER_MODEL", "gpt-4o")
 
 

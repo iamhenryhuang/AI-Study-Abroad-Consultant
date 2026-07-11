@@ -1,0 +1,206 @@
+{
+  "school_id": "mit",
+  "generated_at": "2026-07-12T01:05:17.795605",
+  "decision": "drop",
+  "count": 18,
+  "urls": [
+    {
+      "url": "https://cse.mit.edu/programs-admissions/apply/current-mit-students",
+      "source_url": "https://cse.mit.edu/programs-admissions",
+      "anchor_text": "Use your Kerberos login to learn more.",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "hard-drop: login/legal page",
+      "confidence": 1.0,
+      "decision_source": "rule"
+    },
+    {
+      "url": "https://www.eecs.mit.edu/academics/graduate-programs/admission-process/what-faculty-members-are-looking-for-in-a-grad-school-application-essay",
+      "source_url": "https://www.eecs.mit.edu/academics/graduate-programs/admission-process",
+      "anchor_text": "What faculty members are looking for in a grad school statement of objectives.",
+      "depth": 1,
+      "root_index": 1,
+      "decision": "drop",
+      "reason": "hard-drop: non-application news/faculty/research/undergraduate page",
+      "confidence": 1.0,
+      "decision_source": "rule"
+    },
+    {
+      "url": "https://cse.mit.edu/programs-admissions/cse-phd-program",
+      "source_url": "https://cse.mit.edu/programs-admissions",
+      "anchor_text": "CSE PhD Program",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "This page is focused on the CSE PhD program and does not indicate master's application information.",
+      "confidence": 0.92,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://cse.mit.edu/programs-admissions/interdisciplinary-phd-program",
+      "source_url": "https://cse.mit.edu/programs-admissions",
+      "anchor_text": "Interdisciplinary PhD Program",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "This page is about an interdisciplinary PhD program and does not pertain to master's admissions.",
+      "confidence": 0.91,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/about-mit",
+      "source_url": "https://oge.mit.edu/graduate-admissions",
+      "anchor_text": "About MIT",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page is about general information on MIT and does not address any application field.",
+      "confidence": 0.98,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/admitted-student-resources",
+      "source_url": "https://oge.mit.edu/graduate-admissions",
+      "anchor_text": "Admitted student resources",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page is for students who have already been admitted and does not provide application information.",
+      "confidence": 0.97,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/incoming-student-resources",
+      "source_url": "https://oge.mit.edu/graduate-admissions",
+      "anchor_text": "Incoming students",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page is intended for students who have already been admitted and does not provide application information.",
+      "confidence": 0.97,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/programs",
+      "source_url": "https://oge.mit.edu/graduate-admissions",
+      "anchor_text": "Degree programs",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page is likely a general listing of degree programs and does not provide specific application requirements.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/programs/doctoral-degrees",
+      "source_url": "https://oge.mit.edu/graduate-admissions",
+      "anchor_text": "Doctoral degrees",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page is focused on doctoral degrees and does not provide master's application information.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/programs/masters-degrees",
+      "source_url": "https://oge.mit.edu/graduate-admissions",
+      "anchor_text": "Master’s degrees",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page likely lists master's degree programs but does not provide application requirements or procedures.",
+      "confidence": 0.89,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/prospective-student-resources",
+      "source_url": "https://oge.mit.edu/graduate-admissions",
+      "anchor_text": "Prospective student resources",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page is likely a general resource page for prospective students and does not directly address application requirements.",
+      "confidence": 0.88,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/admissions-policies/privacy",
+      "source_url": "https://oge.mit.edu/graduate-admissions/admissions-policies",
+      "anchor_text": "Graduate Admissions privacy statement",
+      "depth": 2,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "hard-drop: login/legal page",
+      "confidence": 1.0,
+      "decision_source": "rule"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/admitted-student-resources/housing",
+      "source_url": "https://oge.mit.edu/graduate-admissions/admissions-policies",
+      "anchor_text": "Housing: Expanded availability and new options for on-campus housing",
+      "depth": 2,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page is about housing options for admitted students and does not address any master's application field.",
+      "confidence": 0.98,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/admitted-student-resources/supporting-you-at-mit",
+      "source_url": "https://oge.mit.edu/graduate-admissions/admissions-policies",
+      "anchor_text": "Supporting you at MIT: Health & wellbeing",
+      "depth": 2,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page focuses on health and wellbeing resources for admitted students, not on application requirements or procedures.",
+      "confidence": 0.98,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/admitted-student-resources/whole-you-at-mit",
+      "source_url": "https://oge.mit.edu/graduate-admissions/admissions-policies",
+      "anchor_text": "The “whole you” at MIT",
+      "depth": 2,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page is about holistic support for admitted students and does not provide master's application information.",
+      "confidence": 0.98,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/programs/certificate-online-programs",
+      "source_url": "https://oge.mit.edu/graduate-admissions/admissions-policies",
+      "anchor_text": "Certificate & online programs",
+      "depth": 2,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page is about certificate and online programs, which are not part of official CS/CSE master's admissions.",
+      "confidence": 0.96,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/programs/exchange-special-visiting-students",
+      "source_url": "https://oge.mit.edu/graduate-admissions/admissions-policies",
+      "anchor_text": "Exchange, special, & visiting students",
+      "depth": 2,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page is about exchange, special, and visiting students, not regular master's degree admissions.",
+      "confidence": 0.96,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://oge.mit.edu/graduate-admissions/programs/fields-of-study",
+      "source_url": "https://oge.mit.edu/graduate-admissions/admissions-policies",
+      "anchor_text": "Fields of study",
+      "depth": 2,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This page likely lists fields of study and does not provide concrete master's application requirements or procedures.",
+      "confidence": 0.92,
+      "decision_source": "llm"
+    }
+  ]
+}
