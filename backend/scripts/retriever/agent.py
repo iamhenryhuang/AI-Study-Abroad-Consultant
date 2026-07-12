@@ -38,7 +38,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.types import Send
 
 from retriever.sql_search import sql_search, get_known_school_ids
-from retriever.fulltext_search import fulltext_search
+from retriever.hybrid_search import hybrid_search_with_fallback
 from retriever.applicant_search import applicant_search
 from generator.openai_client import (
     call_llm, generate_answer, generate_answer_stream,
@@ -507,7 +507,7 @@ def _fulltext_one_query(q: str, original_query: str) -> list[dict]:
         "args": {"query": q, **({"school_id": school_id} if school_id else {})},
     })
 
-    results = fulltext_search(q, school_id=school_id)
+    results = hybrid_search_with_fallback(q, school_id=school_id)
 
     for item in results:
         item["query"] = q

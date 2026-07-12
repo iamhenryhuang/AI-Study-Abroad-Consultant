@@ -118,3 +118,25 @@ def hybrid_search(
             print(f"[HybridSearch] 重排序失敗，改用 RRF 排序：{e}")
 
     return candidates[:limit]
+
+
+# ─── 降級 facade（agent 的唯一入口）──────────────────────────────────────────
+
+from retriever.fulltext_search import fulltext_search
+
+
+def hybrid_search_with_fallback(
+    query: str,
+    school_id: str | None = None,
+    limit: int = 5,
+) -> list[dict]:
+    """agent fallback 唯一入口：先試 hybrid，任何故障降級純 FTS，永不 raise。
+
+    「查無資料」回傳 []（合法結果，不降級）；「故障」（模型未下載、
+    sentence_transformers 缺失、DB 錯誤）才降級，行為與升級前純 FTS 相同。
+    """
+    try:
+        return hybrid_search(query, school_id=school_id, limit=limit)
+    except Exception as e:
+        print(f"[HybridSearch] 混合檢索不可用（{type(e).__name__}: {e}），降級純 FTS")
+        return fulltext_search(query, school_id=school_id, limit=limit)

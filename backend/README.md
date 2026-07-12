@@ -8,12 +8,12 @@
 Agent 的檢索分三層 fallback，觸發條件是「Verifier 判定資料不足」（不是「SQL 回傳 0 筆」）：
 
 1. **Text-to-SQL 主檢索**（`retriever/sql_search.py`）：查 `programs` 及其子表的結構化欄位。執行前檢查白名單表格、只能 `SELECT`、單一語句。
-2. **全文檢索 fallback**（`retriever/fulltext_search.py`）：SQL 不足時對 `document_chunks` 做 PostgreSQL 原生全文檢索（`fts_vector`），補上結構化欄位涵蓋不到的內文細節（如學分數、課程規定）。**不需要 embedding model** —— `fts_vector` 由 DB trigger 在 chunk 寫入時自動生成。
-3. **改寫重查**（Refiner）：全文檢索仍不足且尚未重試時，改寫查詢再跑一輪 SQL（最多 1 輪）。
+2. **混合檢索 fallback**（`retriever/hybrid_search.py`）：SQL 不足時對 `document_chunks` 做混合檢索——BGE-M3 向量 + FTS（`fts_vector`）以 RRF（k=60）融合，再經 BGE-reranker-v2-m3 重排序，補上結構化欄位涵蓋不到的內文細節（如學分數、課程規定）。**自動降級**：模型未下載、`sentence-transformers` 缺失或 DB 向量查詢失敗時，降級為純 FTS（`retriever/fulltext_search.py`），行為與升級前相同；embedding 未 backfill 時 RRF 自然退化為 FTS-only 排名（不觸發降級）。
+3. **改寫重查**（Refiner）：混合檢索仍不足且尚未重試時，改寫查詢再跑一輪 SQL（最多 1 輪）。
 
-因為觸發條件是「Verifier 判不足」，所以「SQL 查到 program 列但缺該欄位」也能正確 fallback 到全文檢索，而不只是「完全查無此校」才觸發。
+因為觸發條件是「Verifier 判不足」，所以「SQL 查到 program 列但缺該欄位」也能正確 fallback 到混合檢索，而不只是「完全查無此校」才觸發。
 
-**語意向量檢索為預留能力**：`document_chunks.embedding`（vector 1024 維）+ HNSW 索引已在 schema 就緒但目前未使用；接上 embedding model 即可啟用，無需改 schema。
+**向量檢索前置條件**：`document_chunks.embedding`（vector 1024 維）+ HNSW 索引已在 schema 就緒；向量半邊要生效需先跑 `python -m data_crawler.backfill_embeddings` 補齊向量。模型路徑由 env `BGE_EMBED_MODEL_PATH` / `BGE_RERANKER_MODEL_PATH` 指定（未設定時從 HuggingFace 線上下載）。
 
 ## 申請經驗檢索（意圖觸發的並行支線）
 
@@ -56,7 +56,7 @@ python backend/scripts/professor_fetcher/run_fetch.py --name "Andrew Ng" --schoo
 ```
 backend/scripts/
 ├── db/                  # DB 連線與 setup/init-schema/verify-db 操作
-├── retriever/           # sql_search（text-to-SQL）+ fulltext_search（全文檢索）
+├── retriever/           # sql_search（text-to-SQL）+ hybrid_search（向量+FTS 混合，降級純 FTS）
 │                        #  + applicant_search（申請經驗）+ LangGraph agent
 ├── generator/           # OpenAI 答案生成（分級模型）
 └── professor_fetcher/   # SerpAPI 教授資料抓取

@@ -104,5 +104,31 @@ class TestHybridSearch(unittest.TestCase):
         self.assertTrue(conn.closed)
 
 
+class TestHybridSearchWithFallback(unittest.TestCase):
+    def test_returns_hybrid_results_when_available(self):
+        docs = [{"chunk_text": "hybrid doc"}]
+        with patch.object(hs, "hybrid_search", return_value=docs), \
+             patch.object(hs, "fulltext_search") as mock_fts:
+            result = hs.hybrid_search_with_fallback("q", school_id="cmu")
+        self.assertEqual(result, docs)
+        mock_fts.assert_not_called()
+
+    def test_degrades_to_fulltext_on_hybrid_failure(self):
+        fts_docs = [{"chunk_text": "fts doc"}]
+        with patch.object(hs, "hybrid_search", side_effect=ImportError("no sentence_transformers")), \
+             patch.object(hs, "fulltext_search", return_value=fts_docs) as mock_fts:
+            result = hs.hybrid_search_with_fallback("q", school_id="cmu", limit=5)
+        self.assertEqual(result, fts_docs)
+        mock_fts.assert_called_once_with("q", school_id="cmu", limit=5)
+
+    def test_hybrid_empty_result_is_not_degraded(self):
+        # 查無資料是合法結果（≠故障），不應觸發降級
+        with patch.object(hs, "hybrid_search", return_value=[]), \
+             patch.object(hs, "fulltext_search") as mock_fts:
+            result = hs.hybrid_search_with_fallback("q")
+        self.assertEqual(result, [])
+        mock_fts.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
