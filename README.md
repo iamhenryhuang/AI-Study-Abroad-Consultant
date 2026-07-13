@@ -121,8 +121,8 @@ flowchart TD
 │   ├── api.py                 # API 入口（SSE 串流）
 │   └── scripts/
 │       ├── db/                  # DB 連線與操作
-│       ├── retriever/           # sql_search + fulltext_search + applicant_search（經驗）+ LangGraph agent
-│       ├── generator/           # OpenAI 答案生成（分級模型）
+│       ├── retriever/           # sql_search + fulltext_search + applicant_search（經驗）+ LangGraph agent/
+│       ├── generator/           # OpenAI 答案生成（client/context/prompts/answer，分級模型）
 │       └── professor_fetcher/   # SerpAPI 教授資料抓取
 ├── frontend/                # React/Vite：申請經驗上傳與依學校查詢
 ├── data_crawler/            # LangGraph 爬蟲：抓取頁面 → LLM 抽取結構化欄位 + 切段全文 → 寫入 DB（正式資料源）
@@ -333,7 +333,7 @@ python backend/scripts/professor_fetcher/run_fetch.py \
 
 三個資料源、9 張核心表 + `applicant_reports` + `user_experiences`，schema 與各檔案用途詳見 [`db/README.md`](db/README.md)。
 
-重點：正式資料由 `data_crawler/` 爬蟲寫入 `programs` 家族；`db/data/schools_data.json` 是測試假資料（目前 5 校）。新增學校時記得同步更新 `backend/scripts/retriever/agent.py` 的 `_SCHOOL_ALIASES`，Decomposer 才能辨識學校縮寫/別名。
+重點：正式資料由 `data_crawler/` 爬蟲寫入 `programs` 家族；`db/data/schools_data.json` 是測試假資料（目前 5 校）。新增學校時記得同步更新 `backend/scripts/retriever/agent/state.py` 的 `_SCHOOL_ALIASES`，Decomposer 才能辨識學校縮寫/別名。
 
 ---
 

@@ -40,7 +40,7 @@ Agent 的檢索分三層 fallback，觸發條件是「Verifier 判定資料不�
 `POST /api/chat` 以 SSE 將事件串流給客戶端，事件類型：
 `thinking` / `tool_call` / `tool_result` / `llm_call` / `answer_chunk` / `answer` / `error`
 
-對應 [api.py](api.py) 與 [scripts/retriever/agent.py](scripts/retriever/agent.py) 中發送的事件。
+對應 [api.py](api.py) 與 [scripts/retriever/agent/runtime.py](scripts/retriever/agent/runtime.py)、[scripts/retriever/agent/nodes/](scripts/retriever/agent/nodes/) 中發送的事件。
 
 ## 教授查詢實作
 
@@ -57,7 +57,14 @@ python backend/scripts/professor_fetcher/run_fetch.py --name "Andrew Ng" --schoo
 backend/scripts/
 ├── db/                  # DB 連線與 setup/init-schema/verify-db 操作
 ├── retriever/           # sql_search（text-to-SQL）+ fulltext_search（全文檢索）
-│                        #  + applicant_search（申請經驗）+ LangGraph agent
-├── generator/           # OpenAI 答案生成（分級模型）
+│   │                    #  + applicant_search（申請經驗）+ db_query
+│   └── agent/           # LangGraph agent package
+│       ├── graph.py         # StateGraph 組裝
+│       ├── state.py         # AgentState + _SCHOOL_ALIASES
+│       ├── runtime.py       # run_agent()，on_event callback
+│       ├── prompts.py       # 各節點 prompt 模板
+│       ├── __main__.py      # python -m retriever.agent CLI
+│       └── nodes/           # decompose / retrieval / verification / answer / common
+├── generator/           # OpenAI 答案生成（client/context/prompts/answer，分級模型）
 └── professor_fetcher/   # SerpAPI 教授資料抓取
 ```
