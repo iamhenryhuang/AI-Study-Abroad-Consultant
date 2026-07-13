@@ -8,7 +8,6 @@ import os
 import sys
 from pathlib import Path
 import threading
-from threading import Thread
 from contextlib import asynccontextmanager
 
 SCRIPTS_DIR = Path(__file__).resolve().parent / "scripts"
@@ -142,7 +141,7 @@ async def chat(request: ChatRequest):
             if not cancel_event.is_set():
                 on_event({"type": "error", "message": str(exc)})
 
-    Thread(target=run_in_thread, daemon=True).start()
+    threading.Thread(target=run_in_thread, daemon=True).start()
 
     async def event_stream():
         try:

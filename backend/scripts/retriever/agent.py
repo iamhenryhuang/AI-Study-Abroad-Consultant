@@ -142,11 +142,14 @@ def _deduplicate_docs(docs: list[dict]) -> list[dict]:
 
     對結構化 SQL doc 用完整內容的 hash 當 key（不截斷），避免只有尾端欄位
     （如 application_url）不同的兩筆 doc 被前綴截斷誤判為重複。
+    hash 時排除 "query" 欄位（_search_one_query 注入的子問題標記）——
+    否則兩個子問題查回同一列資料會因 query 不同而被誤判為不重複。
     """
     seen: set[str] = set()
     result: list[dict] = []
     for doc in docs:
-        content = doc.get("chunk_text") or json.dumps(doc, sort_keys=True, default=str)
+        content = doc.get("chunk_text") or json.dumps(
+            {k: v for k, v in doc.items() if k != "query"}, sort_keys=True, default=str)
         key = f"{doc.get('school_id', '')}:{hashlib.md5(content.encode('utf-8')).hexdigest()}"
         if key not in seen:
             seen.add(key)
@@ -945,7 +948,7 @@ def run_agent(
         if verbose:
             print(f"\n{'='*60}")
             print(f"   Agentic RAG 啟動")
-            print(f"   Agentic RAG 啟動時間 : {time.localtime()}")
+            print(f"   Agentic RAG 啟動時間 : {time.strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"   問題：{query}")
             print(f"{'='*60}")
 
@@ -977,7 +980,7 @@ def run_agent(
             print(f"\n{'='*60}")
             print(f"完成！彙整 {total_docs} 筆去重資料")
             print(f"{'='*60}")
-        print(f"   Agentic RAG 結束時間 : {time.localtime()}")
+            print(f"   Agentic RAG 結束時間 : {time.strftime('%Y-%m-%d %H:%M:%S')}")
         return result_state.get("final_answer") or None
 
     except AgentCancelledError:

@@ -112,6 +112,27 @@ def _clean_gradcafe(rows: list[dict]) -> list[dict]:
         if not school_raw:
             continue
         ugpa = r.get("ugpa")
+
+        # 身分別（International/American，971/995 筆有值）與 GRE 三科（~70 筆）
+        # 併進 notes——這些對「錄取者背景」分析很有價值，不該在清洗時丟掉。
+        extras = []
+        status = (str(r.get("status") or "")).strip()
+        if status:
+            extras.append(f"身分:{status}")
+        def _gre_part(prefix: str, val) -> str:
+            s = str(val or "").strip()
+            return f"{prefix}{s}" if s and s not in ("0", "0.0", "0.00") else ""
+
+        gre = " ".join(p for p in (
+            _gre_part("Q", r.get("greq")),
+            _gre_part("V", r.get("grev")),
+            _gre_part("W", r.get("grew")),
+        ) if p)
+        if gre:
+            extras.append(f"GRE:{gre}")
+        base_notes = (r.get("notes") or "").strip()
+        notes = " | ".join(filter(None, [" ".join(extras) or None, base_notes])) or None
+
         out.append({
             "source":       "gradcafe",
             "source_url":   f"gradcafe:{r.get('id')}",  # 無真實 URL，用穩定 id 當去重鍵
@@ -123,7 +144,7 @@ def _clean_gradcafe(rows: list[dict]) -> list[dict]:
             "gpa":          _parse_gpa(ugpa),
             "gpa_raw":      ugpa or None,
             "season":       (r.get("season") or "").strip() or None,
-            "notes":        (r.get("notes") or "").strip() or None,
+            "notes":        notes,
         })
     return out
 

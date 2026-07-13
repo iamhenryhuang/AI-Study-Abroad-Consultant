@@ -24,6 +24,20 @@ _WORD_PATTERN = re.compile(r"[a-zA-Z][a-zA-Z0-9]+", re.UNICODE)
 _CJK_PATTERN = re.compile(r"[一-鿿]")
 # 中文常用停用詞：逐字命中會污染結果（幾乎每篇貼文都有），過濾掉
 _CJK_STOPWORDS = set("的是了在和與及或有我你他她它們這那之為以及對於個是如何嗎呢啊吧了過會要能就都很")
+# 英文停用詞：simple config 不會過濾英文 function words，OR tsquery 若含
+# the/are/for 這類詞，ts_rank 會偏向「notes 冗長」的列，把 notes 為空但
+# program 精準命中的案例擠出前幾名（Decomposer 產生的英文子問題整句都是這類詞）。
+_EN_STOPWORDS = {
+    "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+    "what", "which", "who", "whom", "whose", "how", "when", "where", "why",
+    "do", "does", "did", "done", "can", "could", "may", "might", "must",
+    "shall", "should", "will", "would", "has", "have", "had",
+    "for", "of", "in", "on", "at", "to", "from", "by", "with", "about",
+    "as", "and", "or", "not", "no", "nor", "but", "if", "so", "than", "then",
+    "this", "that", "these", "those", "it", "its", "they", "them", "their",
+    "there", "here", "i", "you", "we", "he", "she", "my", "your", "our", "me", "us",
+    "also", "just", "any", "some", "such", "too", "very", "please",
+}
 
 
 def _build_or_tsquery(text: str) -> str | None:
@@ -33,7 +47,8 @@ def _build_or_tsquery(text: str) -> str | None:
     （去掉常用停用詞），讓「申請經驗」這類中文問題也能命中 notes 中的相同字。
     """
     low = text.lower()
-    tokens = [w for w in _WORD_PATTERN.findall(low) if len(w) > 1]
+    tokens = [w for w in _WORD_PATTERN.findall(low)
+              if len(w) > 1 and w not in _EN_STOPWORDS]
     tokens += [c for c in _CJK_PATTERN.findall(low) if c not in _CJK_STOPWORDS]
     if not tokens:
         return None
@@ -63,7 +78,7 @@ def _format_report_text(row: dict) -> str:
     return f"{head}\n{notes}".strip() if notes else head
 
 
-def applicant_search(query: str, school_id: str | None = None, limit: int = 8) -> list[dict]:
+def applicant_search(query: str, school_id: str | None = None, limit: int = 16) -> list[dict]:
     """對 applicant_reports 做全文檢索，依相關度回傳前 limit 筆。
 
     回傳格式比照其他 chunk doc（含 chunk_text / source_url / school_id），

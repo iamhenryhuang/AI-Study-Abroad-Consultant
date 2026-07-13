@@ -5,7 +5,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+# 與 db/connection.py 一致，明確載入 backend/.env——
+# 無參數的 load_dotenv() 只找 CWD 的 .env（專案根沒有這個檔），
+# 先前能運作是仰賴 db.connection 先被 import 的副作用。
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
+load_dotenv(_BACKEND_ROOT / ".env")
 
 _client = None
 
@@ -99,10 +103,10 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
             if url:
                 sources_list.append({"school": sid, "type": "professor", "url": url})
         else:
-            # 結構化 SQL 查詢結果
+            # 結構化 SQL 查詢結果（"query" 是內部的子問題標記，不屬於申請要求，不給 LLM 看）
             univ = doc.get("university_name", sid.upper() if sid else "未知學校")
             fields = {k: v for k, v in doc.items()
-                      if k not in ("school_id", "university_name", "source_url") and v is not None}
+                      if k not in ("school_id", "university_name", "source_url", "query") and v is not None}
             field_lines = "\n".join(f"  - {k}: {v}" for k, v in fields.items())
             formatted_docs.append(f"【{univ} 申請要求】\n{field_lines}")
             if url:

@@ -133,6 +133,9 @@ def _build_sql_prompt(query: str) -> str:
 6. 若問題提到特定學程（如「CS MS」「CS 碩士」「CS PhD」），用 programs.program_code 精確比對（例如 programs.program_code = 'CS MS'），
    絕對不要用 programs.program_name ILIKE '%CS MS%'（program_name 存的是全名 'Master of Science in Computer Science'，不含 'CS MS' 簡寫，這樣一定查不到）。
    若問題只說「碩士 / master」未指定領域，改用 programs.degree_type = 'MS'。若問題沒特別指定學程，就不要對 program 加過濾條件，回傳該校所有 program。
+   比對多個 program 時一律用 IN（例如 programs.program_code IN ('CS MS', 'CS PhD')），禁止用連續 OR；
+   WHERE 中若混用 AND 與 OR，OR 的部分必須加括號（AND 優先於 OR，寫 school_id = 'cmu' AND code = 'CS MS' OR code = 'CS PhD'
+   會變成 (school_id='cmu' AND code='CS MS') OR (code='CS PhD')，導致撈到其他學校的資料，這是嚴重錯誤）。
 7. 若問題未指定學校，回傳所有學校的相關欄位（不要用 LIMIT 過度限制筆數，最多 20 筆）。
 8. 只 SELECT 與問題相關的欄位，不要 SELECT *；但以下同義問題必須使用完整欄位組，不能只挑其中一欄：
    - 問 TOEFL／托福時，一律同時 SELECT programs.toefl_min、programs.toefl_ibt_min、programs.toefl_ibt_new_scale_min、programs.toefl_section_requirements。
