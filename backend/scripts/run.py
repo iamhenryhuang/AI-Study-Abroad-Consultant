@@ -12,8 +12,11 @@ from retriever.rag_pipeline import run_rag_pipeline, run_agent_pipeline
 
 
 def init_full() -> bool:
-    """一鍵從零建好整個 DB：連線 → programs 家族 → 種子學校 →
-    使用者經驗表 → 社群申請回報（含 migration）。任一步失敗即中止。"""
+    """一鍵從零建好整個 DB：連線 → programs 家族+種子學校 →
+    使用者經驗表 → 社群申請回報（含 migration）。任一步失敗即中止。
+
+    注意：load-schools 內部已先執行 init-schema（重建 programs 家族），
+    故此處不再單獨列 init-schema 步驟，避免重複 DROP+CREATE 兩次。"""
     import importlib.util
 
     # load_applicant_reports.py 位於專案根的 db/（非 backend package），以路徑載入
@@ -25,8 +28,7 @@ def init_full() -> bool:
 
     steps = [
         ("setup",              setup_db),
-        ("init-schema",        init_schema),
-        ("load-schools",       load_schools),
+        ("load-schools",       load_schools),   # 內含 init-schema（重建 programs 家族）
         ("init-experience",    init_experience_schema),
         ("load-applicant",     lambda: load_applicant_reports(apply_migration=True)),
     ]
