@@ -55,29 +55,19 @@ def init_schema():
         if not sql_path.is_file():
             print(f"找不到 {sql_path}")
             return False
-        statements = [
-            s.strip()
-            for s in sql_path.read_text(encoding="utf-8").split(";")
-            if s.strip()
-        ]
+        # 整檔一次執行（與 load_applicant_reports 套 migration 的作法一致）：
+        # psycopg3 支援多語句字串，且不會把 $$...$$ 函式本體切壞。
         with conn.cursor() as cur:
-            for stmt in statements:
-                try:
-                    cur.execute(stmt)
-                except Exception as e:
-                    conn.rollback()
-                    conn.close()
-                    print(f"建表失敗，SQL：\n{stmt[:200]}\n錯誤：{e}")
-                    return False
+            cur.execute(sql_path.read_text(encoding="utf-8"))
         conn.commit()
-        conn.close()
         print("已依 init_db.sql 建立/重置資料表。")
         return True
     except Exception as e:
         conn.rollback()
-        conn.close()
         print(f"建表失敗: {e}")
         return False
+    finally:
+        conn.close()
 
 
 def init_experience_schema():
