@@ -14,8 +14,8 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from db.connection import get_connection
-from generator.openai_client import call_llm
+from generator.client import call_llm
+from retriever.db_query import fetch_dicts, readonly_connection
 
 # ─── Schema 描述（給 LLM 看的） ────────────────────────────────────────────────
 
@@ -202,42 +202,29 @@ def _is_sql_safe(sql: str) -> bool:
 
 
 def _execute_readonly_query(sql: str) -> list[dict]:
-    conn = get_connection()
-    if not conn:
-        print("[SQLSearch] 無法取得資料庫連線")
-        return []
+    with readonly_connection() as conn:
+        if not conn:
+            print("[SQLSearch] 無法取得資料庫連線")
+            return []
 
-    # psycopg3：在交易開始前設定 read_only，整條連線的交易都會是唯讀，
-    # 與白名單/正則檢查形成雙重防護（真正防寫入仍以 _is_sql_safe 為主）。
-    conn.read_only = True
-
-    try:
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            columns = [desc[0] for desc in cur.description] if cur.description else []
-            rows = cur.fetchall()
-        return [dict(zip(columns, row)) for row in rows]
-    except Exception as e:
-        print(f"[SQLSearch] SQL 執行失敗：{e}\nSQL: {sql}")
-        return []
-    finally:
-        conn.close()
+        try:
+            return fetch_dicts(conn, sql)
+        except Exception as e:
+            print(f"[SQLSearch] SQL 執行失敗：{e}\nSQL: {sql}")
+            return []
 
 
 def get_known_school_ids() -> set[str]:
     """回傳資料庫中已收錄的 school_id 集合，供判斷「查無資料」原因用。"""
-    conn = get_connection()
-    if not conn:
-        return set()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT school_id FROM universities")
-            return {row[0] for row in cur.fetchall()}
-    except Exception as e:
-        print(f"[SQLSearch] 查詢已收錄學校清單失敗：{e}")
-        return set()
-    finally:
-        conn.close()
+    with readonly_connection() as conn:
+        if not conn:
+            return set()
+        try:
+            rows = fetch_dicts(conn, "SELECT school_id FROM universities")
+            return {row["school_id"] for row in rows}
+        except Exception as e:
+            print(f"[SQLSearch] 查詢已收錄學校清單失敗：{e}")
+            return set()
 
 
 def sql_search(query: str) -> tuple[list[dict], str | None]:

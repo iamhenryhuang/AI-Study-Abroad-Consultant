@@ -16,7 +16,7 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from db.connection import get_connection
+from retriever.db_query import fetch_dicts, readonly_connection
 
 # 拉丁字母/數字組成的詞（英文關鍵字），中文等 CJK 字元不含在內
 _WORD_PATTERN = re.compile(r"[a-zA-Z][a-zA-Z0-9]+", re.UNICODE)
@@ -89,52 +89,43 @@ def applicant_search(query: str, school_id: str | None = None, limit: int = 16) 
     if not tsquery_str and not school_id:
         return []
 
-    conn = get_connection()
-    if not conn:
-        print("[ApplicantSearch] 無法取得資料庫連線")
-        return []
-
-    conn.read_only = True
-
-    def _run(sql: str, params: dict) -> list[dict]:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            columns = [desc[0] for desc in cur.description]
-            return [dict(zip(columns, r)) for r in cur.fetchall()]
-
     _COLS = ("source, source_url, school_id, school_raw, program, "
              "degree_level, decision, gpa, gpa_raw, season, notes")
 
-    try:
-        rows: list[dict] = []
-        # 第一優先：FTS 關鍵字檢索（有 tsquery 時）
-        if tsquery_str:
-            sql = f"""
-                SELECT {_COLS},
-                       ts_rank(fts_vector, to_tsquery('simple', %(q)s)) AS rank
-                FROM applicant_reports
-                WHERE fts_vector @@ to_tsquery('simple', %(q)s)
-            """
-            params: dict = {"q": tsquery_str, "limit": limit}
-            if school_id:
-                sql += " AND school_id = %(school_id)s"
-                params["school_id"] = school_id
-            sql += " ORDER BY rank DESC LIMIT %(limit)s"
-            rows = _run(sql, params)
+    with readonly_connection() as conn:
+        if not conn:
+            print("[ApplicantSearch] 無法取得資料庫連線")
+            return []
 
-        # 保底：關鍵字查無（或本來就沒關鍵字）但有鎖定學校 → 回傳該校的經驗回報
-        # （中文「某校歷史申請經驗」這類泛問題會落在這裡）
-        if not rows and school_id:
-            rows = _run(
-                f"SELECT {_COLS} FROM applicant_reports "
-                "WHERE school_id = %(school_id)s ORDER BY id DESC LIMIT %(limit)s",
-                {"school_id": school_id, "limit": limit},
-            )
-    except Exception as e:
-        print(f"[ApplicantSearch] 查詢失敗：{e}")
-        return []
-    finally:
-        conn.close()
+        try:
+            rows: list[dict] = []
+            # 第一優先：FTS 關鍵字檢索（有 tsquery 時）
+            if tsquery_str:
+                sql = f"""
+                    SELECT {_COLS},
+                           ts_rank(fts_vector, to_tsquery('simple', %(q)s)) AS rank
+                    FROM applicant_reports
+                    WHERE fts_vector @@ to_tsquery('simple', %(q)s)
+                """
+                params: dict = {"q": tsquery_str, "limit": limit}
+                if school_id:
+                    sql += " AND school_id = %(school_id)s"
+                    params["school_id"] = school_id
+                sql += " ORDER BY rank DESC LIMIT %(limit)s"
+                rows = fetch_dicts(conn, sql, params)
+
+            # 保底：關鍵字查無（或本來就沒關鍵字）但有鎖定學校 → 回傳該校的經驗回報
+            # （中文「某校歷史申請經驗」這類泛問題會落在這裡）
+            if not rows and school_id:
+                rows = fetch_dicts(
+                    conn,
+                    f"SELECT {_COLS} FROM applicant_reports "
+                    "WHERE school_id = %(school_id)s ORDER BY id DESC LIMIT %(limit)s",
+                    {"school_id": school_id, "limit": limit},
+                )
+        except Exception as e:
+            print(f"[ApplicantSearch] 查詢失敗：{e}")
+            return []
 
     docs = []
     for row in rows:
