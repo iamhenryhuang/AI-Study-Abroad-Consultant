@@ -159,6 +159,8 @@ OPENAI_ANSWER_MODEL=gpt-4o           # 最終答案生成（面向使用者的�
 SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 ```
 
+> ⚠️ **DB port**：上例的 `5432` 是原生安裝 PostgreSQL 的埠。若 DB 是用 `docker compose up -d db` 起的（本專案常見做法），對外埠是 **5433**，請改成 `127.0.0.1:5433`，否則會 connection timeout。
+
 > 模型分級：判斷與結構化任務使用 `gpt-4.1`；最終答案生成預設使用 `gpt-4o`。兩者皆可用上述環境變數各自覆寫。
 
 > 註：Windows + Docker Desktop 下建議用 `127.0.0.1` 而非 `localhost`，避免 IPv6 解析 fallback 造成連線延遲。
@@ -201,7 +203,7 @@ npm run dev
 
 開啟 `http://localhost:5173`。開發模式會自動將 `/api` 代理至本機 8000 port；部署到不同網域時可在前端 `.env` 設定 `VITE_API_BASE_URL`，並在後端以 `CORS_ORIGINS` 設定允許的前端來源。
 
-**（選配）載入申請經驗回報**：GradCafe / 一畝三分地的錄取案例，清洗後寫入獨立的 `applicant_reports` 表（加法式 migration，不影響上面的 programs 家族表）。
+**（選配）載入申請經驗回報**：GradCafe / 一畝三分地的錄取案例，清洗後寫入獨立的 `applicant_reports` 表（加法式 migration，不影響上面的 programs 家族表）。**若已跑過 `init-full` 則不需要——它已包含此步**；此指令供單獨重載時使用。
 
 ```bash
 python db/load_applicant_reports.py --migrate   # 首次：建表 + 載入
@@ -213,8 +215,8 @@ python db/load_applicant_reports.py             # 之後重跑：只載入（去
 | 指令 | 說明 |
 |------|------|
 | `python backend/scripts/run.py search "問題"` | 只測 text-to-SQL：印出產生的 SQL 與查詢結果 |
-| `python backend/scripts/run.py rag "問題"` | 單次 SQL 查詢 + LLM 生成答案（不跑 LangGraph 迴圈） |
-| `python backend/scripts/run.py agent "問題"` | 完整跑一次 LangGraph Agent 流程（正式問答用這個） |
+| `python backend/scripts/run.py rag "問題"` | 單次 SQL 查詢 + LLM 生成答案（不跑 LangGraph 迴圈，**不含經驗回報/教授/全文檢索**） |
+| `python backend/scripts/run.py agent "問題"` | 完整跑一次 LangGraph Agent 流程（正式問答用這個；錄取經驗類問題必須用它才會查 `applicant_reports`） |
 
 ```bash
 python backend/scripts/run.py agent "Compare Stanford and CMU GPA requirements"
@@ -257,11 +259,13 @@ docker compose up --build
 docker compose build backend
 ```
 
-### 3. 灌入學校資料（第一次啟動後執行一次）
+### 3. 灌入資料（第一次啟動後執行一次）
 
 ```bash
-docker compose exec backend python backend/scripts/run.py load-schools
+docker compose exec backend python backend/scripts/run.py init-full   # 三張表 + 學校種子 + 社群回報
 ```
+
+> 只要 programs 家族不含經驗/回報表的話，改用 `load-schools` 即可。
 
 ### 4. 服務端點
 
