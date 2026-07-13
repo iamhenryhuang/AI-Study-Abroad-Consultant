@@ -169,7 +169,8 @@ SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 
 | 指令 | 說明 |
 |------|------|
-| `python backend/scripts/run.py init-all` | 一次完成 `setup` + `load-schools` |
+| `python backend/scripts/run.py init-full` | ⭐ 一鍵建好三張表：`setup` + `init-schema` + `load-schools` + `init-experience` + 社群回報載入 |
+| `python backend/scripts/run.py init-all` | 一次完成 `setup` + `load-schools`（不含經驗表 / 社群回報） |
 | `python backend/scripts/run.py setup` | 檢查連線，資料庫不存在則建立 |
 | `python backend/scripts/run.py init-schema` | 依 `db/init_db.sql` 重建資料表（會清空重建） |
 | `python backend/scripts/run.py init-experience` | 冪等建立使用者申請經驗表（不清除既有資料） |
@@ -178,7 +179,7 @@ SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 | `python backend/scripts/run.py clear-crawler-data --yes` | 清除所有爬蟲 DB 資料、checkpoints 與生成 JSON；保留 schema 與使用者經驗 |
 
 ```bash
-python backend/scripts/run.py init-all   # 建表 + 灌入測試資料
+python backend/scripts/run.py init-full   # 一鍵建好三張表 + 灌入資料（含社群回報）
 python backend/scripts/run.py verify-db   # 確認資料已寫入
 ```
 
@@ -326,26 +327,9 @@ python backend/scripts/professor_fetcher/run_fetch.py \
 
 ## 資料庫 Schema
 
-`db/init_db.sql` 定義 8 張核心表（分「結構化」「內文」「品質控管」三類），另有 `db/migrations/` 加法式補上的 `applicant_reports`：
+三個資料源、9 張核心表 + `applicant_reports` + `user_experiences`，schema 與各檔案用途詳見 [`db/README.md`](db/README.md)。
 
-**結構化資料（供 text-to-SQL 查詢）** —— 以 `programs` 為核心的主表-子表結構：
-- `universities`：學校基本資料（school_id、name、domain）
-- `programs`：每個學位項目一列（一校可有多個 program，如 CS MS / CS PhD），含 GPA、TOEFL/IELTS/Duolingo、GRE、學費、申請費、推薦信數、CV 等單值申請要求欄位
-- `program_deadlines` / `program_scholarships` / `program_app_materials`：截止日 / 獎助 / 特殊申請材料（各為「一 program 可多筆」的子表，靠 `program_id` 關聯）
-
-**內文資料（供全文檢索）**：
-- `web_pages`：每個爬取頁面的清洗後全文
-- `document_chunks`：全文切段後的 chunk，`fts_vector` 供全文檢索（trigger 自動生成）、`embedding` 為預留向量欄位
-
-**品質控管**：
-- `review_queue`：爬蟲抽取時驗證失敗（如幻覺）的欄位，進佇列等人工複查
-
-**申請經驗回報（獨立 migration，非 init_db.sql）**：
-- `applicant_reports`：GradCafe / 一畝三分地的個別錄取/被拒案例（含申請者 GPA、結果、背景），屬非官方、有樣本偏誤的經驗資料，只用來回答「錄取者背景 / 某分數有無機會」這類問題。由 `db/migrations/001_applicant_reports.sql` 建表、`db/load_applicant_reports.py` 清洗載入，`fts_vector` 供全文檢索。與官方 `programs` 門檻性質不同，生成答案時會標註「非官方經驗談」並禁止當成錄取門檻。
-
-**資料來源**：正式資料由 `data_crawler/` 爬蟲抽取後寫入。`db/data/schools_data.json` 是對應此 schema 的**測試假資料**（目前 5 校），結構為 `universities` + 巢狀 `programs`（每個 program 內含 `deadlines`/`scholarships`/`app_materials` 陣列），欄位名與資料表一一對應，由 `db/load_schools.py` 讀取寫入。
-
-新增學校時記得同步更新 `backend/scripts/retriever/agent.py` 的 `_SCHOOL_ALIASES` 對照表，Decomposer 才能正確辨識學校縮寫/別名。
+重點：正式資料由 `data_crawler/` 爬蟲寫入 `programs` 家族；`db/data/schools_data.json` 是測試假資料（目前 5 校）。新增學校時記得同步更新 `backend/scripts/retriever/agent.py` 的 `_SCHOOL_ALIASES`，Decomposer 才能辨識學校縮寫/別名。
 
 ---
 
