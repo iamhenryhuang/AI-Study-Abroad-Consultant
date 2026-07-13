@@ -14,8 +14,8 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from db.connection import get_connection
-from generator.openai_client import call_llm
+from generator.client import call_llm
+from retriever.db_query import fetch_dicts, readonly_connection
 
 # ─── Schema 描述（給 LLM 看的） ────────────────────────────────────────────────
 
@@ -133,6 +133,9 @@ def _build_sql_prompt(query: str) -> str:
 6. 若問題提到特定學程（如「CS MS」「CS 碩士」「CS PhD」），用 programs.program_code 精確比對（例如 programs.program_code = 'CS MS'），
    絕對不要用 programs.program_name ILIKE '%CS MS%'（program_name 存的是全名 'Master of Science in Computer Science'，不含 'CS MS' 簡寫，這樣一定查不到）。
    若問題只說「碩士 / master」未指定領域，改用 programs.degree_type = 'MS'。若問題沒特別指定學程，就不要對 program 加過濾條件，回傳該校所有 program。
+   比對多個 program 時一律用 IN（例如 programs.program_code IN ('CS MS', 'CS PhD')），禁止用連續 OR；
+   WHERE 中若混用 AND 與 OR，OR 的部分必須加括號（AND 優先於 OR，寫 school_id = 'cmu' AND code = 'CS MS' OR code = 'CS PhD'
+   會變成 (school_id='cmu' AND code='CS MS') OR (code='CS PhD')，導致撈到其他學校的資料，這是嚴重錯誤）。
 7. 若問題未指定學校，回傳所有學校的相關欄位（不要用 LIMIT 過度限制筆數，最多 20 筆）。
 8. 只 SELECT 與問題相關的欄位，不要 SELECT *；但以下同義問題必須使用完整欄位組，不能只挑其中一欄：
    - 問 TOEFL／托福時，一律同時 SELECT programs.toefl_min、programs.toefl_ibt_min、programs.toefl_ibt_new_scale_min、programs.toefl_section_requirements。
@@ -199,42 +202,29 @@ def _is_sql_safe(sql: str) -> bool:
 
 
 def _execute_readonly_query(sql: str) -> list[dict]:
-    conn = get_connection()
-    if not conn:
-        print("[SQLSearch] 無法取得資料庫連線")
-        return []
+    with readonly_connection() as conn:
+        if not conn:
+            print("[SQLSearch] 無法取得資料庫連線")
+            return []
 
-    # psycopg3：在交易開始前設定 read_only，整條連線的交易都會是唯讀，
-    # 與白名單/正則檢查形成雙重防護（真正防寫入仍以 _is_sql_safe 為主）。
-    conn.read_only = True
-
-    try:
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            columns = [desc[0] for desc in cur.description] if cur.description else []
-            rows = cur.fetchall()
-        return [dict(zip(columns, row)) for row in rows]
-    except Exception as e:
-        print(f"[SQLSearch] SQL 執行失敗：{e}\nSQL: {sql}")
-        return []
-    finally:
-        conn.close()
+        try:
+            return fetch_dicts(conn, sql)
+        except Exception as e:
+            print(f"[SQLSearch] SQL 執行失敗：{e}\nSQL: {sql}")
+            return []
 
 
 def get_known_school_ids() -> set[str]:
     """回傳資料庫中已收錄的 school_id 集合，供判斷「查無資料」原因用。"""
-    conn = get_connection()
-    if not conn:
-        return set()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT school_id FROM universities")
-            return {row[0] for row in cur.fetchall()}
-    except Exception as e:
-        print(f"[SQLSearch] 查詢已收錄學校清單失敗：{e}")
-        return set()
-    finally:
-        conn.close()
+    with readonly_connection() as conn:
+        if not conn:
+            return set()
+        try:
+            rows = fetch_dicts(conn, "SELECT school_id FROM universities")
+            return {row["school_id"] for row in rows}
+        except Exception as e:
+            print(f"[SQLSearch] 查詢已收錄學校清單失敗：{e}")
+            return set()
 
 
 def sql_search(query: str) -> tuple[list[dict], str | None]:
