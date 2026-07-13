@@ -21,7 +21,7 @@ def _get_model():
         from sentence_transformers import SentenceTransformer
         model_path = os.getenv("BGE_EMBED_MODEL_PATH", "BAAI/bge-m3")
         print(f"[vectorize] 載入 embedding 模型：{model_path}")
-        _model = SentenceTransformer(model_path)
+        _model = SentenceTransformer(model_path, trust_remote_code=True)
     return _model
 
 
@@ -32,7 +32,7 @@ def embed_query(text: str) -> list[float]:
     embeddings = _get_model().encode(
         [text],
         batch_size=8,
-        normalize_embeddings=True,
+        normalize_embeddings=True,   # 把向量正規化成單位向量（長度為 1）。這樣後面在 SQL 用 <=>（cosine distance）算相似度時，才跟寫入端 backfill 時的向量在同一個尺度上
         show_progress_bar=False,
     )
     return embeddings[0].tolist()

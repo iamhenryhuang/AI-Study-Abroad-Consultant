@@ -45,5 +45,21 @@ class TestEmbedQuery(unittest.TestCase):
         mock_get.assert_not_called()
 
 
+class TestGetModel(unittest.TestCase):
+    def setUp(self):
+        vectorize._model = None
+
+    def tearDown(self):
+        vectorize._model = None
+
+    def test_get_model_passes_trust_remote_code(self):
+        # BAAI/bge-m3 在較新版本的 sentence-transformers 下，缺少
+        # trust_remote_code=True 會導致模型模組載入失敗（self[0] 變成 None）。
+        with patch("sentence_transformers.SentenceTransformer") as mock_cls:
+            vectorize._get_model()
+        _, kwargs = mock_cls.call_args
+        self.assertTrue(kwargs.get("trust_remote_code"))
+
+
 if __name__ == "__main__":
     unittest.main()
