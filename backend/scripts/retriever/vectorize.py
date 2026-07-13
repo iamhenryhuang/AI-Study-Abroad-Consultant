@@ -19,7 +19,7 @@ def _get_model():
     global _model
     if _model is None:
         from sentence_transformers import SentenceTransformer
-        model_path = os.getenv("BGE_EMBED_MODEL_PATH", "BAAI/bge-m3")
+        model_path = os.getenv("BGE_EMBED_MODEL_PATH") or "BAAI/bge-m3"
         print(f"[vectorize] 載入 embedding 模型：{model_path}")
         _model = SentenceTransformer(model_path, trust_remote_code=True)
     return _model

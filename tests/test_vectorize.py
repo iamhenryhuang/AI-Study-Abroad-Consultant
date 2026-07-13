@@ -1,3 +1,4 @@
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -59,6 +60,25 @@ class TestGetModel(unittest.TestCase):
             vectorize._get_model()
         _, kwargs = mock_cls.call_args
         self.assertTrue(kwargs.get("trust_remote_code"))
+
+    def test_get_model_treats_empty_env_var_as_unset(self):
+        # .env 裡 `BGE_EMBED_MODEL_PATH=`（等號後空白）會讓 python-dotenv
+        # 把該變數設成空字串，而非「不存在」——os.getenv(key, default) 的
+        # default 只在 key 完全不存在時生效，空字串會直接被當成值回傳，
+        # 導致 SentenceTransformer("") 被呼叫、模型模組載入失敗。
+        old = os.environ.get("BGE_EMBED_MODEL_PATH")
+        os.environ["BGE_EMBED_MODEL_PATH"] = ""
+        try:
+            with patch("sentence_transformers.SentenceTransformer") as mock_cls:
+                vectorize._get_model()
+            args, kwargs = mock_cls.call_args
+            model_path = args[0] if args else kwargs.get("model_name_or_path")
+            self.assertEqual(model_path, "BAAI/bge-m3")
+        finally:
+            if old is None:
+                os.environ.pop("BGE_EMBED_MODEL_PATH", None)
+            else:
+                os.environ["BGE_EMBED_MODEL_PATH"] = old
 
 
 if __name__ == "__main__":
