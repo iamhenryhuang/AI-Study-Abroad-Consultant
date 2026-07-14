@@ -10,7 +10,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
 
 from retriever.sql_search import sql_search
 from retriever.agent import run_agent
-from generator.openai_client import generate_answer
+from generator.answer import generate_answer
 
 
 def run_rag_pipeline(query: str) -> bool:

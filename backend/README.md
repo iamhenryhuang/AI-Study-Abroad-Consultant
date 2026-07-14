@@ -25,7 +25,7 @@ Agent 的檢索分三層 fallback，觸發條件是「Verifier 判定資料不�
 
 ## 模型分級
 
-判斷/結構型任務（decomposer、verifier、critic、text-to-SQL）用 `OPENAI_MODEL`（預設 `gpt-4o-mini`，只需輸出 JSON）；最終答案生成用 `OPENAI_ANSWER_MODEL`（預設 `gpt-4o`）。判斷型呼叫 `call_llm` 固定 `temperature=0` 以求輸出穩定。皆可用環境變數覆寫。
+判斷/結構型任務（decomposer、verifier、critic、text-to-SQL）用 `OPENAI_MODEL`（預設 `gpt-4.1`）；最終答案生成用 `OPENAI_ANSWER_MODEL`（預設 `gpt-4o`）。判斷型呼叫 `call_llm` 固定 `temperature=0` 以求輸出穩定。皆可用環境變數覆寫。
 
 ## 品質控管節點（Verifier / Refiner / Critic）
 
@@ -40,7 +40,7 @@ Agent 的檢索分三層 fallback，觸發條件是「Verifier 判定資料不�
 `POST /api/chat` 以 SSE 將事件串流給客戶端，事件類型：
 `thinking` / `tool_call` / `tool_result` / `llm_call` / `answer_chunk` / `answer` / `error`
 
-對應 [api.py](api.py) 與 [scripts/retriever/agent.py](scripts/retriever/agent.py) 中發送的事件。
+對應 [api.py](api.py) 與 [scripts/retriever/agent/runtime.py](scripts/retriever/agent/runtime.py)、[scripts/retriever/agent/nodes/](scripts/retriever/agent/nodes/) 中發送的事件。
 
 ## 教授查詢實作
 

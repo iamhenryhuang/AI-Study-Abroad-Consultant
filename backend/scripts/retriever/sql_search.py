@@ -14,8 +14,8 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from db.connection import get_connection
-from generator.openai_client import call_llm
+from generator.client import call_llm
+from retriever.db_query import fetch_dicts, readonly_connection
 
 # ─── Schema 描述（給 LLM 看的） ────────────────────────────────────────────────
 
@@ -36,11 +36,14 @@ SCHEMA_DESCRIPTION = """
   - degree_type         VARCHAR    -- 學位別，值為 'MS' / 'PhD' / 'MEng' / 'MPS' / 'MBA'。使用者只說「碩士 / master」未指定領域時用這欄（degree_type = 'MS'）。
   - program_name        VARCHAR    -- 學程全名，存的是完整名稱如 'Master of Science in Computer Science'，不含 'CS MS' 這種簡寫，勿用它比對簡寫。
   - department          VARCHAR    -- 系所名稱
-  - toefl_min           INTEGER    -- 最低 TOEFL 分數
-  - toefl_ibt_min       INTEGER    -- 最低 TOEFL iBT 分數
+  - toefl_min           INTEGER    -- 舊版相容：原文只寫 TOEFL、無法確認考試種類/尺度時的最低分
+  - toefl_ibt_min       INTEGER    -- TOEFL iBT 舊制最低 overall（0–120）
+  - toefl_ibt_new_scale_min NUMERIC -- 2026-01-21 起 TOEFL iBT 新制最低 overall（1–6、每 0.5 一級）
+  - toefl_section_requirements TEXT -- TOEFL 各分項成績要求（合併字串）
   - ielts_min           NUMERIC    -- 最低 IELTS 分數
   - duolingo_min        INTEGER    -- 最低 Duolingo 分數
   - language_waiver     TEXT       -- 語言測驗豁免條件說明
+  - english_test_notes  TEXT       -- 英文檢定效期、接受形式、例外與特殊規定
   - gre_required        VARCHAR    -- GRE 要求：'required' / 'optional' / 'not_accepted'（非布林）
   - gre_quant_min       INTEGER    -- GRE 數學最低要求
   - gre_verbal_min      INTEGER    -- GRE 語文最低要求
@@ -67,7 +70,10 @@ SCHEMA_DESCRIPTION = """
 資料表 program_deadlines（一個 program 可有多筆截止日；透過 program_id 關聯 programs）:
   - program_id     INTEGER    -- 對應 programs.id
   - deadline_type  VARCHAR    -- 'early' / 'regular' / 'international' / 'rolling'
-  - deadline_date  DATE       -- 截止日期
+  - deadline_date  DATE       -- 舊版相容欄位，等同申請截止日期
+  - application_open_date  DATE -- 申請開放日期
+  - application_close_date DATE -- 申請截止日期
+  - decision_release_date  DATE -- 結果公布日期
   - semester       VARCHAR    -- 學期，例如 'fall_2026'
   - note           TEXT       -- 補充說明
 
@@ -127,9 +133,35 @@ def _build_sql_prompt(query: str) -> str:
 6. 若問題提到特定學程（如「CS MS」「CS 碩士」「CS PhD」），用 programs.program_code 精確比對（例如 programs.program_code = 'CS MS'），
    絕對不要用 programs.program_name ILIKE '%CS MS%'（program_name 存的是全名 'Master of Science in Computer Science'，不含 'CS MS' 簡寫，這樣一定查不到）。
    若問題只說「碩士 / master」未指定領域，改用 programs.degree_type = 'MS'。若問題沒特別指定學程，就不要對 program 加過濾條件，回傳該校所有 program。
+   比對多個 program 時一律用 IN（例如 programs.program_code IN ('CS MS', 'CS PhD')），禁止用連續 OR；
+   WHERE 中若混用 AND 與 OR，OR 的部分必須加括號（AND 優先於 OR，寫 school_id = 'cmu' AND code = 'CS MS' OR code = 'CS PhD'
+   會變成 (school_id='cmu' AND code='CS MS') OR (code='CS PhD')，導致撈到其他學校的資料，這是嚴重錯誤）。
 7. 若問題未指定學校，回傳所有學校的相關欄位（不要用 LIMIT 過度限制筆數，最多 20 筆）。
-8. 只 SELECT 與問題相關的欄位，不要 SELECT *。
-9. 只輸出 JSON，格式如下，不要有其他文字或 markdown code fence：
+8. 只 SELECT 與問題相關的欄位，不要 SELECT *；但以下同義問題必須使用完整欄位組，不能只挑其中一欄：
+   - 問 TOEFL／托福時，一律同時 SELECT programs.toefl_min、programs.toefl_ibt_min、programs.toefl_ibt_new_scale_min、programs.toefl_section_requirements。
+   - 問英文成績／英語門檻時，一律 SELECT 上述 TOEFL 欄位，以及 programs.ielts_min、programs.duolingo_min、programs.language_waiver、programs.english_test_notes。
+   - 問「申請相關資料」「申請條件」「必須知道的內容」「等等」這類廣泛問題時，至少 SELECT：
+     programs.program_code、programs.program_name、programs.gpa_min、programs.gpa_scale、programs.gpa_note、
+     programs.toefl_min、programs.toefl_ibt_min、programs.toefl_ibt_new_scale_min、programs.ielts_min、
+     programs.duolingo_min、programs.language_waiver、programs.english_test_notes、programs.toefl_section_requirements、programs.gre_required、programs.rec_letter_count、
+     programs.sop_word_limit、programs.cv_required、programs.application_fee_usd、programs.fee_waiver_available、
+     programs.tuition_per_year_usd、programs.application_url。
+     並 LEFT JOIN program_deadlines，SELECT application_open_date、application_close_date、decision_release_date、semester。
+9. 新 schema 優先：查申請截止使用 application_close_date，不要只查舊版 deadline_date；查 TOEFL 不得只查 toefl_min。
+10. 範例，問題「給我 UCLA 的申請相關資料，包含 GPA、英文成績、推薦信等等」應產生等價於：
+    SELECT universities.school_id, universities.name AS university_name,
+           programs.program_code, programs.program_name, programs.gpa_min, programs.gpa_scale, programs.gpa_note,
+           programs.toefl_min, programs.toefl_ibt_min, programs.toefl_ibt_new_scale_min,
+           programs.toefl_section_requirements, programs.ielts_min, programs.duolingo_min, programs.language_waiver, programs.english_test_notes,
+           programs.gre_required, programs.rec_letter_count, programs.sop_word_limit, programs.cv_required,
+           programs.application_fee_usd, programs.fee_waiver_available,
+           programs.tuition_per_year_usd, programs.application_url,
+           program_deadlines.application_open_date, program_deadlines.application_close_date,
+           program_deadlines.decision_release_date, program_deadlines.semester
+    FROM programs JOIN universities ON programs.university_id = universities.id
+    LEFT JOIN program_deadlines ON program_deadlines.program_id = programs.id
+    WHERE universities.school_id = 'ucla'
+11. 只輸出 JSON，格式如下，不要有其他文字或 markdown code fence：
 
 {{"sql": "SELECT ... ;"}}
 
@@ -170,42 +202,29 @@ def _is_sql_safe(sql: str) -> bool:
 
 
 def _execute_readonly_query(sql: str) -> list[dict]:
-    conn = get_connection()
-    if not conn:
-        print("[SQLSearch] 無法取得資料庫連線")
-        return []
+    with readonly_connection() as conn:
+        if not conn:
+            print("[SQLSearch] 無法取得資料庫連線")
+            return []
 
-    # psycopg3：在交易開始前設定 read_only，整條連線的交易都會是唯讀，
-    # 與白名單/正則檢查形成雙重防護（真正防寫入仍以 _is_sql_safe 為主）。
-    conn.read_only = True
-
-    try:
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            columns = [desc[0] for desc in cur.description] if cur.description else []
-            rows = cur.fetchall()
-        return [dict(zip(columns, row)) for row in rows]
-    except Exception as e:
-        print(f"[SQLSearch] SQL 執行失敗：{e}\nSQL: {sql}")
-        return []
-    finally:
-        conn.close()
+        try:
+            return fetch_dicts(conn, sql)
+        except Exception as e:
+            print(f"[SQLSearch] SQL 執行失敗：{e}\nSQL: {sql}")
+            return []
 
 
 def get_known_school_ids() -> set[str]:
     """回傳資料庫中已收錄的 school_id 集合，供判斷「查無資料」原因用。"""
-    conn = get_connection()
-    if not conn:
-        return set()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT school_id FROM universities")
-            return {row[0] for row in cur.fetchall()}
-    except Exception as e:
-        print(f"[SQLSearch] 查詢已收錄學校清單失敗：{e}")
-        return set()
-    finally:
-        conn.close()
+    with readonly_connection() as conn:
+        if not conn:
+            return set()
+        try:
+            rows = fetch_dicts(conn, "SELECT school_id FROM universities")
+            return {row["school_id"] for row in rows}
+        except Exception as e:
+            print(f"[SQLSearch] 查詢已收錄學校清單失敗：{e}")
+            return set()
 
 
 def sql_search(query: str) -> tuple[list[dict], str | None]:

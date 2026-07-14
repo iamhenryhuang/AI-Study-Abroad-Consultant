@@ -24,7 +24,8 @@ DATA_PATH = Path(__file__).resolve().parent / "data" / "schools_data.json"
 
 _PROGRAM_FIELDS = [
     "degree_type", "program_name", "department",
-    "toefl_min", "toefl_ibt_min", "ielts_min", "duolingo_min", "language_waiver",
+    "toefl_min", "toefl_ibt_min", "toefl_ibt_new_scale_min", "toefl_section_requirements",
+    "ielts_min", "duolingo_min", "language_waiver", "english_test_notes",
     "gre_required", "gre_quant_min", "gre_verbal_min", "gre_awa_min",
     "gpa_min", "gpa_scale", "gpa_note",
     "transcript_copies", "transcript_format", "rec_letter_count",
@@ -92,10 +93,17 @@ def load() -> bool:
                     for d in p.get("deadlines", []):
                         cur.execute(
                             """
-                            INSERT INTO program_deadlines (program_id, deadline_type, deadline_date, semester, note)
-                            VALUES (%(program_id)s, %(deadline_type)s, %(deadline_date)s, %(semester)s, %(note)s)
+                            INSERT INTO program_deadlines
+                            (program_id, deadline_type, deadline_date, application_open_date,
+                             application_close_date, decision_release_date, semester, note)
+                            VALUES (%(program_id)s, %(deadline_type)s, %(deadline_date)s,
+                                    %(application_open_date)s, %(application_close_date)s,
+                                    %(decision_release_date)s, %(semester)s, %(note)s)
                             """,
-                            {"deadline_type": None, "semester": None, "note": None, **d, "program_id": program_id},
+                            {"deadline_type": None, "deadline_date": None,
+                             "application_open_date": None, "application_close_date": None,
+                             "decision_release_date": None, "semester": None, "note": None,
+                             **d, "program_id": program_id},
                         )
 
                     # 4) program_scholarships

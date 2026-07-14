@@ -4,27 +4,100 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 import threading
-from threading import Thread
+from contextlib import asynccontextmanager
 
 SCRIPTS_DIR = Path(__file__).resolve().parent / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from retriever.agent import run_agent
+from db.experiences import create_experience, ensure_experience_schema, list_experiences
 
-app = FastAPI(title="Study Abroad Advisor API")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await asyncio.to_thread(ensure_experience_schema)
+    yield
+
+
+app = FastAPI(title="Study Abroad Advisor API", lifespan=lifespan)
+
+cors_origins = [origin.strip() for origin in os.getenv(
+    "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+).split(",") if origin.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
 
 
 class ChatRequest(BaseModel):
     query: str
     max_steps: int = 5
+
+
+class ExperienceItem(BaseModel):
+    item: str = Field(min_length=1, max_length=100)
+    result: str = Field(min_length=1, max_length=500)
+
+    @field_validator("item", "result", mode="before")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        return value.strip() if isinstance(value, str) else value
+
+
+class ExperienceCreate(BaseModel):
+    graduate_school: str = Field(min_length=1, max_length=200)
+    country: str = Field(min_length=1, max_length=100)
+    apply_school: str = Field(min_length=1, max_length=200)
+    apply_program: str = Field(min_length=1, max_length=200)
+    gpa: float | None = Field(default=None, ge=0, le=100)
+    class_rank: int | None = Field(default=None, ge=1)
+    class_size: int | None = Field(default=None, ge=1)
+    experience: list[ExperienceItem] = Field(default_factory=list, max_length=30)
+    review: str = Field(min_length=1, max_length=10000)
+
+    @field_validator("graduate_school", "country", "apply_school", "apply_program", "review")
+    @classmethod
+    def strip_required_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("不得為空白")
+        return value
+
+    @model_validator(mode="after")
+    def validate_rank(self):
+        if (self.class_rank is None) != (self.class_size is None):
+            raise ValueError("系排與系人數必須一起填寫")
+        if self.class_rank is not None and self.class_rank > self.class_size:
+            raise ValueError("系排不得大於系人數")
+        return self
+
+
+class ExperienceResponse(ExperienceCreate):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    created_at: str
+
+
+class ExperienceListResponse(BaseModel):
+    items: list[ExperienceResponse]
+    total: int
+    limit: int
+    offset: int
 
 
 @app.post("/api/chat")
@@ -68,7 +141,7 @@ async def chat(request: ChatRequest):
             if not cancel_event.is_set():
                 on_event({"type": "error", "message": str(exc)})
 
-    Thread(target=run_in_thread, daemon=True).start()
+    threading.Thread(target=run_in_thread, daemon=True).start()
 
     async def event_stream():
         try:
@@ -95,3 +168,40 @@ async def chat(request: ChatRequest):
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.post("/api/experiences", response_model=ExperienceResponse,
+          status_code=status.HTTP_201_CREATED)
+async def upload_experience(request: ExperienceCreate):
+    try:
+        row = await asyncio.to_thread(create_experience, request.model_dump())
+        row["created_at"] = row["created_at"].isoformat()
+        return row
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="經驗資料儲存失敗") from exc
+
+
+@app.get("/api/experiences", response_model=ExperienceListResponse)
+async def search_experiences(
+    apply_school: str = Query(min_length=1, max_length=200),
+    apply_program: str | None = Query(default=None, min_length=1, max_length=200),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    school = apply_school.strip()
+    program = apply_program.strip() if apply_program else None
+    if not school:
+        raise HTTPException(status_code=422, detail="申請學校不得為空白")
+    try:
+        rows, total = await asyncio.to_thread(
+            list_experiences, school, program, limit, offset
+        )
+        for row in rows:
+            row["created_at"] = row["created_at"].isoformat()
+        return {"items": rows, "total": total, "limit": limit, "offset": offset}
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="經驗資料查詢失敗") from exc

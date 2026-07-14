@@ -27,9 +27,12 @@ RECURSION_LIMIT = 300
 def parse_args():
     ap = argparse.ArgumentParser(description="AI Study Abroad Consultant — LangGraph 資料擷取 pipeline")
     ap.add_argument("--school-id", required=True, help="setting/root_url.py 裡的 school_id（單一學校）")
+    ap.add_argument("--root-url", action="append", default=None,
+                    help="只爬指定 root，覆寫 root_url.py；可重複傳入多次")
     ap.add_argument("--max-depth", type=int, default=None, help="BFS 深度上限（預設沿用 CONFIG.MAX_DEPTH）")
     ap.add_argument("--max-pages", type=int, default=None, help="總頁數上限（預設沿用 CONFIG.MAX_PAGES）")
-    ap.add_argument("--max-sufficiency-iterations", type=int, default=2)
+    ap.add_argument("--max-sufficiency-iterations", type=int, default=0,
+                    help="已停用自動補爬；保留參數僅供舊指令相容")
     ap.add_argument("--skip-recent-hours", type=int, default=0,
                     help=">0 時啟用 SKIP_RECENT：DB 內 last_extracted_at 在 N 小時內就整校跳過")
     ap.add_argument("--enable-embedding", action="store_true", help="開啟 Node 12 embedding（預設關）")
@@ -48,6 +51,7 @@ def main():
 
     initial_state = {
         "school_id": args.school_id,
+        "root_urls_override": args.root_url,
         "max_depth": args.max_depth,
         "max_pages": args.max_pages,
         "max_sufficiency_iterations": args.max_sufficiency_iterations,

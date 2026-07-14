@@ -26,14 +26,17 @@ CREATE TABLE IF NOT EXISTS programs (
     id            SERIAL PRIMARY KEY,
     university_id INTEGER NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
     degree_type   VARCHAR(20),
-    program_code  VARCHAR(50) NOT NULL,
+    program_code  TEXT NOT NULL,
     program_name  VARCHAR(200),
     department    VARCHAR(100),
     toefl_min          INTEGER,
     toefl_ibt_min      INTEGER,
+    toefl_ibt_new_scale_min NUMERIC(2,1),
+    toefl_section_requirements TEXT,
     ielts_min          NUMERIC(3,1),
     duolingo_min       INTEGER,
     language_waiver    TEXT,
+    english_test_notes TEXT,
     gre_required       VARCHAR(20),
     gre_quant_min      INTEGER,
     gre_verbal_min     INTEGER,
@@ -42,7 +45,7 @@ CREATE TABLE IF NOT EXISTS programs (
     gpa_scale          VARCHAR(10),
     gpa_note           TEXT,
     transcript_copies        INTEGER,
-    transcript_format        VARCHAR(50),
+    transcript_format        TEXT,
     rec_letter_count         INTEGER,
     sop_word_limit           INTEGER,
     sop_prompt               TEXT,
@@ -54,7 +57,7 @@ CREATE TABLE IF NOT EXISTS programs (
     tuition_per_year_usd  INTEGER,
     tuition_note          TEXT,
     application_url       TEXT,
-    application_system    VARCHAR(50),
+    application_system    TEXT,
     source_urls           TEXT[],
     extraction_confidence NUMERIC(3,2),
     last_extracted_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -69,6 +72,9 @@ CREATE TABLE IF NOT EXISTS program_deadlines (
     program_id     INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
     deadline_type  VARCHAR(30),
     deadline_date  DATE,
+    application_open_date  DATE,
+    application_close_date DATE,
+    decision_release_date  DATE,
     semester       VARCHAR(20),
     note           TEXT,
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -91,13 +97,28 @@ CREATE INDEX IF NOT EXISTS idx_scholarships_program ON program_scholarships(prog
 CREATE TABLE IF NOT EXISTS program_app_materials (
     id             SERIAL PRIMARY KEY,
     program_id     INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-    material_type  VARCHAR(50),
+    material_type  TEXT,
     requirement    TEXT,
     word_limit     INTEGER,
     note           TEXT,
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_materials_program ON program_app_materials(program_id);
+
+CREATE TABLE IF NOT EXISTS global_extractions (
+    id             SERIAL PRIMARY KEY,
+    university_id  INTEGER NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+    page_id         INTEGER NOT NULL REFERENCES web_pages(id) ON DELETE CASCADE,
+    scope           VARCHAR(30) NOT NULL,
+    program_code    TEXT NOT NULL,
+    extraction      JSONB NOT NULL,
+    confidence      NUMERIC(3,2),
+    source_url      TEXT NOT NULL,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (page_id, program_code)
+);
+CREATE INDEX IF NOT EXISTS idx_global_extractions_university ON global_extractions(university_id);
 
 ALTER TABLE web_pages       ADD COLUMN IF NOT EXISTS program_id INTEGER REFERENCES programs(id) ON DELETE SET NULL;
 ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS program_id INTEGER REFERENCES programs(id) ON DELETE SET NULL;
@@ -106,7 +127,7 @@ CREATE TABLE IF NOT EXISTS review_queue (
     id           SERIAL PRIMARY KEY,
     university_id INTEGER REFERENCES universities(id) ON DELETE CASCADE,
     page_id      INTEGER REFERENCES web_pages(id) ON DELETE CASCADE,
-    program_code VARCHAR(50),
+    program_code TEXT,
     field_name   VARCHAR(100),
     field_value  TEXT,
     reason       VARCHAR(50),
@@ -115,13 +136,26 @@ CREATE TABLE IF NOT EXISTS review_queue (
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ALTER TABLE program_deadlines     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS toefl_ibt_new_scale_min NUMERIC(2,1);
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS toefl_section_requirements TEXT;
+ALTER TABLE programs ADD COLUMN IF NOT EXISTS english_test_notes TEXT;
+ALTER TABLE programs ALTER COLUMN application_system TYPE TEXT;
+ALTER TABLE programs ALTER COLUMN program_code TYPE TEXT;
+ALTER TABLE global_extractions ALTER COLUMN program_code TYPE TEXT;
+ALTER TABLE review_queue ALTER COLUMN program_code TYPE TEXT;
+ALTER TABLE program_app_materials ALTER COLUMN material_type TYPE TEXT;
+ALTER TABLE programs ALTER COLUMN transcript_format TYPE TEXT;
+ALTER TABLE program_deadlines ADD COLUMN IF NOT EXISTS application_open_date DATE;
+ALTER TABLE program_deadlines ADD COLUMN IF NOT EXISTS application_close_date DATE;
+ALTER TABLE program_deadlines ADD COLUMN IF NOT EXISTS decision_release_date DATE;
 ALTER TABLE program_scholarships  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
 ALTER TABLE program_app_materials ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
 """
 
 # programs 表中允許由 LLM 抽取寫入的欄位（對應 init_db.sql）
 PROGRAM_FIELDS = [
-    "toefl_min", "toefl_ibt_min", "ielts_min", "duolingo_min", "language_waiver",
+    "toefl_min", "toefl_ibt_min", "toefl_ibt_new_scale_min", "toefl_section_requirements",
+    "ielts_min", "duolingo_min", "language_waiver", "english_test_notes",
     "gre_required", "gre_quant_min", "gre_verbal_min", "gre_awa_min",
     "gpa_min", "gpa_scale", "gpa_note",
     "transcript_copies", "transcript_format", "rec_letter_count",
@@ -201,6 +235,30 @@ def upsert_web_page(conn, university_id: int, url: str, passed_types: list,
     return page_id
 
 
+def upsert_global_extraction(conn, university_id: int, page_id: int, scope: str,
+                             program_code: str, extraction: dict,
+                             confidence: float | None, source_url: str) -> int:
+    """保存尚未能套用到正式 program 的全校／系級結構化結果。"""
+    with conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO global_extractions
+                   (university_id, page_id, scope, program_code, extraction, confidence, source_url)
+               VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)
+               ON CONFLICT (page_id, program_code) DO UPDATE SET
+                   scope = EXCLUDED.scope,
+                   extraction = EXCLUDED.extraction,
+                   confidence = EXCLUDED.confidence,
+                   source_url = EXCLUDED.source_url,
+                   updated_at = CURRENT_TIMESTAMP
+               RETURNING id""",
+            (university_id, page_id, scope, program_code,
+             json.dumps(extraction, ensure_ascii=False), confidence, source_url),
+        )
+        row_id = cur.fetchone()[0]
+    conn.commit()
+    return row_id
+
+
 def upsert_program(conn, university_id: int, program_code: str,
                    meta: dict, fields: dict, source_url: str,
                    confidence: float | None) -> int:
@@ -263,17 +321,24 @@ def upsert_deadline(conn, program_id: int, item: dict) -> None:
         if row:
             cur.execute(
                 """UPDATE program_deadlines
-                   SET deadline_date = %s, note = %s, updated_at = CURRENT_TIMESTAMP
+                   SET deadline_date = %s, application_open_date = %s,
+                       application_close_date = %s, decision_release_date = %s,
+                       note = %s, updated_at = CURRENT_TIMESTAMP
                    WHERE id = %s""",
-                (item.get("deadline_date"), item.get("note"), row[0]),
+                (item.get("application_close_date") or item.get("deadline_date"),
+                 item.get("application_open_date"), item.get("application_close_date"),
+                 item.get("decision_release_date"), item.get("note"), row[0]),
             )
         else:
             cur.execute(
                 """INSERT INTO program_deadlines
-                   (program_id, deadline_type, deadline_date, semester, note, updated_at)
-                   VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)""",
-                (program_id, item.get("deadline_type"), item.get("deadline_date"),
-                 item.get("semester"), item.get("note")),
+                   (program_id, deadline_type, deadline_date, application_open_date,
+                    application_close_date, decision_release_date, semester, note, updated_at)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)""",
+                (program_id, item.get("deadline_type"),
+                 item.get("application_close_date") or item.get("deadline_date"),
+                 item.get("application_open_date"), item.get("application_close_date"),
+                 item.get("decision_release_date"), item.get("semester"), item.get("note")),
             )
     conn.commit()
 

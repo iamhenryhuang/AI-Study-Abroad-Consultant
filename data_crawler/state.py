@@ -20,6 +20,7 @@ class SchoolState(TypedDict, total=False):
     school_id: str
     university_id: Optional[int]
     roots: list[str]
+    root_urls_override: list[str]  # CLI --root-url；有值時覆寫學校預設 roots
     max_depth: int
     max_pages: int
     skip_school: bool          # Node 1 SKIP_RECENT 判定
@@ -36,6 +37,8 @@ class SchoolState(TypedDict, total=False):
     dropped_urls: dict         # url -> reason
     external_urls: list[str]
     total_crawled: int
+    url_filter_candidates: list[dict]  # 本層待 LLM 判斷的 URL + anchor/source/depth
+    url_filter_decisions: list[dict]   # 累積的 LLM 決策，供人工排查輸出
 
     # ── Phase 2：scrape fan-out 收集 ─────────────────────
     scraped_pages: Annotated[list[dict], operator.add]
@@ -83,6 +86,7 @@ class ProcessState(TypedDict, total=False):
 
     # Node 8
     validation: dict           # {"passed": bool, "issues": [...], "confidence": float}
+    validation_repair_retries: int
 
     # 輸出（合併回主圖）
     page_results: Annotated[list[dict], operator.add]

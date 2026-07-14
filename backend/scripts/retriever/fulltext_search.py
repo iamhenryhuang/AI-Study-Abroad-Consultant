@@ -16,17 +16,20 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from db.connection import get_connection
+from retriever.applicant_search import _EN_STOPWORDS
+from retriever.db_query import fetch_dicts, readonly_connection
 
 # schema 用 'simple' text search config（無 stopword 清單、無 stemming，避免中文被英文規則誤傷），
 # 代表使用者自然語句中的疑問詞（how/does/many...）也會被當成必要關鍵字。
 # 用 plainto_tsquery 的 AND 語意在此情境下幾乎不會命中，因此改用 OR 語意（任一詞命中即可）當 fallback 廣撒網。
+# 英文 function words（what/are/the...）先過濾掉，否則 OR + ts_rank 會偏向「字多」而非「相關」的 chunk。
 _WORD_PATTERN = re.compile(r"[^\W\d_]+", re.UNICODE)
 
 
 def _build_or_tsquery(text: str) -> str | None:
     """把自然語句拆詞後用 OR 組成 tsquery 字串（交給 to_tsquery('simple', ...) 解析）。"""
-    words = [w for w in _WORD_PATTERN.findall(text.lower()) if len(w) > 1]
+    words = [w for w in _WORD_PATTERN.findall(text.lower())
+             if len(w) > 1 and w not in _EN_STOPWORDS]
     if not words:
         return None
     return " | ".join(words)
@@ -40,13 +43,6 @@ def fulltext_search(query: str, school_id: str | None = None, limit: int = 5) ->
     tsquery_str = _build_or_tsquery(query)
     if not tsquery_str:
         return []
-
-    conn = get_connection()
-    if not conn:
-        print("[FulltextSearch] 無法取得資料庫連線")
-        return []
-
-    conn.read_only = True
 
     sql = """
         SELECT dc.school_id,
@@ -65,15 +61,14 @@ def fulltext_search(query: str, school_id: str | None = None, limit: int = 5) ->
     sql += " ORDER BY rank DESC LIMIT %(limit)s"
     params["limit"] = limit
 
-    try:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            columns = [desc[0] for desc in cur.description]
-            rows = cur.fetchall()
-        results = [dict(zip(columns, row)) for row in rows]
-        return [r for r in results if r.get("chunk_text")]
-    except Exception as e:
-        print(f"[FulltextSearch] 查詢失敗：{e}")
-        return []
-    finally:
-        conn.close()
+    with readonly_connection() as conn:
+        if not conn:
+            print("[FulltextSearch] 無法取得資料庫連線")
+            return []
+
+        try:
+            results = fetch_dicts(conn, sql, params)
+            return [r for r in results if r.get("chunk_text")]
+        except Exception as e:
+            print(f"[FulltextSearch] 查詢失敗：{e}")
+            return []
