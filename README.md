@@ -121,7 +121,7 @@ flowchart TD
 │   ├── api.py                 # API 入口（SSE 串流）
 │   └── scripts/
 │       ├── db/                  # DB 連線與操作
-│       ├── retriever/           # sql_search + fulltext_search + applicant_search（經驗）+ LangGraph agent/
+│       ├── retriever/           # sql_search + fulltext_search + hybrid_search（向量+關鍵字 RRF+rerank）+ applicant_search（經驗）+ LangGraph agent/
 │       ├── generator/           # OpenAI 答案生成（client/context/prompts/answer，分級模型）
 │       └── professor_fetcher/   # SerpAPI 教授資料抓取
 ├── frontend/                # React/Vite：申請經驗上傳與依學校查詢

@@ -52,5 +52,5 @@
 
 ## 注意
 
-- 新增學校時記得同步更新 `backend/scripts/retriever/agent.py` 的 `_SCHOOL_ALIASES` 對照表，Decomposer 才能正確辨識學校縮寫/別名。
+- 新增學校時記得同步更新 `backend/scripts/retriever/agent/state.py` 的 `_SCHOOL_ALIASES` 對照表，Decomposer 才能正確辨識學校縮寫/別名。
 - 初始化與載入指令見專案根目錄 [README](../README.md)（推薦 `init-full` 一鍵建好三張表）。

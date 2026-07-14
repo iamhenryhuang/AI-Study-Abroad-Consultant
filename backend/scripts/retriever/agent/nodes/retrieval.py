@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from professor_fetcher.fetch_for_agent import run_professor_fetch
 from retriever.applicant_search import applicant_search
-from retriever.fulltext_search import fulltext_search
+from retriever.hybrid_search import hybrid_search_with_fallback
 from retriever.sql_search import sql_search
 
 from ..state import AgentState, _check_cancel, _detect_school_ids, _emit
@@ -130,7 +130,7 @@ def _fulltext_one_query(q: str, original_query: str) -> list[dict]:
         "args": {"query": q, **({"school_id": school_id} if school_id else {})},
     })
 
-    results = fulltext_search(q, school_id=school_id)
+    results = hybrid_search_with_fallback(q, school_id=school_id)
 
     for item in results:
         item["query"] = q

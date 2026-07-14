@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -125,6 +126,14 @@ def hybrid_search(
 from retriever.fulltext_search import fulltext_search
 
 
+def _hybrid_search_enabled() -> bool:
+    """ENABLE_HYBRID_SEARCH 開關（預設開）。設 false/0/off 時直接跳過向量檢索，
+    不嘗試載入 embedding/reranker 模型——本機沒裝模型的開發環境可用來避免每次
+    查詢都白白花時間載入模型才失敗降級。
+    """
+    return os.getenv("ENABLE_HYBRID_SEARCH", "true").strip().lower() not in ("0", "false", "off")
+
+
 def hybrid_search_with_fallback(
     query: str,
     school_id: str | None = None,
@@ -134,7 +143,11 @@ def hybrid_search_with_fallback(
 
     「查無資料」回傳 []（合法結果，不降級）；「故障」（模型未下載、
     sentence_transformers 缺失、DB 錯誤）才降級，行為與升級前純 FTS 相同。
+    ENABLE_HYBRID_SEARCH=false 時完全不嘗試 hybrid，直接走純 FTS。
     """
+    if not _hybrid_search_enabled():
+        return fulltext_search(query, school_id=school_id, limit=limit)
+
     try:
         return hybrid_search(query, school_id=school_id, limit=limit)
     except Exception as e:

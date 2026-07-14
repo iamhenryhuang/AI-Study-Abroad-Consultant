@@ -31,10 +31,7 @@ ONEPOINT3_PATH = _DATA_DIR / "1point3.json"
 MIGRATION_PATH = Path(__file__).resolve().parent / "migrations" / "001_applicant_reports.sql"
 
 # 複用 agent 的學校別名表，把原始校名對應到 DB 的 school_id（mit/cmu...）
-try:
-    from retriever.agent import _SCHOOL_ALIASES  # type: ignore
-except Exception:
-    _SCHOOL_ALIASES = {}
+from retriever.agent.state import _SCHOOL_ALIASES
 
 
 # ─── 共用清洗工具 ──────────────────────────────────────────────────────────────
