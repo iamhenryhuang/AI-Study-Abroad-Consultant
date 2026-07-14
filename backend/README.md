@@ -15,6 +15,8 @@ Agent 的檢索分三層 fallback，觸發條件是「Verifier 判定資料不�
 
 **向量檢索前置條件**：`document_chunks.embedding`（vector 1024 維）+ HNSW 索引已在 schema 就緒；向量半邊要生效需先跑 `python -m data_crawler.backfill_embeddings` 補齊向量。模型路徑由 env `BGE_EMBED_MODEL_PATH` / `BGE_RERANKER_MODEL_PATH` 指定（未設定時從 HuggingFace 線上下載）。
 
+**本機沒裝 embedding/reranker 模型時**：設 `ENABLE_HYBRID_SEARCH=false`（`.env`），fallback 會直接跳過向量檢索、不嘗試載入模型，直接走純 FTS，避免每次查詢都先花時間載入模型才失敗降級。預設 `true`。
+
 ## 申請經驗檢索（意圖觸發的並行支線）
 
 與上面三層 fallback 不同，經驗檢索由 Decomposer 的意圖判斷（`needs_experience`）觸發，走獨立的並行節點 `experience_search`（`retriever/applicant_search.py`），查 `applicant_reports` 表：
