@@ -10,7 +10,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# 明確載入 backend/.env：無參數的 load_dotenv() 只找 CWD 的 .env（專案根沒有
+# 這個檔），先前能運作是仰賴其他模組先被 import 的副作用。
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(_BACKEND_ROOT / ".env")
 
 _model = None
 

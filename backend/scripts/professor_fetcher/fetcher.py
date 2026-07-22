@@ -11,11 +11,16 @@ import os
 import re
 import time
 from datetime import datetime
+from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
 
-load_dotenv()
+# 與 db/connection.py、generator/client.py 一致，明確載入 backend/.env——
+# 無參數的 load_dotenv() 只找 CWD 的 .env（專案根沒有這個檔），
+# 從專案根執行時會讀不到 SERPAPI_KEY，導致誤報「金鑰未設定」。
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
+load_dotenv(_BACKEND_ROOT / ".env")
 
 SERPAPI_KEY: str = os.environ.get("SERPAPI_KEY", "").strip()
 SERPAPI_BASE = "https://serpapi.com/search"
