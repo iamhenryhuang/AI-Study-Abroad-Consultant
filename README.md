@@ -127,7 +127,7 @@ flowchart TD
 ├── frontend/                # React/Vite：申請經驗上傳與依學校查詢
 ├── data_crawler/            # LangGraph 爬蟲：抓取頁面 → LLM 抽取結構化欄位 + 切段全文 → 寫入 DB（正式資料源）
 ├── crawler/                 # 舊版 Playwright 爬蟲 + 設定（root_url / 黑名單，data_crawler 沿用其設定）
-├── db/                      # schema（init_db.sql）+ migrations（applicant_reports）+ 測試資料（data/）+ 載入腳本
+├── db/                      # schema（schema_programs.sql，與 data_crawler 共用）+ migrations（applicant_reports）+ 測試資料（data/）+ 載入腳本
 └── requirements.txt          # 所有 Python 依賴（backend + data_crawler + crawler）
 ```
 
@@ -174,7 +174,7 @@ SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 | `python backend/scripts/run.py init-full` | ⭐ 一鍵建好三張表：`setup` + `init-schema` + `load-schools` + `init-experience` + 社群回報載入 |
 | `python backend/scripts/run.py init-all` | 一次完成 `setup` + `load-schools`（不含經驗表 / 社群回報） |
 | `python backend/scripts/run.py setup` | 檢查連線，資料庫不存在則建立 |
-| `python backend/scripts/run.py init-schema` | 依 `db/init_db.sql` 重建資料表（會清空重建） |
+| `python backend/scripts/run.py init-schema` | 依 `db/init_db.sql`（清空）+ `db/schema_programs.sql`（建表）重建資料表（會清空重建） |
 | `python backend/scripts/run.py init-experience` | 冪等建立使用者申請經驗表（不清除既有資料） |
 | `python backend/scripts/run.py load-schools` | 灌入 `db/data/schools_data.json` 的測試資料 |
 | `python backend/scripts/run.py verify-db` | 全局輸出所有學校/program 欄位、deadlines、獎助、材料、頁面摘要、chunks 與 review queue |

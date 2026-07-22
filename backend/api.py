@@ -58,6 +58,12 @@ class ExperienceItem(BaseModel):
         return value.strip() if isinstance(value, str) else value
 
 
+class ExperienceItemOut(BaseModel):
+    """讀取用；不套寫入長度限制，理由同 ExperienceResponse。"""
+    item: str = ""
+    result: str = ""
+
+
 class ExperienceCreate(BaseModel):
     graduate_school: str = Field(min_length=1, max_length=200)
     country: str = Field(min_length=1, max_length=100)
@@ -86,10 +92,25 @@ class ExperienceCreate(BaseModel):
         return self
 
 
-class ExperienceResponse(ExperienceCreate):
+class ExperienceResponse(BaseModel):
+    """回傳既有資料，欄位對齊 DB schema 而非寫入規則。
+
+    刻意不繼承 ExperienceCreate：寫入時的限制（系排與系人數必須成對、
+    經歷至多 30 筆等）比 DB CHECK 嚴格，若套用在讀取上，任何經由 API 以外
+    路徑寫入的舊資料都會讓整個 GET 回應驗證失敗。
+    """
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    graduate_school: str
+    country: str
+    apply_school: str
+    apply_program: str
+    gpa: float | None = None
+    class_rank: int | None = None
+    class_size: int | None = None
+    experience: list[ExperienceItemOut] = Field(default_factory=list)
+    review: str
     created_at: str
 
 

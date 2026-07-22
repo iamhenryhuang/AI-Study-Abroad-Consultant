@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import threading
 import time
+from pathlib import Path
 from typing import Callable, Optional
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# 明確載入 backend/.env：無參數的 load_dotenv() 只找 CWD 的 .env（專案根沒有
+# 這個檔），先前能運作是仰賴其他模組先被 import 的副作用。
+_BACKEND_ROOT = Path(__file__).resolve().parents[3]
+load_dotenv(_BACKEND_ROOT / ".env")
 
 from .graph import _get_graph
 from .state import (

@@ -20,121 +20,14 @@ load_dotenv(_PROJECT_ROOT / "backend" / ".env")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 MIGRATION_SQL = """
--- 加法式 migration：只建缺少的表、補缺欄位，不 DROP 任何既有資料
--- （programs 家族表定義同 db/init_db.sql；既有 DB 若還是舊 schema 也能直接升級）
-CREATE TABLE IF NOT EXISTS programs (
-    id            SERIAL PRIMARY KEY,
-    university_id INTEGER NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
-    degree_type   VARCHAR(20),
-    program_code  TEXT NOT NULL,
-    program_name  VARCHAR(200),
-    department    VARCHAR(100),
-    toefl_min          INTEGER,
-    toefl_ibt_min      INTEGER,
-    toefl_ibt_new_scale_min NUMERIC(2,1),
-    toefl_section_requirements TEXT,
-    ielts_min          NUMERIC(3,1),
-    duolingo_min       INTEGER,
-    language_waiver    TEXT,
-    english_test_notes TEXT,
-    gre_required       VARCHAR(20),
-    gre_quant_min      INTEGER,
-    gre_verbal_min     INTEGER,
-    gre_awa_min        NUMERIC(2,1),
-    gpa_min            NUMERIC(3,2),
-    gpa_scale          VARCHAR(10),
-    gpa_note           TEXT,
-    transcript_copies        INTEGER,
-    transcript_format        TEXT,
-    rec_letter_count         INTEGER,
-    sop_word_limit           INTEGER,
-    sop_prompt               TEXT,
-    cv_required              BOOLEAN,
-    writing_sample_required  BOOLEAN,
-    application_fee_usd      INTEGER,
-    fee_waiver_available     BOOLEAN,
-    fee_waiver_criteria      TEXT,
-    tuition_per_year_usd  INTEGER,
-    tuition_note          TEXT,
-    application_url       TEXT,
-    application_system    TEXT,
-    source_urls           TEXT[],
-    extraction_confidence NUMERIC(3,2),
-    last_extracted_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (university_id, program_code)
-);
-CREATE INDEX IF NOT EXISTS idx_programs_university ON programs(university_id);
-CREATE INDEX IF NOT EXISTS idx_programs_degree     ON programs(degree_type);
-
-CREATE TABLE IF NOT EXISTS program_deadlines (
-    id             SERIAL PRIMARY KEY,
-    program_id     INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-    deadline_type  VARCHAR(30),
-    deadline_date  DATE,
-    application_open_date  DATE,
-    application_close_date DATE,
-    decision_release_date  DATE,
-    semester       VARCHAR(20),
-    note           TEXT,
-    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_deadlines_program ON program_deadlines(program_id);
-
-CREATE TABLE IF NOT EXISTS program_scholarships (
-    id             SERIAL PRIMARY KEY,
-    program_id     INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-    name           VARCHAR(200),
-    amount_usd     INTEGER,
-    coverage       VARCHAR(100),
-    eligibility    TEXT,
-    auto_consider  BOOLEAN,
-    source_url     TEXT,
-    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_scholarships_program ON program_scholarships(program_id);
-
-CREATE TABLE IF NOT EXISTS program_app_materials (
-    id             SERIAL PRIMARY KEY,
-    program_id     INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-    material_type  TEXT,
-    requirement    TEXT,
-    word_limit     INTEGER,
-    note           TEXT,
-    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_materials_program ON program_app_materials(program_id);
-
-CREATE TABLE IF NOT EXISTS global_extractions (
-    id             SERIAL PRIMARY KEY,
-    university_id  INTEGER NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
-    page_id         INTEGER NOT NULL REFERENCES web_pages(id) ON DELETE CASCADE,
-    scope           VARCHAR(30) NOT NULL,
-    program_code    TEXT NOT NULL,
-    extraction      JSONB NOT NULL,
-    confidence      NUMERIC(3,2),
-    source_url      TEXT NOT NULL,
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (page_id, program_code)
-);
-CREATE INDEX IF NOT EXISTS idx_global_extractions_university ON global_extractions(university_id);
+-- 加法式 migration：不 DROP 任何既有資料。
+--
+-- 表定義不寫在這裡——由 db/schema_programs.sql（唯一權威來源）在 ensure_migrations()
+-- 中先執行，本字串只補「既有 DB 的欄位升級」，兩者合起來即可讓任何狀態的 DB 就緒。
+-- 舊 DB 若還是更早的 schema，下列 ALTER 會把缺的欄位/型別補齊。
 
 ALTER TABLE web_pages       ADD COLUMN IF NOT EXISTS program_id INTEGER REFERENCES programs(id) ON DELETE SET NULL;
 ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS program_id INTEGER REFERENCES programs(id) ON DELETE SET NULL;
-
-CREATE TABLE IF NOT EXISTS review_queue (
-    id           SERIAL PRIMARY KEY,
-    university_id INTEGER REFERENCES universities(id) ON DELETE CASCADE,
-    page_id      INTEGER REFERENCES web_pages(id) ON DELETE CASCADE,
-    program_code TEXT,
-    field_name   VARCHAR(100),
-    field_value  TEXT,
-    reason       VARCHAR(50),
-    source_excerpt TEXT,
-    status       VARCHAR(20) DEFAULT 'pending',
-    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 ALTER TABLE program_deadlines     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS toefl_ibt_new_scale_min NUMERIC(2,1);
 ALTER TABLE programs ADD COLUMN IF NOT EXISTS toefl_section_requirements TEXT;
@@ -150,6 +43,14 @@ ALTER TABLE program_deadlines ADD COLUMN IF NOT EXISTS application_close_date DA
 ALTER TABLE program_deadlines ADD COLUMN IF NOT EXISTS decision_release_date DATE;
 ALTER TABLE program_scholarships  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
 ALTER TABLE program_app_materials ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
+ALTER TABLE program_deadlines     ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE program_scholarships  ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE program_app_materials ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;
+
+-- 回填既有資料：updated_at 為 NULL 的舊列補上 created_at
+UPDATE program_deadlines     SET updated_at = created_at WHERE updated_at IS NULL;
+UPDATE program_scholarships  SET updated_at = created_at WHERE updated_at IS NULL;
+UPDATE program_app_materials SET updated_at = created_at WHERE updated_at IS NULL;
 """
 
 # programs 表中允許由 LLM 抽取寫入的欄位（對應 init_db.sql）
@@ -172,8 +73,13 @@ def get_connection():
     return psycopg.connect(DATABASE_URL)
 
 
+SCHEMA_PATH = _PROJECT_ROOT / "db" / "schema_programs.sql"
+
+
 def ensure_migrations(conn) -> None:
+    """建表（共用 schema）+ 既有 DB 欄位升級；兩者皆冪等，不動既有資料。"""
     with conn.cursor() as cur:
+        cur.execute(SCHEMA_PATH.read_text(encoding="utf-8"))
         cur.execute(MIGRATION_SQL)
     conn.commit()
 

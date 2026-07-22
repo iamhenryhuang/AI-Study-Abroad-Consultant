@@ -51,16 +51,23 @@ def init_schema():
         print("請在 .env 設定 DATABASE_URL。")
         return False
     try:
-        sql_path = PROJECT_ROOT / "db" / "init_db.sql"
-        if not sql_path.is_file():
-            print(f"找不到 {sql_path}")
-            return False
+        # init_db.sql 只負責 DROP，表定義在共用的 schema_programs.sql
+        # （同一份定義由 data_crawler/db.py 引用，避免兩處各寫一份而漂移）。
+        sql_paths = [
+            PROJECT_ROOT / "db" / "init_db.sql",
+            PROJECT_ROOT / "db" / "schema_programs.sql",
+        ]
+        for sql_path in sql_paths:
+            if not sql_path.is_file():
+                print(f"找不到 {sql_path}")
+                return False
         # 整檔一次執行（與 load_applicant_reports 套 migration 的作法一致）：
         # psycopg3 支援多語句字串，且不會把 $$...$$ 函式本體切壞。
         with conn.cursor() as cur:
-            cur.execute(sql_path.read_text(encoding="utf-8"))
+            for sql_path in sql_paths:
+                cur.execute(sql_path.read_text(encoding="utf-8"))
         conn.commit()
-        print("已依 init_db.sql 建立/重置資料表。")
+        print("已依 init_db.sql + schema_programs.sql 建立/重置資料表。")
         return True
     except Exception as e:
         conn.rollback()

@@ -5,7 +5,9 @@ CREATE TABLE IF NOT EXISTS user_experiences (
     country          VARCHAR(100) NOT NULL,
     apply_school     TEXT NOT NULL,
     apply_program    TEXT NOT NULL,
-    gpa              NUMERIC(4,2),
+    -- NUMERIC(5,2)：百分制的 100 需要 3 位整數，(4,2) 只到 99.99 會與下方
+    -- CHECK (gpa <= 100) 互相矛盾——驗證放行但寫入時 numeric field overflow。
+    gpa              NUMERIC(5,2),
     class_rank       INTEGER,
     class_size       INTEGER,
     experience       JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -30,3 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_user_experiences_school_program_lower
     ON user_experiences (LOWER(apply_school), LOWER(apply_program));
 CREATE INDEX IF NOT EXISTS idx_user_experiences_created_at
     ON user_experiences (created_at DESC);
+
+-- 既有資料表升級：本檔用 CREATE TABLE IF NOT EXISTS，已建好的表不會套用上面的
+-- 欄位定義，故在此補一次型別修正（(4,2) → (5,2)）。冪等，可重複執行。
+ALTER TABLE user_experiences ALTER COLUMN gpa TYPE NUMERIC(5,2);
