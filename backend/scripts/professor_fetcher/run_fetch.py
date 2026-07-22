@@ -27,8 +27,10 @@ SCHOOL_DATA_DIR = ROOT_DIR.parent / "crawler" / "data"
 # ── Utils ────────────────────────────────────────────────────────────────────
 
 def infer_school_id(school_name: str) -> str:
-    """從學校名字推斷 ID。"""
-    name = school_name.lower()
+    """從學校名字推斷 ID。空字串/全空白回傳 ""（argparse 不會擋空字串）。"""
+    name = (school_name or "").lower().strip()
+    if not name:
+        return ""
     if "stanford" in name:              return "stanford"
     if "cmu" in name or "carnegie" in name: return "cmu"
     if "mit" in name:                   return "mit"
@@ -122,8 +124,11 @@ def main():
 
     args = parser.parse_args()
 
-    sid  = args.school_id or infer_school_id(args.school)
-    res  = fetch_one(
+    sid = args.school_id or infer_school_id(args.school)
+    if not sid:
+        parser.error("--school 不得為空白，或請改用 --school-id 明確指定")
+
+    res = fetch_one(
         args.name, args.school, sid,
         args.author_id, args.cutoff_year, args.max_papers, args.delay,
     )
