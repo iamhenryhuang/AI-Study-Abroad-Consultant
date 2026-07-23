@@ -42,4 +42,9 @@ export async function streamChat(payload, onEvent, signal) {
     buffer = rest
     for (const event of events) onEvent(event)
   }
+  // flush any bytes buffered inside the decoder (e.g. a multi-byte char split
+  // across the final chunk) and emit any remaining complete frame
+  buffer += decoder.decode()
+  const tail = parseSSE(buffer)
+  for (const event of tail.events) onEvent(event)
 }
