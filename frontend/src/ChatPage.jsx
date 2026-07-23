@@ -55,6 +55,9 @@ export default function ChatPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
 
+  // 卸載時中止仍在進行的串流，避免對已卸載元件 setState、浪費後端資源
+  useEffect(() => () => abortRef.current?.abort(), [])
+
   // 更新最後一則 assistant 訊息
   const patchLast = (patch) => setMessages((prev) => {
     const next = [...prev]
