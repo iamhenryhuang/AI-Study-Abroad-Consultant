@@ -71,7 +71,8 @@ export default function ChatPage() {
     const text = input.trim()
     if (!text || busy) return
 
-    const history = messages.map((m) => ({ role: m.role, content: m.content }))
+    // 後端 history 上限 20，只送最近 20 則（保留近期上下文即可）
+    const history = messages.slice(-20).map((m) => ({ role: m.role, content: m.content }))
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: text },
