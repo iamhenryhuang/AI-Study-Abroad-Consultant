@@ -84,6 +84,7 @@ def _crawl_and_load(school_id: str) -> None:
             print(f"[ExpCrawl] {school_id} 補爬無新資料")
             return
         conn = get_connection()
+
         if not conn:
             print("[ExpCrawl] 無法取得資料庫連線")
             return
@@ -95,8 +96,11 @@ def _crawl_and_load(school_id: str) -> None:
             print(f"[ExpCrawl] {school_id} 補爬完成，upsert {len(records)} 筆")
         finally:
             conn.close()
+            
     except Exception as e:
         print(f"[ExpCrawl] {school_id} 補爬失敗：{e}")
+    
+    # 7. 無論成功還是失敗，最後一定要把這間學校從「正在爬取清單（_in_flight）」中拿掉
     finally:
         with _lock:
             _in_flight.discard(school_id)
