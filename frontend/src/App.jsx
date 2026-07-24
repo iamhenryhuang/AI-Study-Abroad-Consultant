@@ -4,6 +4,7 @@ import {
   GraduationCap, ListFilter, LoaderCircle, Plus, Search, Send, Trash2,
 } from 'lucide-react'
 import { searchExperiences, uploadExperience } from './api.js'
+import ChatPage from './ChatPage.jsx'
 
 const emptyForm = {
   graduate_school: '', country: '', apply_school: '', apply_program: '',
@@ -180,11 +181,12 @@ function SearchPage() {
 }
 
 function App() {
-  const route = window.location.hash === '#/search' ? 'search' : 'upload'
+  const hash = window.location.hash
+  const route = hash === '#/search' ? 'search' : hash === '#/chat' ? 'chat' : 'upload'
   const [, rerender] = useState(0)
   useEffect(() => { const change = () => rerender((n) => n + 1); window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change) }, [])
   const navigate = (page) => { window.location.hash = `#/${page}` }
-  return <><header className="site-header"><a className="brand" href="#/upload"><span><GraduationCap size={22} /></span><div>留學經驗站<small>STUDY ABROAD STORIES</small></div></a><nav><a className={route === 'upload' ? 'active' : ''} href="#/upload">分享經驗</a><a className={route === 'search' ? 'active' : ''} href="#/search">查詢經驗</a></nav></header>{route === 'search' ? <SearchPage /> : <UploadPage onView={() => navigate('search')} />}<footer>每一份經驗都來自個人分享，僅供申請準備參考。</footer></>
+  return <><header className="site-header"><a className="brand" href="#/upload"><span><GraduationCap size={22} /></span><div>留學經驗站<small>STUDY ABROAD STORIES</small></div></a><nav><a className={route === 'upload' ? 'active' : ''} href="#/upload">分享經驗</a><a className={route === 'search' ? 'active' : ''} href="#/search">查詢經驗</a><a className={route === 'chat' ? 'active' : ''} href="#/chat">AI 諮詢</a></nav></header>{route === 'chat' ? <ChatPage /> : route === 'search' ? <SearchPage /> : <UploadPage onView={() => navigate('search')} />}<footer>每一份經驗都來自個人分享，僅供申請準備參考。</footer></>
 }
 
 export default App
