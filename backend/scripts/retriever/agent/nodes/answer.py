@@ -53,7 +53,14 @@ def finalizer_node(state: AgentState) -> dict:
     _check_cancel()
     _emit({"type": "llm_call", "purpose": "finalizer"})
 
-    full_text = ""
+    # 經驗資料不足：在答案前加註，並先當作第一個 chunk 送出（前端立即看到）
+    sparse_note = ""
+    if state.get("experience_sparse"):
+        sparse_note = ("（提醒：此校的申請經驗回報目前較少，以下為現有資料；"
+                       "系統已在背景補充更多，稍後再問可能更完整。）\n\n")
+        _emit({"type": "answer_chunk", "text": sparse_note})
+
+    full_text = sparse_note
     try:
         for chunk in generate_answer_stream(query, all_docs):
             _check_cancel()

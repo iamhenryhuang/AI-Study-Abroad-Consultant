@@ -12,7 +12,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from db.connection import get_connection
-from retriever.agent.state import _SCHOOL_ALIASES
 
 SPARSE_THRESHOLD = 5          # 少於此筆數視為「資料不足」
 _CRAWL_MAX_PAGES = 5
@@ -42,7 +41,12 @@ def _get_deps():
 
 
 def _school_to_gradcafe_query(school_id: str) -> str:
-    """把 school_id 轉成適合 GradCafe（英文站）搜尋的字串：取最長的英文別名。"""
+    """把 school_id 轉成適合 GradCafe（英文站）搜尋的字串：取最長的英文別名。
+
+    _SCHOOL_ALIASES 於函式內延遲 import：避免模組載入時觸發 retriever.agent 套件
+    初始化，與 nodes/retrieval.py 對本模組的 import 形成循環。
+    """
+    from retriever.agent.state import _SCHOOL_ALIASES
     aliases = _SCHOOL_ALIASES.get(school_id, [])
     english = [a for a in aliases if a.isascii()]
     return max(english, key=len) if english else school_id
