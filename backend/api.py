@@ -20,6 +20,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from retriever.agent import run_agent
+from retriever.contextualize import contextualize_query
 from db.experiences import create_experience, ensure_experience_schema, list_experiences
 
 
@@ -43,9 +44,15 @@ app.add_middleware(
 )
 
 
+class ChatMessage(BaseModel):
+    role: str        # "user" | "assistant"
+    content: str
+
+
 class ChatRequest(BaseModel):
     query: str
     max_steps: int = 5
+    history: list[ChatMessage] = Field(default_factory=list, max_length=20)
 
 
 class ExperienceItem(BaseModel):
@@ -146,8 +153,12 @@ async def chat(request: ChatRequest):
 
     def run_in_thread() -> None:
         try:
+            standalone = contextualize_query(
+                request.query,
+                [m.model_dump() for m in request.history],
+            )
             result = run_agent(
-                query=request.query,
+                query=standalone,
                 max_steps=request.max_steps,
                 verbose=False,
                 on_event=on_event,
