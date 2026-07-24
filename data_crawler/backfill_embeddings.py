@@ -26,9 +26,11 @@ def main():
     from sentence_transformers import SentenceTransformer
     from .db import get_connection
 
-    model_path = os.getenv("BGE_EMBED_MODEL_PATH", "BAAI/bge-m3")
+    # 空字串 env（.env 裡 BGE_EMBED_MODEL_PATH=）視為未設定 → 用預設 hub id；
+    # trust_remote_code=True：BGE-M3 在新版 sentence-transformers 下載入所需。
+    model_path = os.getenv("BGE_EMBED_MODEL_PATH") or "BAAI/bge-m3"
     print(f"載入模型：{model_path}")
-    model = SentenceTransformer(model_path)
+    model = SentenceTransformer(model_path, trust_remote_code=True)
 
     conn = get_connection()
     try:

@@ -1,0 +1,74 @@
+# 環境與密鑰
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虛擬環境
+.venv/
+venv/
+ENV/
+env/
+python-version
+.python-version
+
+# IDE / 編輯器
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 作業系統
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日誌與暫存
+*.log
+*.tmp
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.hypothesis/
+
+# 專案：匯出檔與資料庫
+db/exported_data.sql
+*.db
+*.sqlite
+*.sqlite3
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.eslintcache
+.prettiercache
+
+# Vite
+.vite/
+frontend/dist/
+frontend/.vite/

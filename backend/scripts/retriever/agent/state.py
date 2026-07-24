@@ -75,6 +75,7 @@ class AgentState(TypedDict):
     insufficiency_reason: str        # 資料不足或文不對題時的簡短原因
     retry_count:       int           # 已重試次數（Refiner 重新查詢的次數，上限 1 輪）
     generated_answer:  bool          # finalizer 是否真的呼叫 LLM 生成過答案（決定是否需要跑 Critic）
+    experience_sparse: bool          # 經驗查詢資料不足（<SPARSE_THRESHOLD）時為 True，答案會加註並觸發背景補爬
 
 
 # ─── 工具函式 ─────────────────────────────────────────────────────────────────
@@ -120,6 +121,7 @@ def create_initial_state(query: str) -> AgentState:
         "insufficiency_reason": "",
         "retry_count": 0,
         "generated_answer": False,
+        "experience_sparse": False,
     }
 
 

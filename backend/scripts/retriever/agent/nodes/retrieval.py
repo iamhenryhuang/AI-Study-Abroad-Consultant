@@ -6,6 +6,7 @@ from professor_fetcher.fetch_for_agent import run_professor_fetch
 from retriever.applicant_search import applicant_search
 from retriever.hybrid_search import hybrid_search_with_fallback
 from retriever.sql_search import sql_search
+from retriever.experience_crawl import SPARSE_THRESHOLD, maybe_enqueue_crawl
 
 from ..state import AgentState, _check_cancel, _detect_school_ids, _emit
 
@@ -70,7 +71,14 @@ def experience_search_node(state: AgentState) -> dict:
         "preview": f"找到 {len(exp_docs)} 筆申請經驗回報",
     })
     print(f"[Experience] 共取得 {len(exp_docs)} 筆申請經驗回報")
-    return {"experience_docs": exp_docs}
+
+    # 資料不足且有鎖定學校 → 標記 sparse（答案加註）並在背景補爬該校 GradCafe
+    sparse = school_id is not None and len(exp_docs) < SPARSE_THRESHOLD
+    if sparse:
+        print(f"[Experience] {school_id} 資料不足（{len(exp_docs)}<{SPARSE_THRESHOLD}），排背景補爬")
+        maybe_enqueue_crawl(school_id)
+
+    return {"experience_docs": exp_docs, "experience_sparse": sparse}
 
 
 # ─── Node 2：SQL Searcher ─────────────────────────────────────────────────────
