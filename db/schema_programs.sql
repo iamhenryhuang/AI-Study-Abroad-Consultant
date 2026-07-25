@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS universities (
 
 
 -- ════════════════════════════════════════════════════════════════
--- 2. programs  —— 學位 program（1 個 university 可有多個 program）
+-- 2. programs  —— 招生目標
+-- 目前 data_crawler 每校只寫一筆國際 CS 碩士目標；UNIQUE 設計仍保留未來擴充能力。
 -- ════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS programs (
     id            SERIAL PRIMARY KEY,
@@ -32,8 +33,8 @@ CREATE TABLE IF NOT EXISTS programs (
 
     -- 識別資訊
     degree_type   VARCHAR(20),                  -- MS / PhD / MEng / MPS / MBA
-    program_code  TEXT NOT NULL,                -- "CS MS" / "CS PhD"
-    program_name  VARCHAR(200),                 -- "Master of Science in Computer Science"
+    program_code  TEXT NOT NULL,                -- 目前固定為 INTERNATIONAL_CS_MASTERS
+    program_name  VARCHAR(200),                 -- 目前為 International Computer Science Master's
     department    VARCHAR(100),                 -- "Computer Science"
 
     -- 語言要求
@@ -173,6 +174,32 @@ CREATE INDEX IF NOT EXISTS idx_materials_program ON program_app_materials(progra
 DROP TRIGGER IF EXISTS program_app_materials_set_updated_at ON program_app_materials;
 CREATE TRIGGER program_app_materials_set_updated_at
     BEFORE INSERT OR UPDATE ON program_app_materials
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- 無法安全正規化為單一數字／日期的招生證據。保留上下文供後續 RAG 判斷，
+-- 不因結構化驗證失敗而遺失 GPA、英文門檻、deadline 等重要資訊。
+CREATE TABLE IF NOT EXISTS program_evidence (
+    id             SERIAL PRIMARY KEY,
+    program_id     INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+    category       VARCHAR(30) NOT NULL,
+    field_name     TEXT NOT NULL DEFAULT 'general',
+    evidence_kind  VARCHAR(30) NOT NULL DEFAULT 'context_note',
+    evidence_text  TEXT NOT NULL,
+    source_excerpt TEXT,
+    source_url     TEXT NOT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (program_id, category, field_name, source_url)
+);
+
+CREATE INDEX IF NOT EXISTS idx_program_evidence_program
+    ON program_evidence(program_id);
+CREATE INDEX IF NOT EXISTS idx_program_evidence_category
+    ON program_evidence(category);
+
+DROP TRIGGER IF EXISTS program_evidence_set_updated_at ON program_evidence;
+CREATE TRIGGER program_evidence_set_updated_at
+    BEFORE INSERT OR UPDATE ON program_evidence
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 

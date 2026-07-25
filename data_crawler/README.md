@@ -1,9 +1,10 @@
-# data_crawler — LangGraph 資料擷取與清洗 pipeline（v4）
+# data_crawler — 國際 CS 碩士資料擷取 pipeline（current）
 
 把 `crawler/` 的四步批次腳本（url_crawler → score → save_result → clean_json_data）
 改成「state 接 state」的 LangGraph pipeline，並把關鍵字評分換成 LLM 語意判斷。
-**本資料夾完全獨立，不修改 `crawler/` / `backend/` / `db/` 的任何檔案**；
-設定（`CONFIG`、黑名單、`SCHOOLS`、清洗關鍵字）透過 `settings_bridge.py` 直接讀取原始檔，單一來源不重複維護。
+正式目標固定為每校一筆 `INTERNATIONAL_CS_MASTERS`。設定（`CONFIG`、黑名單、
+`SCHOOLS`、清洗關鍵字）透過 `settings_bridge.py` 讀取 `crawler/setting`；
+DB schema 的唯一來源是 `db/schema_programs.sql`。
 
 ## 使用方式
 
@@ -34,6 +35,32 @@ python -m data_crawler.backfill_embeddings [--school-id ucla]
 
 `--dry-run`：不碰 DB，結果輸出到 `data_crawler/output/{school_id}_result.json`，checkpointer 用 MemorySaver。
 
+## Demo Dashboard
+
+另開一個終端啟動唯讀 dashboard（不會啟動或中斷 crawler）：
+
+```bash
+python -m data_crawler.demo_server --school-id gatech --port 8765
+```
+
+瀏覽器開啟 `http://127.0.0.1:8765/?school=gatech`。頁面每 2 秒更新，整合
+`output/{school}_events.jsonl`、URL keep/drop audit、最終 result JSON 與 DB snapshot，
+顯示各節點進度、頁面原文預覽、LLM 抽取、驗證與修正、chunks、DB 欄位、
+deadline/evidence/review queue。事件檔由 crawler 執行時自動重置並寫入。
+
+## 清除測試資料
+
+指令不加 `--yes` 時只預覽；確認後才實際刪除。清除範圍包含 crawler DB、
+LangGraph checkpoints、result / URL audit / dashboard event 檔，不影響使用者帳號或申請經驗。
+
+```bash
+# 單一學校
+python -m data_crawler.cleanup --school-id gatech --yes
+
+# 所有 crawler 學校
+python -m data_crawler.cleanup --all --yes
+```
+
 ## Graph 結構
 
 ```
@@ -56,15 +83,17 @@ python -m data_crawler.backfill_embeddings [--school-id ucla]
   Node 5  content_classification  LLM 多標籤分類（取代 score_page 關鍵字評分）；
                                   score_url_path 保留為 prompt 參考訊號，決定權在 LLM
      └─ 不相關 / faculty / 低信心 → discard_page（丟棄記錄）
-  Node 6  identify_programs       對應 program_code（全校通用頁套用到既有 program）
+  Node 6  identify_programs       deterministic 判斷國際 CS 碩士適用範圍；
+                                  校級/系級規則均寫入同一 target，PhD-only 不建立假資料
   Node 7  structured_extraction   依 structured_markdown 抽取欄位，每欄附 source_excerpt
   Node 8  hallucination_validation 程式化逐欄位比對：excerpt 必須存在原文、
                                   數字/日期必須出現在 excerpt 內
-     └─ 有問題且重試 ≤2 → 回 Node 7（帶驗證回饋）；超限 → 問題欄位進 review_queue
+     └─ 有問題且重試 ≤2 → 回 Node 7；超限 → 問題欄位進 review_queue，
+        並把有原文依據的上下文存入 program_evidence
 ```
 
-Node 3（爬取前 URL 相關性 LLM 過濾）依 v4 預設不做；`extract_links` 已補抓 anchor text
-（`keep_anchors`），之後要做 Node 3 時資料已就緒。
+Node 3 會批次判斷本層候選 URL；英文門檻、checklist、國際生、申請費與 deadline
+優先，joint degree/BS-MS 降權，current-student/current-fellowships 直接排除。
 
 ## 分類清單（已與使用者定案：6+2、多標籤）
 
@@ -119,20 +148,24 @@ Node 3（爬取前 URL 相關性 LLM 過濾）依 v4 預設不做；`extract_lin
 - programs 欄位「非 null 才覆蓋」，不會用空值蓋掉先前抽到的資料。
 - 驗證失敗的欄位不進正式表，進 `review_queue`（reason=hallucination_detected），
   `status` 欄位供人工標記 pending/resolved/rejected。
+- 無法安全正規化的日期、GPA、英文成績與條件式規則會以一段上下文寫入
+  `program_evidence`，保留 category / field_name / excerpt / source URL 供 RAG 使用。
+- TOEFL 舊制 0–120 與 2026-01-21 起新制 1–6 分別寫入
+  `toefl_ibt_min` / `toefl_ibt_new_scale_min`，不自行換算。
 
 ## 已知限制
 
 1. **教授相關功能整輪不處理**（依 v4 定案）：faculty 頁分類後直接丟棄，
    `professors`/`professor_papers` 兩張表不寫入。
-2. **全校通用頁的歸屬**：Node 6 判定 school_wide 的頁面會把欄位套用到該校 DB 既有的
-   program（都沒有時預設 `CS MS`）。全校通用門檻通常確實適用各 program，但仍是近似做法。
+2. **單一目標資料模型**：目前只建立 `INTERNATIONAL_CS_MASTERS`；校級與 CS/CSE
+   系級規則合併到同一筆，正式 CS 頁明確表示沒有 terminal master's 時不建立假 program。
 3. **重跑同一 thread 會累積 state**：LangGraph 累加型 channel 無法重置，
    `main.py` 已自動偵測——非 `--resume` 且 thread 已存在時改開 `{school_id}-{timestamp}` 新 thread。
 4. **LLM 免費額度限流**：Groq 免費層 TPM=12000，大量頁面 fan-out 時仍可能觸發限流；
    已做併發上限 + 建議秒數退避（實測 6 頁 fan-out 可自動恢復），但整體速度受免費額度制約。
    Node 9 的補爬種子同樣受 `MAX_PAGES` 總頁數上限保護——頁數預算用完時種子不會再被爬。
-5. **semester 正規化**：LLM 偶爾回傳頁面上的舊學期（如 fall_2023），
-   pipeline 不篡改原文數據，需靠 review 或之後加規則過濾舊學期。
+5. **deadline 正規化**：沒有明確年份時不猜測 DATE，改存 `program_evidence`。
+   跨頁重複與 extended deadline 覆蓋仍需在學校層級合併處理。
 6. **無 robots.txt 檢查**（與舊版相同，黑名單為人工維護）。
 7. **PDF**：黑名單原本擋掉 `.pdf`（`IGNORED_EXTENSIONS`），BFS 階段沿用此行為，
    所以 PDF 分支目前只在 Node 9 種子 URL 或未來調整 `filter_url(allow_pdf=True)` 時生效。

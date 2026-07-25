@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admission Data Pipeline</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">A</div>
+      <div><p>ADMISSION INTELLIGENCE</p><h1>Data Pipeline Monitor</h1></div>
+    </div>
+    <div class="controls">
+      <label>School <input id="schoolInput" value="gatech" spellcheck="false"></label>
+      <button id="loadButton">Load</button>
+      <div class="live"><span></span>LIVE · <b id="lastUpdate">--:--:--</b></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <div class="eyebrow">INTERNATIONAL CS MASTER · CRAWLER RUN</div>
+        <h2 id="schoolTitle">GEORGIA TECH</h2>
+        <p id="runSummary">等待 crawler 事件…</p>
+      </div>
+      <div class="hero-score">
+        <div class="ring" id="progressRing"><strong id="progressValue">0%</strong></div>
+        <span>PIPELINE COMPLETION</span>
+      </div>
+    </section>
+
+    <section class="metrics" id="metrics"></section>
+
+    <section class="pipeline-panel">
+      <div class="section-head"><div><span>01</span><h3>Pipeline Progress</h3></div><p>即時節點狀態</p></div>
+      <div class="pipeline" id="pipeline"></div>
+    </section>
+
+    <div class="grid two">
+      <section class="panel">
+        <div class="section-head"><div><span>02</span><h3>URL Discovery</h3></div><div class="tabs" id="urlTabs"></div></div>
+        <div class="url-list" id="urlList"><div class="empty">尚無 URL 資料</div></div>
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><span>03</span><h3>Live Activity</h3></div><p>最近事件</p></div>
+        <div class="activity" id="activity"></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="section-head"><div><span>04</span><h3>Page Intelligence</h3></div><p>抓取預覽 · LLM 抽取 · 驗證</p></div>
+      <div class="page-grid" id="pageGrid"><div class="empty">頁面完成後將顯示於此</div></div>
+    </section>
+
+    <div class="grid two lower">
+      <section class="panel">
+        <div class="section-head"><div><span>05</span><h3>Database Record</h3></div><p>最終結構化內容</p></div>
+        <div id="dbRecord"></div>
+      </section>
+      <section class="panel">
+        <div class="section-head"><div><span>06</span><h3>DB Verification</h3></div><p>寫入結果與 evidence</p></div>
+        <div id="dbVerification"></div>
+      </section>
+    </div>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

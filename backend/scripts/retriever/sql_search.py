@@ -29,12 +29,12 @@ SCHEMA_DESCRIPTION = """
   - name        VARCHAR   -- 學校全名
   - domain      VARCHAR   -- 學校官網網域
 
-資料表 programs（每間學校可有多個 program，例如 'CS MS' / 'CS PhD'；透過 university_id 關聯 universities）:
-  - id                  INTEGER    -- 主鍵，program_deadlines / program_scholarships / program_app_materials.program_id 對應此欄位
+資料表 programs（目前每間學校至多一筆國際 CS 碩士目標；透過 university_id 關聯 universities）:
+  - id                  INTEGER    -- 主鍵，program_deadlines / program_scholarships / program_app_materials / program_evidence.program_id 對應此欄位
   - university_id       INTEGER    -- 對應 universities.id（外鍵）
-  - program_code        VARCHAR    -- program 代碼，存的就是 'CS MS' / 'CS PhD' 這類簡寫。使用者說「CS MS」「CS 碩士」時用這欄過濾（program_code = 'CS MS'），不要用 program_name。
-  - degree_type         VARCHAR    -- 學位別，值為 'MS' / 'PhD' / 'MEng' / 'MPS' / 'MBA'。使用者只說「碩士 / master」未指定領域時用這欄（degree_type = 'MS'）。
-  - program_name        VARCHAR    -- 學程全名，存的是完整名稱如 'Master of Science in Computer Science'，不含 'CS MS' 這種簡寫，勿用它比對簡寫。
+  - program_code        VARCHAR    -- 目前固定為 'INTERNATIONAL_CS_MASTERS'
+  - degree_type         VARCHAR    -- 目前目標為碩士（MS）
+  - program_name        VARCHAR    -- 目前為 International Computer Science Master's
   - department          VARCHAR    -- 系所名稱
   - toefl_min           INTEGER    -- 舊版相容：原文只寫 TOEFL、無法確認考試種類/尺度時的最低分
   - toefl_ibt_min       INTEGER    -- TOEFL iBT 舊制最低 overall（0–120）
@@ -92,18 +92,29 @@ SCHEMA_DESCRIPTION = """
   - word_limit     INTEGER    -- 字數限制
   - note           TEXT       -- 補充說明
 
+資料表 program_evidence（無法安全正規化為單一數字或日期的官方原文上下文；透過 program_id 關聯 programs）:
+  - program_id     INTEGER    -- 對應 programs.id
+  - category       VARCHAR    -- deadline / english / gpa / gre / materials / fee / tuition / scholarships / other
+  - field_name     TEXT       -- 對應欄位名稱；無特定欄位時為 general
+  - evidence_kind  VARCHAR    -- context_note / ambiguous / conditional / validator_rejected
+  - evidence_text  TEXT       -- 供回答與判斷使用的完整上下文
+  - source_excerpt TEXT       -- 官方頁面原文摘錄
+  - source_url     TEXT       -- 官方來源網址
+
 關聯方式：
   - programs JOIN universities ON programs.university_id = universities.id
   - program_deadlines JOIN programs ON program_deadlines.program_id = programs.id
   - program_scholarships JOIN programs ON program_scholarships.program_id = programs.id
   - program_app_materials JOIN programs ON program_app_materials.program_id = programs.id
+  - program_evidence JOIN programs ON program_evidence.program_id = programs.id
 查詢申請要求（GPA/TOEFL/GRE/學費/推薦信/CV 等）用 programs；查截止日用 program_deadlines；
-查獎助用 program_scholarships；查特殊申請材料（portfolio/video/writing sample 等）用 program_app_materials。
+查獎助用 program_scholarships；查特殊申請材料（portfolio/video/writing sample 等）用 program_app_materials；
+結構化欄位為 NULL、日期沒有年份、或條件無法壓成單一值時，用 program_evidence 補充。
 """
 
 _ALLOWED_TABLES = {
     "universities", "programs", "program_deadlines",
-    "program_scholarships", "program_app_materials",
+    "program_scholarships", "program_app_materials", "program_evidence",
 }
 
 _SQL_FORBIDDEN_PATTERN = re.compile(
@@ -120,34 +131,40 @@ def _build_sql_prompt(query: str) -> str:
 
 【規則】
 1. 只能產生單一個 SELECT 查詢語句，禁止任何寫入/修改語句（INSERT/UPDATE/DELETE/DROP 等）。
-2. 只能查詢 universities、programs、program_deadlines、program_scholarships、program_app_materials 這幾張表。
+2. 只能查詢 universities、programs、program_deadlines、program_scholarships、program_app_materials、program_evidence 這幾張表。
 3. 查詢 programs 時必須 JOIN universities ON programs.university_id = universities.id
    （programs 本身沒有 school_id 或校名欄位，一定要透過此 JOIN 才能取得）；
    查截止日再 JOIN program_deadlines ON program_deadlines.program_id = programs.id，
    查獎助再 JOIN program_scholarships ON program_scholarships.program_id = programs.id，
    查特殊申請材料再 JOIN program_app_materials ON program_app_materials.program_id = programs.id。
+   program_evidence 可 JOIN programs ON program_evidence.program_id = programs.id；若主查詢已 JOIN deadlines 等多值表，
+   優先用 correlated subquery 彙整 evidence，避免多張一對多表互乘而重複列。
 4. 一律回傳 universities.school_id（回傳需含 school_id 別名）與 universities.name（回傳需含 university_name 別名），方便後續識別。
 5. 若問題提到特定學校（如 CMU、Stanford、MIT 等），請用 WHERE 過濾，優先用 universities.school_id 精確比對（例如問題提到 MIT，用 universities.school_id = 'mit'）；只有在問題給的是完整或部分校名（而非常見縮寫）時才用 name 過濾。
    - 用 name 過濾時必須用 ILIKE 搭配前後 % 萬用字元，例如 universities.name ILIKE '%Stanford%'，不可用精確比對（ILIKE 'Stanford' 是錯的），因為 name 欄位存的是全名（如 "Stanford University"）。
    - 若不確定縮寫對應的 school_id，可以同時用 OR 比對 universities.school_id ILIKE 與 universities.name ILIKE 兩者，提高命中率。
-6. 若問題提到特定學程（如「CS MS」「CS 碩士」「CS PhD」），用 programs.program_code 精確比對（例如 programs.program_code = 'CS MS'），
-   絕對不要用 programs.program_name ILIKE '%CS MS%'（program_name 存的是全名 'Master of Science in Computer Science'，不含 'CS MS' 簡寫，這樣一定查不到）。
-   若問題只說「碩士 / master」未指定領域，改用 programs.degree_type = 'MS'。若問題沒特別指定學程，就不要對 program 加過濾條件，回傳該校所有 program。
-   比對多個 program 時一律用 IN（例如 programs.program_code IN ('CS MS', 'CS PhD')），禁止用連續 OR；
-   WHERE 中若混用 AND 與 OR，OR 的部分必須加括號（AND 優先於 OR，寫 school_id = 'cmu' AND code = 'CS MS' OR code = 'CS PhD'
-   會變成 (school_id='cmu' AND code='CS MS') OR (code='CS PhD')，導致撈到其他學校的資料，這是嚴重錯誤）。
+6. programs 目前只收錄國際 CS 碩士，program_code 固定為 'INTERNATIONAL_CS_MASTERS'。
+   使用者說「CS MS」「CS 碩士」「國際 CS 碩士」時，使用
+   programs.program_code = 'INTERNATIONAL_CS_MASTERS'，不得再查舊代碼 'CS MS' / 'CS PhD'。
+   若使用者詢問其他學位或非 CS 領域，不可假裝此表有該資料。
 7. 若問題未指定學校，回傳所有學校的相關欄位（不要用 LIMIT 過度限制筆數，最多 20 筆）。
 8. 只 SELECT 與問題相關的欄位，不要 SELECT *；但以下同義問題必須使用完整欄位組，不能只挑其中一欄：
    - 問 TOEFL／托福時，一律同時 SELECT programs.toefl_min、programs.toefl_ibt_min、programs.toefl_ibt_new_scale_min、programs.toefl_section_requirements。
    - 問英文成績／英語門檻時，一律 SELECT 上述 TOEFL 欄位，以及 programs.ielts_min、programs.duolingo_min、programs.language_waiver、programs.english_test_notes。
+   - 問 GPA、英文成績、GRE、申請材料或 deadline 時，除了結構化欄位，也要用 correlated subquery SELECT 對應 category 的
+     program_evidence.evidence_text、source_excerpt、source_url 作為 evidence；結構化欄位為 NULL 時仍可回答原文條件。
+     programs 的結構化 CS master's 欄位非 NULL 時以該值為準；program_evidence 只補充條件、來源與空值，
+     不可用 evidence 中較低的校級一般標準覆蓋非 NULL 的 CS master's 結構化值。
    - 問「申請相關資料」「申請條件」「必須知道的內容」「等等」這類廣泛問題時，至少 SELECT：
      programs.program_code、programs.program_name、programs.gpa_min、programs.gpa_scale、programs.gpa_note、
      programs.toefl_min、programs.toefl_ibt_min、programs.toefl_ibt_new_scale_min、programs.ielts_min、
      programs.duolingo_min、programs.language_waiver、programs.english_test_notes、programs.toefl_section_requirements、programs.gre_required、programs.rec_letter_count、
      programs.sop_word_limit、programs.cv_required、programs.application_fee_usd、programs.fee_waiver_available、
      programs.tuition_per_year_usd、programs.application_url。
-     並 LEFT JOIN program_deadlines，SELECT application_open_date、application_close_date、decision_release_date、semester。
+     並 LEFT JOIN program_deadlines，SELECT application_open_date、application_close_date、decision_release_date、semester；
+     同時以 correlated subquery 彙整 program_evidence 的 category、field_name、evidence_text、source_excerpt、source_url。
 9. 新 schema 優先：查申請截止使用 application_close_date，不要只查舊版 deadline_date；查 TOEFL 不得只查 toefl_min。
+   deadline 結構化日期為 NULL 時，不可自行補年份，應回傳 category='deadline' 的 program_evidence 原文。
 10. 範例，問題「給我 UCLA 的申請相關資料，包含 GPA、英文成績、推薦信等等」應產生等價於：
     SELECT universities.school_id, universities.name AS university_name,
            programs.program_code, programs.program_name, programs.gpa_min, programs.gpa_scale, programs.gpa_note,
@@ -157,10 +174,18 @@ def _build_sql_prompt(query: str) -> str:
            programs.application_fee_usd, programs.fee_waiver_available,
            programs.tuition_per_year_usd, programs.application_url,
            program_deadlines.application_open_date, program_deadlines.application_close_date,
-           program_deadlines.decision_release_date, program_deadlines.semester
+           program_deadlines.decision_release_date, program_deadlines.semester,
+           (SELECT jsonb_agg(jsonb_build_object(
+                'category', pe.category, 'field_name', pe.field_name,
+                'evidence_text', pe.evidence_text, 'source_excerpt', pe.source_excerpt,
+                'source_url', pe.source_url))
+            FROM program_evidence pe
+            WHERE pe.program_id = programs.id
+              AND pe.category IN ('deadline','english','gpa','gre','materials','fee')) AS evidence
     FROM programs JOIN universities ON programs.university_id = universities.id
     LEFT JOIN program_deadlines ON program_deadlines.program_id = programs.id
     WHERE universities.school_id = 'ucla'
+      AND programs.program_code = 'INTERNATIONAL_CS_MASTERS'
 11. 只輸出 JSON，格式如下，不要有其他文字或 markdown code fence：
 
 {{"sql": "SELECT ... ;"}}

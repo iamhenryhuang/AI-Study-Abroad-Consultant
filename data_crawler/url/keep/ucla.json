@@ -1,0 +1,173 @@
+{
+  "school_id": "ucla",
+  "generated_at": "2026-07-26T01:16:25.230814",
+  "decision": "keep",
+  "count": 15,
+  "urls": [
+    {
+      "url": "https://www.cs.ucla.edu/graduate-admission-frequently-asked-questions",
+      "source_url": "https://www.cs.ucla.edu/",
+      "anchor_text": "Graduate Admissions FAQ",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "keep",
+      "reason": "This FAQ page likely addresses master's application requirements, deadlines, and procedures.",
+      "confidence": 0.97,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://www.cs.ucla.edu/graduate-admissions",
+      "source_url": "https://www.cs.ucla.edu/",
+      "anchor_text": "Graduate Admissions",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "keep",
+      "reason": "This page likely details master's admission procedures and requirements for CS.",
+      "confidence": 0.98,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://www.cs.ucla.edu/graduate-requirements",
+      "source_url": "https://www.cs.ucla.edu/",
+      "anchor_text": "Graduate Application Requirements",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "keep",
+      "reason": "Graduate application requirements page likely lists eligibility, documents, and test scores for master's applicants.",
+      "confidence": 0.97,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/admission-application-for-graduate-admission",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "Apply",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "This page likely contains the application form and process for master's applicants.",
+      "confidence": 0.98,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/calendar",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "Calendar",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "Admissions calendar likely lists application deadlines for master's programs.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/faqs",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "FAQs",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "Admissions FAQs likely address master's application requirements and procedures.",
+      "confidence": 0.96,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/international-applicants",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "International Applicants",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "This page likely details language requirements and procedures for international master's applicants.",
+      "confidence": 0.97,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/steps-to-apply",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "How to Apply to UCLA Grad School",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "This page likely outlines the step-by-step application process for master's applicants.",
+      "confidence": 0.98,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "Funding",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "Funding page likely details scholarships and fellowships for master's applicants.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/faqs",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "FAQs",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "Funding FAQs likely address financial aid and scholarships for master's applicants.",
+      "confidence": 0.92,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "Financial Aid & Finances",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "Financial aid page likely details aid options for master's applicants.",
+      "confidence": 0.93,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/tuition",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "Tuition",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "Tuition page likely provides tuition rates for master's applicants.",
+      "confidence": 0.97,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/smartrecs",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "Recommendations",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "Recommendations page likely provides information on submitting letters of recommendation for master's applications.",
+      "confidence": 0.92,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/smartrecs/recommendations",
+      "source_url": "https://grad.ucla.edu/admissions",
+      "anchor_text": "Recommendations",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "This page likely details the process for submitting recommendation letters for master's applications.",
+      "confidence": 0.93,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/programs/school-of-engineering-and-applied-science/computer-science",
+      "source_url": "https://grad.ucla.edu/programs/school-of-engineering-and-applied-science",
+      "anchor_text": "Computer Science",
+      "depth": 1,
+      "root_index": 1,
+      "decision": "keep",
+      "reason": "This page is for the Computer Science graduate program and is likely to contain master's admission requirements and application procedures.",
+      "confidence": 0.97,
+      "decision_source": "llm"
+    }
+  ]
+}

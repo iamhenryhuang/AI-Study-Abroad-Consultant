@@ -17,7 +17,10 @@ from urllib.parse import urljoin
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 from .settings_bridge import CONFIG, USER_AGENT
-from .url_tools import normalize_url, get_root_info, is_same_root, filter_url, is_pdf
+from .url_tools import (
+    normalize_url, get_root_info, is_same_root, is_same_host,
+    is_high_value_sibling_url, filter_url, is_pdf,
+)
 from .text_clean import normalize_spaces, deduplicate_text, content_hash
 
 MAX_FULL_TEXT_CHARS = 2_000_000
@@ -52,6 +55,25 @@ def _new_browser(p, headless=True):
     return browser, context
 
 
+def _merge_distinct_text_sources(primary: str, *supplements: str) -> str:
+    """以可見正文為主，只附加尚未包含的非 DOM 重疊來源。"""
+    parts = []
+    primary = normalize_spaces(primary)
+    if primary:
+        parts.append(primary)
+    combined = primary.lower()
+    for source in supplements:
+        text = normalize_spaces(source)
+        if not text:
+            continue
+        low = text.lower()
+        if low in combined:
+            continue
+        parts.append(text)
+        combined = f"{combined} {low}".strip()
+    return normalize_spaces(" ".join(parts))
+
+
 # ══════════════════════════════════════════════
 # Node 2：BFS 一層（搬自 url_crawler.py，回傳 dict 而非寫檔）
 # ══════════════════════════════════════════════
@@ -75,15 +97,18 @@ def extract_links(page, current_url: str, root_info: dict) -> dict:
         except Exception:
             continue
 
+        anchor_text = item.get("text", "")
         if not is_same_root(normalized, root_info):
-            external.add(normalized)
-            continue
+            if not (is_same_host(normalized, root_info)
+                    and is_high_value_sibling_url(normalized, anchor_text)):
+                external.add(normalized)
+                continue
 
         ok, reason = filter_url(normalized)
         if ok:
             keep.add(normalized)
-            if item.get("text") and normalized not in keep_anchors:
-                keep_anchors[normalized] = item["text"]
+            if anchor_text and normalized not in keep_anchors:
+                keep_anchors[normalized] = anchor_text
         else:
             drop[normalized] = reason
 
@@ -190,17 +215,12 @@ _SCROLL_JS = """async () => {
 
 _CLICK_EXPANDERS_JS = """() => {
     const CLICK_SELECTORS = [
-        '[aria-expanded="false"]',
-        '[aria-selected="false"]',
-        '[aria-checked="false"]',
+        'button[aria-expanded="false"]',
         'button.accordion-button',
         '.accordion-header button',
         '.accordion-item .accordion-button',
-        '[data-bs-toggle="collapse"]',
-        '[data-toggle="collapse"]',
-        '[data-bs-toggle="tab"]',
-        '[data-toggle="tab"]',
-        '[data-bs-toggle="pill"]',
+        'button[data-bs-toggle="collapse"]',
+        'button[data-toggle="collapse"]',
         'button[class*="accordion"]',
         'button[class*="toggle"]',
         'button[class*="collapse"]',
@@ -215,18 +235,13 @@ _CLICK_EXPANDERS_JS = """() => {
         '[class*="show-more"]',
         '[class*="load-more"]',
         'summary',
-        '[role="button"][aria-expanded="false"]',
-        '[role="tab"]',
-        '[role="treeitem"]',
-        '.faq-question',
-        '.faq-title',
-        '.faq-toggle',
-        '.question',
-        '.q-item',
+        '[role="button"][aria-expanded="false"]:not(a)',
+        'button.faq-question',
+        'button.faq-title',
+        'button.faq-toggle',
         '[class*="faq"] button',
-        '[class*="faq"] [role="button"]',
-        '[data-target]',
-        '[href="#"]',
+        '[class*="faq"] [role="button"]:not(a)',
+        'button[data-target]',
     ];
     const clicked = new WeakSet();
     CLICK_SELECTORS.forEach(sel => {
@@ -234,6 +249,9 @@ _CLICK_EXPANDERS_JS = """() => {
         try { els = document.querySelectorAll(sel); } catch(e) { return; }
         els.forEach(el => {
             if (clicked.has(el)) return;
+            // 展開器只能改變當前 DOM。任何帶 href/form action 的元素都有機會
+            // 導航到其他頁面，不能為了展開內容而自動點擊。
+            if (el.closest('a[href], form') || el.hasAttribute('formaction')) return;
             clicked.add(el);
             try {
                 el.scrollIntoView({ behavior: 'instant', block: 'center' });
@@ -246,53 +264,45 @@ _CLICK_EXPANDERS_JS = """() => {
 
 _FORCE_SHOW_JS = """() => {
     document.querySelectorAll('details').forEach(el => el.open = true);
+    const controlledIds = new Set();
+    document.querySelectorAll(
+        'button[aria-controls], button[data-bs-target], button[data-target], ' +
+        '[role="button"]:not(a)[aria-controls]'
+    ).forEach(control => {
+        const values = [
+            control.getAttribute('aria-controls') || '',
+            control.getAttribute('data-bs-target') || '',
+            control.getAttribute('data-target') || '',
+        ];
+        values.forEach(value => {
+            value.split(/\\s+/).forEach(token => {
+                const id = token.replace(/^#/, '').trim();
+                if (id && /^[A-Za-z][\\w:.-]*$/.test(id)) controlledIds.add(id);
+            });
+        });
+    });
     const SHOW_SELECTORS = [
-        '[class*="dropdown"]',  '[class*="collapse"]', '[class*="accordion"]',
-        '[class*="menu"]',      '[class*="submenu"]',  '[class*="panel"]',
-        '[class*="tab-pane"]',  '[class*="content"]',  '[class*="toggle"]',
-        '[class*="drawer"]',    '[class*="modal"]',    '[class*="dialog"]',
-        '[class*="popover"]',   '[class*="tooltip"]',  '[class*="overlay"]',
-        '[class*="offcanvas"]', '[class*="sidebar"]',  '[class*="flyout"]',
-        '[class*="expand"]',    '[class*="reveal"]',   '[class*="hidden"]',
-        '[class*="hide"]',      '[class*="inactive"]', '[class*="closed"]',
-        '[hidden]',
-        '[aria-hidden="true"]',
+        '.accordion-collapse', '.accordion-content', '.accordion-panel',
+        '.collapse:not(nav):not(header):not(footer)',
+        '[role="region"][aria-labelledby]',
     ];
+    const reveal = el => {
+        if (!el || el.closest('nav, header, footer, [role="navigation"]')) return;
+        el.style.setProperty('display',     'block',   'important');
+        el.style.setProperty('visibility',  'visible', 'important');
+        el.style.setProperty('opacity',     '1',       'important');
+        el.style.setProperty('max-height',  'none',    'important');
+        el.style.setProperty('height',      'auto',    'important');
+        el.style.setProperty('overflow',    'visible', 'important');
+        el.removeAttribute('hidden');
+        el.removeAttribute('aria-hidden');
+    };
     SHOW_SELECTORS.forEach(sel => {
         let els;
         try { els = document.querySelectorAll(sel); } catch(e) { return; }
-        els.forEach(el => {
-            el.style.setProperty('display',     'block',   'important');
-            el.style.setProperty('visibility',  'visible', 'important');
-            el.style.setProperty('opacity',     '1',       'important');
-            el.style.setProperty('max-height',  'none',    'important');
-            el.style.setProperty('height',      'auto',    'important');
-            el.style.setProperty('overflow',    'visible', 'important');
-            el.removeAttribute('hidden');
-            el.removeAttribute('aria-hidden');
-        });
+        els.forEach(reveal);
     });
-    const SKIP_TAGS = new Set(['SCRIPT','STYLE','SVG','NOSCRIPT','TEMPLATE','HEAD']);
-    document.querySelectorAll('*').forEach(el => {
-        if (SKIP_TAGS.has(el.tagName)) return;
-        const s = window.getComputedStyle(el);
-        if (
-            s.display     === 'none'    ||
-            s.visibility  === 'hidden'  ||
-            s.visibility  === 'collapse'||
-            s.opacity     === '0'       ||
-            s.height      === '0px'     ||
-            s.maxHeight   === '0px'     ||
-            s.overflow    === 'hidden' && (parseFloat(s.height) === 0)
-        ) {
-            el.style.setProperty('display',     'block',   'important');
-            el.style.setProperty('visibility',  'visible', 'important');
-            el.style.setProperty('opacity',     '1',       'important');
-            el.style.setProperty('max-height',  'none',    'important');
-            el.style.setProperty('height',      'auto',    'important');
-            el.style.setProperty('overflow',    'visible', 'important');
-        }
-    });
+    controlledIds.forEach(id => reveal(document.getElementById(id)));
 }"""
 
 _TEXT_SOURCES_JS = {
@@ -471,8 +481,19 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
         # STEP 1-3：慢速捲動 → 點開所有可展開元素 → 強制顯示殘留隱藏節點
         page.evaluate(_SCROLL_JS)
         page.wait_for_timeout(1000)
+        page_url_before_expand = page.url
         page.evaluate(_CLICK_EXPANDERS_JS)
         page.wait_for_timeout(1200)
+        # 網站可能把看似 button 的控制綁成導頁動作。若仍發生導航，重新載入
+        # 展開前的頁面；絕不能把別頁內容掛在原始 URL 名下。
+        if page.url != page_url_before_expand:
+            print(f"  ⚠️ expander navigation blocked: {page_url_before_expand} → {page.url}")
+            page.goto(page_url_before_expand, wait_until="domcontentloaded", timeout=30000)
+            try:
+                page.wait_for_load_state("networkidle", timeout=10000)
+            except PlaywrightTimeoutError:
+                pass
+            page.wait_for_timeout(extra_wait_ms)
         page.evaluate(_FORCE_SHOW_JS)
         page.wait_for_timeout(600)
 
@@ -483,11 +504,16 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
         h3_list = [normalize_spaces(x) for x in page.locator("h3").all_inner_texts() if normalize_spaces(x)]
 
         visible_text = normalize_spaces(page.evaluate("() => document.body.innerText || ''") or "")
-        all_text_content = normalize_spaces(page.evaluate("() => document.body.textContent || ''") or "")
         walker_texts = normalize_spaces(page.evaluate(_WALKER_JS) or "")
 
+        # 只計算後續真正使用、且不會遞迴包含整棵 DOM 的來源。
+        source_keys = (
+            "p_texts", "input_texts", "option_texts", "alt_texts",
+            "aria_texts", "data_attr_texts", "meta_desc",
+        )
         sources = {}
-        for key, js in _TEXT_SOURCES_JS.items():
+        for key in source_keys:
+            js = _TEXT_SOURCES_JS[key]
             try:
                 sources[key] = normalize_spaces(page.evaluate(js) or "")
             except Exception:
@@ -526,29 +552,22 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
         except Exception:
             pass
 
-        # 合併所有來源（main_content 優先）
-        prefix = (main_content + " ") if len(main_content) > 500 else ""
-        full_text = normalize_spaces(prefix + " ".join([
-            visible_text,
-            all_text_content,
-            walker_texts,
-            sources["p_texts"],
-            sources["li_texts"],
-            sources["table_texts"],
-            sources["div_texts"],
-            sources["span_texts"],
-            sources["a_texts"],
-            sources["button_texts"],
-            sources["label_texts"],
+        # body.innerText 是瀏覽器實際呈現的完整文字，已涵蓋 main/p/li/table/div/span/a。
+        # 不能再合併 body.textContent 或所有 div/span 的 textContent：部分網站把
+        # <style> 放在 body 內，會把數十萬字 CSS 與祖先節點重複內容灌進全文。
+        primary_text = visible_text
+        if len(primary_text) < 200:
+            primary_text = main_content or walker_texts
+        full_text = _merge_distinct_text_sources(
+            primary_text,
             sources["input_texts"],
             sources["option_texts"],
             sources["alt_texts"],
             sources["aria_texts"],
             sources["data_attr_texts"],
             sources["meta_desc"],
-            sources["shadow_texts"],
             iframe_texts,
-        ]))
+        )
         if len(full_text) > MAX_FULL_TEXT_CHARS:
             full_text = full_text[:MAX_FULL_TEXT_CHARS]
         full_text = deduplicate_text(full_text)
@@ -570,6 +589,7 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
 
         return {
             "title": title,
+            "final_url": normalize_url(page.url),
             "h1_list": h1_list, "h2_list": h2_list, "h3_list": h3_list,
             "full_text": full_text,
             "nav_text": nav_text,
@@ -583,7 +603,8 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
 
     except Exception as e:
         return {
-            "title": "", "h1_list": [], "h2_list": [], "h3_list": [],
+            "title": "", "final_url": normalize_url(page.url) if page else normalize_url(url),
+            "h1_list": [], "h2_list": [], "h3_list": [],
             "full_text": "", "nav_text": "", "emphasis_text": "", "p_texts": "",
             "structured_markdown": "", "structured_tables": "",
             "content_hash": "", "error": str(e),
@@ -617,6 +638,7 @@ def extract_pdf_content(url: str) -> dict:
         markdown = "\n\n".join(pages_text)
         return {
             "title": url.rsplit("/", 1)[-1],
+            "final_url": normalize_url(url),
             "h1_list": [], "h2_list": [], "h3_list": [],
             "full_text": full_text,
             "nav_text": "", "emphasis_text": "", "p_texts": "",
@@ -627,7 +649,8 @@ def extract_pdf_content(url: str) -> dict:
         }
     except Exception as e:
         return {
-            "title": "", "h1_list": [], "h2_list": [], "h3_list": [],
+            "title": "", "final_url": normalize_url(url),
+            "h1_list": [], "h2_list": [], "h3_list": [],
             "full_text": "", "nav_text": "", "emphasis_text": "", "p_texts": "",
             "structured_markdown": "", "structured_tables": "",
             "content_hash": "", "error": str(e),

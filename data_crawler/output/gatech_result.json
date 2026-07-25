@@ -1,0 +1,967 @@
+{
+  "school_id": "gatech",
+  "generated_at": "2026-07-26T01:14:02.853467",
+  "page_results": [
+    {
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admission-requirements",
+      "title": "MS Computer Science Admission Requirements | College of Computing",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 1.0
+        },
+        {
+          "type": "deadlines",
+          "score": 0.95
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 1.0
+        },
+        {
+          "type": "deadlines",
+          "confidence": 0.95
+        }
+      ],
+      "content_hash": "0d6da9a693b3ce53e15debba398a81b3",
+      "program_codes": [
+        {
+          "program_code": "INTERNATIONAL_CS_MASTERS",
+          "degree_type": "MS",
+          "program_name": "International Computer Science Master's",
+          "department": "Computer Science",
+          "scope": "program_specific",
+          "official_evidence": "MS Computer Science Admission Requirements | College of Computing MS Computer Science Admission Requirements College of Computing Main navigation Action Menu Search Georgia Tech Coronavirus Resources Dean's Messages GT Computing Helping Stories Application Requirements Georgia Institute of Technology",
+          "source_program_name": "MS Computer Science Admission Requirements | College of Computing"
+        }
+      ],
+      "scope": "program_specific",
+      "target_assessment": {
+        "masters_available": true
+      },
+      "extraction": {
+        "programs": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "fields": {
+              "toefl_ibt_min": {
+                "value": 100,
+                "source_excerpt": "Our department requires a 100 minimum score on the older 0-120 scale TOEFL."
+              },
+              "toefl_ibt_new_scale_min": {
+                "value": 5.0,
+                "source_excerpt": "Effective January 2026, the TOEFL scale will change to 1-6, and our new requirement will be 5.0."
+              },
+              "ielts_min": {
+                "value": 7.5,
+                "source_excerpt": "A minimum overall score of 7.5 is required, with minimum section scores as follows: Reading 6.5, Listening 6.5, Speaking 6.5, Writing 5.5."
+              },
+              "english_test_notes": {
+                "value": "We will also accept IELTS to fulfill english proficiency. A minimum overall score of 7.5 is required, with minimum section scores as follows: Reading 6.5, Listening 6.5, Speaking 6.5, Writing 5.5.",
+                "source_excerpt": "We will also accept IELTS to fulfill english proficiency. A minimum overall score of 7.5 is required, with minimum section scores as follows: Reading 6.5, Listening 6.5, Speaking 6.5, Writing 5.5."
+              },
+              "gre_required": {
+                "value": "optional",
+                "source_excerpt": "A GRE score is not required for admission to the MSCS program. If provided, GRE scores will be considered."
+              },
+              "gpa_min": {
+                "value": 3.0,
+                "source_excerpt": "The desirable minimum GPA is 3.0/4.0, though most candidates score higher."
+              },
+              "gpa_scale": {
+                "value": "4.0",
+                "source_excerpt": "The desirable minimum GPA is 3.0/4.0, though most candidates score higher."
+              },
+              "gpa_note": {
+                "value": "though most candidates score higher",
+                "source_excerpt": "The desirable minimum GPA is 3.0/4.0, though most candidates score higher."
+              },
+              "rec_letter_count": {
+                "value": 3,
+                "source_excerpt": "Receipt of three recommendation letters (requested within the on-line application)."
+              }
+            }
+          }
+        ],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "material_type": "other",
+            "requirement": "Completion of the online application.",
+            "word_limit": null,
+            "note": "",
+            "source_excerpt": "Completion of the online application."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "material_type": "other",
+            "requirement": "Statement of purpose.",
+            "word_limit": null,
+            "note": "",
+            "source_excerpt": "The College looks for compelling reasons to admit candidates, and the statement of purpose, letters of recommendation, test scores and GPA are all reviewed carefully."
+          }
+        ],
+        "evidence_paragraphs": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "deadline",
+            "field_name": "application_close_date",
+            "evidence_kind": "context_note",
+            "evidence_text": "The application deadline is Feb. 1 for admission to the following fall semester. No explicit year is stated, so the exact date for fall 2026 is not provided.",
+            "source_excerpt": "The application deadline is Feb. 1 for admission to the following fall semester."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "english",
+            "field_name": "toefl_ibt_min",
+            "evidence_kind": "context_note",
+            "evidence_text": "Our department requires a 100 minimum score on the older 0-120 scale TOEFL. Effective January 2026, the TOEFL scale will change to 1-6, and our new requirement will be 5.0.",
+            "source_excerpt": "Our department requires a 100 minimum score on the older 0-120 scale TOEFL. Effective January 2026, the TOEFL scale will change to 1-6, and our new requirement will be 5.0."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "english",
+            "field_name": "ielts_min",
+            "evidence_kind": "context_note",
+            "evidence_text": "A minimum overall score of 7.5 is required, with minimum section scores as follows: Reading 6.5, Listening 6.5, Speaking 6.5, Writing 5.5.",
+            "source_excerpt": "A minimum overall score of 7.5 is required, with minimum section scores as follows: Reading 6.5, Listening 6.5, Speaking 6.5, Writing 5.5."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "gre",
+            "field_name": "gre_required",
+            "evidence_kind": "context_note",
+            "evidence_text": "A GRE score is not required for admission to the MSCS program. If provided, GRE scores will be considered. If you do not have a relevant or related degree, have been out of school for over 10 years, or are concerned about the strength of your application, providing GRE scores may assist the Admissions Committee in their review.",
+            "source_excerpt": "A GRE score is not required for admission to the MSCS program. If provided, GRE scores will be considered. If you do not have a relevant or related degree, have been out of school for over 10 years, or are concerned about the strength of your application, providing GRE scores may assist the Admissions Committee in their review."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "gpa",
+            "field_name": "gpa_min",
+            "evidence_kind": "context_note",
+            "evidence_text": "The desirable minimum GPA is 3.0/4.0, though most candidates score higher.",
+            "source_excerpt": "The desirable minimum GPA is 3.0/4.0, though most candidates score higher."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "materials",
+            "field_name": null,
+            "evidence_kind": "context_note",
+            "evidence_text": "The application requires completion of the online application, receipt of three recommendation letters, and a statement of purpose. These are explicitly listed as required materials for admission.",
+            "source_excerpt": "- Completion of the online application.\n- Receipt of three recommendation letters (requested within the on-line application).\n- ... This includes transcripts, letters of recommendation, and a statement of purpose."
+          }
+        ]
+      },
+      "confidence": 0.94,
+      "retries": 1,
+      "tags": [
+        "INTERNATIONAL_CS_MASTERS",
+        "admissions",
+        "deadlines"
+      ],
+      "data": "Skip to main navigation Skip to main content MENU College of Computing Main navigation About Advisory Board Awards Community Contact Facts and Rankings Faculty Position Opportunities Leadership College Administration Organization Chart Techlanta Website Feedback Form Future Students Degree Programs Graduate Degrees Minors Threads Prospective Undergraduates Online Education Funding Sources Current Students Academic Resources Advising Program Advising Undergraduate Advising Registration Dates Career Fair Tutoring Assistance Career Services Entrepreneurship Mentoring Program Office of Community and Student Engagement FASET International Studies Schools School of Computing Instruction School of Computational Science and Engineering School of Computer Science School of Cybersecurity and Privacy School of Interactive Computing News & Events News Upcoming Events Calendar Press Contacts The Compiler Communications: Let Us Tell Your Story MS Graduation People Directory Faculty Staff PhD Students Alumni Curriculum Vitae Hall of Fame Research Facilities Impact and Leadership Interdisciplinary Research Institutes Research Areas Research Centers About Research Centers Undergrad Research Industry Computing Affiliates Program Corporate Recruiting Support the College Action Menu Give to Computing Search Search MS Computer Science Admission Requirements Admission to the program is highly selective; there are many more qualified applicants than there are places in the program. The challenge for the College every year is to select a class from a highly qualified pool. The College looks for compelling reasons to admit candidates, and the statement of purpose, letters of recommendation, test scores and GPA are all reviewed carefully. Having a strong undergraduate background in computer science, including C programming, is highly recommended for applicants. The Admissions Committee welcomes additional pertinent information that will aid in making objective and informed decisions. Students are admitted to the master's program only once a year. The application deadline is Feb. 1 for admission to the following fall semester. Application Requirements Completion of the online application. Receipt of three recommendation letters (requested within the on-line application). A GRE score is not required for admission to the MSCS program. If provided, GRE scores will be considered. If you do not have a relevant or related degree, have been out of school for over 10 years, or are concerned about the strength of your application, providing GRE scores may assist the Admissions Committee in their review. The desirable minimum GPA is 3.0/4.0, though most candidates score higher. See the Institute's English Proficiency Requirements. Our department requires a 100 minimum score on the older 0-120 scale TOEFL. Effective January 2026, the TOEFL scale will change to 1-6, and our new requirement will be 5.0. We will also accept IELTS to fulfill english proficiency. A minimum overall score of 7.5 is required, with minimum section scores as follows: Reading 6.5, Listening 6.5, Speaking 6.5, Writing 5.5. A student who is enrolled in another graduate program of the Institute may pursue an MSCS while that student is also pursuing his or her degree in the other major. To be granted permission to pursue the MSCS, a student must submit to the Office of Graduate Programs in the College of Computing the material required for admission to the MSCS program. This includes transcripts, letters of recommendation, and a statement of purpose. If the student is approved by the admissions committee to pursue the MSCS, the student will be notified in writing. At no time will a student outside the College be allowed to pursue a concurrent degree without prior permission of the admissions committee. Admissions FAQ Georgia Tech Coronavirus Resources Academic Continuity Resources Guidance for Graduate Education Hosting a Virtual Event Monitoring Coronavirus On Campus OneUSG Connect Training Online Partial Day Absence (How to Submit) Which GT services require VPN? Dean's Messages Tuesday, August 3, 2021 Thursday, July 29, 2021 Tuesday, July 27, 2021 Tuesday, July 20, 2021 Tuesday, July 13, 2021 Archive GT Computing Helping Stories New Study Shows Explainability is a Must for Older Adults to Trust AI Researchers Look to Bolster Technology Support for Menopause New LLMs Could Provide Strength-based Job Coaching for Autistic People Students Collaborating with Nonprofit to Reduce Bird Collisions with Buildings Ph.D. Student Making Digital Maps That Blind People Can Hear Resources Georgia Tech Resources Offices and Departments News Center Campus Calendar Special Events GreenBuzz Institute Communications Visitor Resources Campus Visits Directions to Campus Visitor Parking Information GT visitor Wireless Network Information Georgia Tech Global Learning Center Georgia Tech Hotel and Conference Center Barnes and Noble at Georgia Tech Ferst Center for the Arts Robert C. Williams Paper Museum Colleges, Instructional Sites and Research Colleges College of Computing College of Design College of Engineering College of Sciences Ivan Allen College of Liberal Arts Scheller College of Business Instructional Sites Georgia Tech-Europe Georgia Tech-Shenzhen Georgia Tech Online Professional Education The Language Institute Global Footprint Global Engagement Research Georgia Tech Research Institute Research at Georgia Tech Executive Vice President for Research College of Computing Resources Intranet Student and Parent Resources Student Resources Apply BuzzPort Buzzcard Career Center Commencement Library Student Life Student Entrepreneurship Education Abroad Canvas Parent Resources Parent and Family Programs Division of Student Life Scholarships and Financial Aid News Feed AI, Analytics, and Health Tech Take Center Stage at Spring 2026 College of Computing Capstone Expo From AI-powered tools that support dementia care to platforms that… Computational Media Grad Builds at the Intersection of Computing and Music Jack Hayley’s path through Georgia Tech’s computational media program… Computing Grad Pursues Parallel Paths in Computer Science and Film For Kathy Tran, choosing to major in computer science (CS) at Georgia… Georgia Institute of Technology North Avenue Atlanta, GA 30332 +1 404.894.2000 Campus Map General Directory Employment Emergency Information Legal Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Legal & Privacy Information Human Trafficking Notice Title IX/Sexual Misconduct Hazing Public Disclosures Accessibility Accountability Accreditation Report Free Speech and Censorship Concern © 2026 Georgia Institute of Technology GT LOGIN GT LOGIN Search here... GO Georgia Institute of Technology Georgia Tech Georgia Institute of Technology Toggle navigation College of Computing About Advisory Board Future Students Current Students College of Computing Career Services Office Undergraduate FASET Schools News & Events News Upcoming Events Calendar People Directory Faculty Staff PhD Students College of Computing Hall of Fame Research About Research Centers Industry search Enter the terms you wish to search for. Georgia Tech Resources Main Menu Category Georgia Tech Offices and Departments Directory Georgia Tech News Center Georgia Tech Campus Calendar Georgia Tech Special Events and Protocol A resource for showcasing green behaviors, activities, initiatives, and events at Georgia Tech Georgia Tech Office of Institute Communications Visitor Resources Main Menu Category Georgia Tech Campus Visits Visit Georgia Tech Campus Georgia Tech Parking and Transportation Services GT visitor Wireless Network Information Georgia Tech Global Learning Center Georgia Tech Hotel and Conference Center Barnes and Noble at Georgia Tech Official Bookstore Georgia Tech Ferst Center for the Arts The Robert C. Williams Museum of Papermaking Colleges, Instructional Sites and Research Main Menu Category Georgia Tech Colleges Georgia Tech College of Computing Georgia Tech College of Design Georgia Tech College of Engineering Georgia Tech College of Sciences Georgia Tech Ivan Allen College of Liberal Arts Georgia Tech Scheller College of Business Instructional Sites Main Menu Category Georgia Techs European Campus Georgia Tech Study Abroad in China Georgia Tech Professional Education Online Georgia Tech Professional Education Unit Georgia Tech Language Institute Global Footprint Main Menu Category Georgia Tech Office of Global Engagement Research Main Menu Category Georgia Tech Research Institute Research at Georgia Tech Executive Vice President for Research at the Georgia Institute of Technology College of Computing Resources Intranet Student and Parent Resources Main Menu Category Georgia Tech Student Resources Georgia Tech Prospective Students Services to students, faculty, and administrative staff at Georgia Tech Georgia Tech Buzzcard Services Georgia Tech Career Center Commencement Information for Students Georgia Tech Library services Student Life at Georgia Tech CREATE-X Student Entrepreneurship Georgia Tech Office of International Education Digital Learning Georgia Tech Parent Resources Georgia Tech Office of Parent and Family Programs Student Life at Georgia Tech Georgia Tech Office of Scholarships & Financial Aid telephone Campus Map General Main Menu Category Georgia Institute of Technology Directory Georgia Institute of Technology Employment Georgia Institute of Technology Emergency Information Legal Main Menu Category Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Georgia Institute of Technology Legal & Privacy Information Georgia Human Trafficking Resources Georgia Tech Title IX/Sexual Misconduct Resources Georgia Tech Hazing Conduct History Georgia Institute of Technology Accessibility Resources Georgia Institute of Technology Accountability Resources Georgia Institute of Technology Accreditation University System of Georgia Ethics and Compliance Reporting Hotline georgia tech logo and copyright Georgia Tech logo link to main campus site admin login admin login AddToAny Utility Frame",
+      "char_count": 10104
+    },
+    {
+      "url": "https://grad.gatech.edu/admissions",
+      "title": "Admissions | Graduate Education",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 0.85
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 0.85
+        }
+      ],
+      "content_hash": "8d3da763831e5185fc7975b1018b6cd9",
+      "program_codes": [
+        {
+          "program_code": "INTERNATIONAL_CS_MASTERS",
+          "degree_type": "MS",
+          "program_name": "International Computer Science Master's",
+          "department": "Computer Science",
+          "scope": "school_wide",
+          "official_evidence": "Admissions | Graduate Education Admissions Graduate Education Audience Main Quick Actions Search Breadcrumb Apply to Tech Office of Graduate and Postdoctoral Education Domestic Applicants International Applicants",
+          "source_program_name": null
+        }
+      ],
+      "scope": "school_wide",
+      "target_assessment": {
+        "masters_available": true
+      },
+      "extraction": {
+        "programs": [],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": [],
+        "evidence_paragraphs": []
+      },
+      "confidence": 1.0,
+      "retries": 1,
+      "tags": [
+        "INTERNATIONAL_CS_MASTERS",
+        "admissions"
+      ],
+      "data": "Skip to main navigation Skip to main content MENU Graduate Education Office of Graduate and Postdoctoral Education Audience Information For: Prospective Students New Students Current Students Faculty & Staff Main About Tech Why Choose Georgia Tech Contact Us Statistics Ph.D. Career Outcomes Doctoral Program Statistics Master's Program Statistics Graduate Student Experience Survey Visit Tech Program Information Cost & Funding Cost & Fees Paying for Grad School Conference Travel Funds Admissions Admissions Overview Check Application Status BS/MS Degree Pathway English Proficiency Application Fee Waivers 62 and Older Students Professional Development Career and Professional Development Resources Mentoring & Conflict Resolution Career, Research, and Innovation Development Conference (CRIDC) Three Minute Thesis (3MT) News & Events Grad Buzz e-Newsletter Recent News Grad Student Events Events Past Event Photo Archive MS and Ph.D. Defenses Information For: Prospective Students New Students Current Students Faculty & Staff Quick Actions Apply FAQs Request Info Give Now Search Search Admissions Breadcrumb Home Apply to Tech Georgia Tech welcomes you! With over 1,000 universities in the United States that offer graduate degrees, we are honored that you are considering advancing your education at Tech. From expanding our global footprint, to helping our students participate in cutting-edge research and launch their own businesses, Georgia Tech continuously pushes the boundaries of what is possible. Start or Continue Application Domestic Applicants Admissions Checklist for Domestic Applicants International Applicants Admissions Checklist for International Applicants Office of Graduate Education Georgia Institute of Technology Savant Building, Room 301 631 Cherry St., NW Atlanta, GA 30332-0321 404.894.2000 Office of Graduate Education Map General Directory Employment Emergency Information Legal Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Legal & Privacy Information Human Trafficking Notice Title IX/Sexual Misconduct Hazing Public Disclosures Accessibility Accountability Accreditation Report Free Speech and Censorship Concern © 2026 Georgia Institute of Technology GT LOGIN This website uses cookies. For more information, review our Privacy & Legal Notice. Questions? Please email privacy@gatech.edu. Accept No, thanks Search here... GO Georgia Institute of Technology Tech Tower Students standing on building steps on Tech campus Students studying outside of the Ford Environmental Science & Technology campus building Georgia Tech Georgia Institute of Technology Menu: Toggle navigation Graduate Education Graduate Education Office of Graduate and Postdoctoral Education Office of Graduate and Postdoctoral Education search Enter the terms you wish to search for. Help Page Title and Breadcrumbs Tech Tower Contact Us Contact Us Follow us on Facebook Follow us on Facebook Find us on Flickr Find us on Flickr Follow us on Instagram Follow us on Instagram Follow us on Linkedin Follow us on Linkedin Find us on YouTube Find us on YouTube 404.894.2000 telephone georgia tech general menu General Main Menu Category Georgia Institute of Technology Directory Georgia Institute of Technology Employment Georgia Institute of Technology Emergency Information georgia tech legal menu Legal Main Menu Category Georgia Institute of Technology Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Georgia Institute of Technology Legal & Privacy Information Georgia Human Trafficking Resources Georgia Tech Title IX/Sexual Misconduct Resources Georgia Tech Hazing Conduct History Georgia Institute of Technology Accessibility Resources Georgia Institute of Technology Accountability Resources Georgia Institute of Technology Accreditation University System of Georgia Ethics and Compliance Reporting Hotline Georgia Tech GT login for admin Back to top Back to top Cookie compliance banner popup-text",
+      "char_count": 3947
+    },
+    {
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "title": "M.S. Computer Science Admissions FAQ | College of Computing",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 1.0
+        },
+        {
+          "type": "deadlines",
+          "score": 1.0
+        },
+        {
+          "type": "faq",
+          "score": 1.0
+        },
+        {
+          "type": "tuition",
+          "score": 0.9
+        },
+        {
+          "type": "scholarship",
+          "score": 0.8
+        },
+        {
+          "type": "program",
+          "score": 0.9
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 1.0
+        },
+        {
+          "type": "deadlines",
+          "confidence": 1.0
+        },
+        {
+          "type": "faq",
+          "confidence": 1.0
+        },
+        {
+          "type": "tuition",
+          "confidence": 0.9
+        },
+        {
+          "type": "scholarship",
+          "confidence": 0.8
+        },
+        {
+          "type": "program",
+          "confidence": 0.9
+        }
+      ],
+      "content_hash": "3c671a11a0d3094dd54ac0cac76abcdb",
+      "program_codes": [
+        {
+          "program_code": "INTERNATIONAL_CS_MASTERS",
+          "degree_type": "MS",
+          "program_name": "International Computer Science Master's",
+          "department": "Computer Science",
+          "scope": "program_specific",
+          "official_evidence": "M.S. Computer Science Admissions FAQ | College of Computing M.S. Computer Science Admissions FAQ College of Computing Main navigation Action Menu Search Georgia Tech Coronavirus Resources Dean's Messages GT Computing Helping Stories Georgia Institute of Technology",
+          "source_program_name": "M.S. Computer Science Admissions FAQ | College of Computing"
+        }
+      ],
+      "scope": "program_specific",
+      "target_assessment": {
+        "masters_available": true
+      },
+      "extraction": {
+        "programs": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "fields": {
+              "toefl_ibt_min": {
+                "value": 100,
+                "source_excerpt": "we generally do not accept applicants with less than 100 on the older scale and 5.0 on the newer scale because most of our applicants exceed the minimum TOEFL."
+              },
+              "ielts_min": {
+                "value": 7.5,
+                "source_excerpt": "Beginning Spring 2020, we will accept IELTS in place of TOEFL. A minimum overall score of 7.5 is required, with minumum section scores as follows: Reading 6.5, Listening 6.5, Speaking 6.5, Writing 5.5."
+              },
+              "english_test_notes": {
+                "value": "Beginning Spring 2020, we will accept IELTS in place of TOEFL. A minimum overall score of 7.5 is required, with minumum section scores as follows: Reading 6.5, Listening 6.5, Speaking 6.5, Writing 5.5.",
+                "source_excerpt": "Beginning Spring 2020, we will accept IELTS in place of TOEFL. A minimum overall score of 7.5 is required, with minumum section scores as follows: Reading 6.5, Listening 6.5, Speaking 6.5, Writing 5.5."
+              },
+              "gre_required": {
+                "value": "optional",
+                "source_excerpt": "optional GRE test scores"
+              },
+              "gpa_note": {
+                "value": "The admissions committee considers several factors when making admission decisions; academic performance at prior institutions (GPA), experience, background, optional GRE test scores, statement of purpose, and letters of recommendation.",
+                "source_excerpt": "The admissions committee considers several factors when making admission decisions; academic performance at prior institutions (GPA), experience, background, optional GRE test scores, statement of purpose, and letters of recommendation."
+              },
+              "transcript_format": {
+                "value": "You’ll have the option to upload supporting documents with your application (documents should be pdf files). Note that if you do this you won’t need to mail your documents. However, if you are admitted, you will be asked to submit the official documents.",
+                "source_excerpt": "You’ll have the option to upload supporting documents with your application (documents should be pdf files). Note that if you do this you won’t need to mail your documents. However, if you are admitted, you will be asked to submit the official documents."
+              },
+              "rec_letter_count": {
+                "value": 3,
+                "source_excerpt": "Three letters of recommendation are required and it is recommended that at least one of your recommendations come from faculty (it is not required to provide computer science faculty recommender) who are familiar with your academic performance. At least one of the letters must be from a professor."
+              },
+              "sop_prompt": {
+                "value": "The statement of purpose allows you to highlight areas of your background or interests that may not be clear in other areas of your application. Therefore, it is very important to write a clear and concise statement that expresses your interest in the program, and what you hope to gain from, or bring to, the program of study. You may address special features of the program that made it the right fit for you, or you may address specific topics that you are interested in studying. You may wish to address aspects of your personal, academic, and work-related experiences that would make effective contributions to the program or would showcase your knowledge and interest in your chosen area of study. This statement should be concise, outline a plan for graduate studies, and indicate why Georgia Tech is the right graduate program to meet this plan. It should include what you plan to accomplish with our MSCS degree, and what we should remember about you when considering your application.",
+                "source_excerpt": "The statement of purpose allows you to highlight areas of your background or interests that may not be clear in other areas of your application. Therefore, it is very important to write a clear and concise statement that expresses your interest in the program, and what you hope to gain from, or bring to, the program of study. ... This statement should be concise, outline a plan for graduate studies, and indicate why Georgia Tech is the right graduate program to meet this plan. It should include what you plan to accomplish with our MSCS degree, and what we should remember about you when considering your application."
+              },
+              "tuition_note": {
+                "value": "Please visit the Bursar's website for tuition and fee rates per semester. Our program is included in the MASTER & PHD CANDIDATES line at the very top of the GRADUATE RATES section. Only the programs that have special fee structures are listed individually.",
+                "source_excerpt": "Please visit the Bursar's website for tuition and fee rates per semester. Our program is included in the MASTER & PHD CANDIDATES line at the very top of the GRADUATE RATES section. Only the programs that have special fee structures are listed individually."
+              },
+              "application_url": {
+                "value": "https://grad.gatech.edu/apply-now",
+                "source_excerpt": "The admissions committee will only review applications officially submitted through https://grad.gatech.edu/apply-now"
+              },
+              "toefl_min": {
+                "value": 100,
+                "source_excerpt": "we generally do not accept applicants with less than 100 on the older scale and 5.0 on the newer scale because most of our applicants exceed the minimum TOEFL."
+              },
+              "application_system": {
+                "value": "CollegeNET",
+                "source_excerpt": "A \"Complete Your Decision\" button will also appear in the CollegeNET portal where you can either accept or decline this offer of admission."
+              }
+            }
+          }
+        ],
+        "deadlines": [],
+        "scholarships": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "name": "Graduate Research Assistantship (GRA)",
+            "amount_usd": null,
+            "coverage": "partial",
+            "eligibility": "Master's students are not guaranteed funding but frequently receive compensation after establishing a good working relationship with a faculty member. GRA is not guaranteed, but if you have a particular skill that a faculty member needs on a project, it can happen.",
+            "auto_consider": null,
+            "source_excerpt": "Master's students are not guaranteed funding but frequently receive compensation after establishing a good working relationship with a faculty member. You are welcome to visit faculty members in your area of interest to ascertain if GRA (Graduate Research Assistantship) support is available. GRA is not guaranteed, but if you have a particular skill that a faculty member needs on a project, it can happen. Start looking as soon as possible. Often students find a GRA position during or by the end of their first semester."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "name": "Graduate Teaching Assistantship (GTA)",
+            "amount_usd": null,
+            "coverage": "partial",
+            "eligibility": "When working as a GTA (Graduate Teaching Assistant), you are required to have completed the course or its equivalent and scored an “A” grade.",
+            "auto_consider": null,
+            "source_excerpt": "When working as a GTA (Graduate Teaching Assistant), you are required to have completed the course or its equivalent and scored an “A” grade."
+          }
+        ],
+        "app_materials": [],
+        "evidence_paragraphs": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "deadline",
+            "field_name": null,
+            "evidence_kind": "context_note",
+            "evidence_text": "Students are admitted to the master’s program only once a year. The application deadline is February 1 for admission to the following fall semester. Applicants have an additional two weeks to submit letters of recommendation and test scores, due no later than February 14. All application decisions should be available for applicants during the first week of April.",
+            "source_excerpt": "Students are admitted to the master’s program only once a year. The application deadline is February 1 for admission to the following fall semester. ... We allow applicants an additional two weeks to submit these after the deadline. They are due no later than February 14. ... All application decisions should be available for applicants during the first week of April."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "gpa",
+            "field_name": "gpa_note",
+            "evidence_kind": "context_note",
+            "evidence_text": "The admissions committee considers several factors when making admission decisions; academic performance at prior institutions (GPA), experience, background, optional GRE test scores, statement of purpose, and letters of recommendation.",
+            "source_excerpt": "The admissions committee considers several factors when making admission decisions; academic performance at prior institutions (GPA), experience, background, optional GRE test scores, statement of purpose, and letters of recommendation."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "gre",
+            "field_name": null,
+            "evidence_kind": "context_note",
+            "evidence_text": "The admissions committee considers several factors when making admission decisions; academic performance at prior institutions (GPA), experience, background, optional GRE test scores, statement of purpose, and letters of recommendation.",
+            "source_excerpt": "The admissions committee considers several factors when making admission decisions; academic performance at prior institutions (GPA), experience, background, optional GRE test scores, statement of purpose, and letters of recommendation."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "tuition",
+            "field_name": null,
+            "evidence_kind": "context_note",
+            "evidence_text": "Please visit the Bursar's website for tuition and fee rates per semester. The program is included in the MASTER & PHD CANDIDATES line at the very top of the GRADUATE RATES section.",
+            "source_excerpt": "Please visit the Bursar's website for tuition and fee rates per semester. Our program is included in the MASTER & PHD CANDIDATES line at the very top of the GRADUATE RATES section."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "deadline",
+            "field_name": "deadlines[regular]",
+            "evidence_kind": "validator_rejected",
+            "evidence_text": "e older scale and 5.0 on the newer scale because most of our applicants exceed the minimum toefl. you may want to consider retaking the toefl. 10. do you accept ielts? beginning spring 2020, we will accept ielts in place of toefl. a minimum overall score of 7.5 is required, with minumum section scores as follows: reading 6.5, listening 6.5, speaking 6.5, writing 5.5. 11. what is the department code to request my gre and toefl scores? as long as you request the test from ets using institute code 5248 we will receive the scores. when test scores are received from ets and entered into georgia tech system, they are available for all degree programs to view. 12. what is the application deadline? students are admitted to the master’s program only once a year. the application deadline is february 1 for admission to the following fall semester. 13. when do you admit new students? what about summer and spring? students are admitted to the master’s program only once a year. the application deadline is february 1 for admission to the following fall semester. we do not admit for summer or spring. 14. i have a master’s degree (mscs, or another degree). can i still apply to your program? yes. 15. i completed a three-year bachelor’s degree. am i eligible? if you have a three-year bachelor's degree and a post bachelor's degree including the one-year postgraduate diploma, you should be eligible to matriculate as a degree-seeking student. the office of graduate studies is the ultimate arbiter regarding whether or not a student can matriculate as degree-seeking. please consult their webpage on three-year bachelor's degrees to learn more. 16. what should i say in my application statement of purpose? the statement of purpose allows you to highlight are",
+            "source_excerpt": "Students are admitted to the master’s program only once a year. The application deadline is February 1 for admission to the following fall semester. We allow applicants an additional two weeks to submit these after the deadline. They are due no later than February 14. All application decisions should be available for applicants during the first week of April."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "english",
+            "field_name": "toefl_ibt_new_scale_min",
+            "evidence_kind": "validator_rejected",
+            "evidence_text": "ram 2. c programming (proficient) 3. java 4. algorithms you can gain this knowledge through undergrad classes, mooc, or learn it through work experience. 8. what types of prerequisite courses? the student should have an undergraduate level of proficiency in core computer science areas including operating systems, design and analysis of algorithms, formal languages and automata theory, networking and communications, theory/algorithms, and computer architecture. if any remedial coursework is needed, it will be assessed by our faculty and discussed with you during orientation. 9. my toefl is below the minimum, can i still apply and be considered for admission? you are welcome to apply however, we generally do not accept applicants with less than 100 on the older scale and 5.0 on the newer scale because most of our applicants exceed the minimum toefl. you may want to consider retaking the toefl. 10. do you accept ielts? beginning spring 2020, we will accept ielts in place of toefl. a minimum overall score of 7.5 is required, with minumum section scores as follows: reading 6.5, listening 6.5, speaking 6.5, writing 5.5. 11. what is the department code to request my gre and toefl scores? as long as you request the test from ets using institute code 5248 we will receive the scores. when test scores are received from ets and entered into georgia tech system, they are available for all degree programs to view. 12. what is the application deadline? students are admitted to the master’s program only once a year. the application deadline is febru",
+            "source_excerpt": "we generally do not accept applicants with less than 100 on the older scale and 5.0 on the newer scale because most of our applicants exceed the minimum TOEFL."
+          }
+        ]
+      },
+      "confidence": 0.76,
+      "retries": 1,
+      "tags": [
+        "INTERNATIONAL_CS_MASTERS",
+        "admissions",
+        "deadlines",
+        "faq",
+        "program",
+        "scholarship",
+        "tuition"
+      ],
+      "data": "Skip to main navigation Skip to main content MENU College of Computing Main navigation About Advisory Board Awards Community Contact Facts and Rankings Faculty Position Opportunities Leadership College Administration Organization Chart Techlanta Website Feedback Form Future Students Degree Programs Graduate Degrees Minors Threads Prospective Undergraduates Online Education Funding Sources Current Students Academic Resources Advising Program Advising Undergraduate Advising Registration Dates Career Fair Tutoring Assistance Career Services Entrepreneurship Mentoring Program Office of Community and Student Engagement FASET International Studies Schools School of Computing Instruction School of Computational Science and Engineering School of Computer Science School of Cybersecurity and Privacy School of Interactive Computing News & Events News Upcoming Events Calendar Press Contacts The Compiler Communications: Let Us Tell Your Story MS Graduation People Directory Faculty Staff PhD Students Alumni Curriculum Vitae Hall of Fame Research Facilities Impact and Leadership Interdisciplinary Research Institutes Research Areas Research Centers About Research Centers Undergrad Research Industry Computing Affiliates Program Corporate Recruiting Support the College Action Menu Give to Computing Search Search M.S. Computer Science Admissions FAQ 1. What are the MS Computer Science admissions requirements? Please review our admissions requirements page to learn more. 2. I am interested in your Online OMSCS degree program. Are the admissions requirements, program rules, the same for On-campus and On-line? No. Please visit the OMSCS program requirements page for more information. All questions related to OMSCS should be directed to omscs@cc.gatech.edu. 3. Can I apply directly to the Ph.D. program, or is a master's degree required before doing so? Prospective students may apply for admission directly into the Ph.D. program. Please visit this link for program and contact information http://www.cc.gatech.edu/academics/degree-programs/phd Students may also enter as master’s students and later apply for admission into the Ph.D. program. 4. Where can I learn about the faculty’s research? Visit our faculty profile pages to view a complete list of our professors and learn about their research interests and expertise 5. Based on the profile I e-mailed to you, am I eligible for admission? We receive a large number of emails concerning admission to the graduate program. Profiles or information submitted through email for pre-review will not be evaluated by the Admissions Committee or academic advisors. A complete application package is necessary before the faculty can consider a student for admission The admissions committee will only review applications officially submitted through https://grad.gatech.edu/apply-now 6. I am interested in your MSCS program but I do not have a computer science degree. Can I still be considered for admission? Yes, you will be considered for admission. We review applications holistically in order to determine applicant’s suitability. The admissions committee considers several factors when making admission decisions; academic performance at prior institutions (GPA), experience, background, optional GRE test scores, statement of purpose, and letters of recommendation. In general, we expect students who enter the program to be very comfortable working with multiple programming languages such as C, Java, and Python (there is no provision within the program for make-up any deficiencies) and to have taken several more advanced topics, such as Advanced OS, Networking, Theory, and/or Algorithms. 7. What can I do to be competitive? What do you recommend for applicants without a CS undergraduate background? The following is what we recommend for applicants without a strong undergraduate background in computer science: 1. Must know how to program 2. C programming (proficient) 3. Java 4. Algorithms You can gain this knowledge through undergrad classes, MOOC, or learn it through work experience. 8. What types of prerequisite courses? The student should have an undergraduate level of proficiency in core computer science areas including operating systems, design and analysis of algorithms, formal languages and automata theory, networking and communications, theory/algorithms, and computer architecture. If any remedial coursework is needed, it will be assessed by our faculty and discussed with you during orientation. 9. My TOEFL is below the minimum, can I still apply and be considered for admission? You are welcome to apply however, we generally do not accept applicants with less than 100 on the older scale and 5.0 on the newer scale because most of our applicants exceed the minimum TOEFL. You may want to consider retaking the TOEFL. 10. Do you accept IELTS? Beginning Spring 2020, we will accept IELTS in place of TOEFL. A minimum overall score of 7.5 is required, with minumum section scores as follows: Reading 6.5, Listening 6.5, Speaking 6.5, Writing 5.5. 11. What is the Department Code to request my GRE and TOEFL scores? As long as you request the test from ETS using Institute Code 5248 we will receive the scores. When test scores are received from ETS and entered into Georgia Tech system, they are available for all degree programs to view. 12. What is the application deadline? Students are admitted to the master’s program only once a year. The application deadline is February 1 for admission to the following fall semester. 13. When do you admit new students? What about Summer and Spring? Students are admitted to the master’s program only once a year. The application deadline is February 1 for admission to the following fall semester. We do not admit for Summer or Spring. 14. I have a master’s degree (MSCS, or another degree). Can I still apply to your program? Yes. 15. I completed a three-year bachelor’s degree. Am I eligible? If you have a three-year bachelor's degree and a post bachelor's degree including the one-year postgraduate diploma, you should be eligible to matriculate as a degree-seeking student. The Office of Graduate Studies is the ultimate arbiter regarding whether or not a student can matriculate as degree-seeking. Please consult their webpage on three-year bachelor's degrees to learn more. 16. What should I say in my application Statement of Purpose? The statement of purpose allows you to highlight areas of your background or interests that may not be clear in other areas of your application. Therefore, it is very important to write a clear and concise statement that expresses your interest in the program, and what you hope to gain from, or bring to, the program of study. You may address special features of the program that made it the right fit for you, or you may address specific topics that you are interested in studying. You may wish to address aspects of your personal, academic, and work-related experiences that would make effective contributions to the program or would showcase your knowledge and interest in your chosen area of study. This statement should be concise, outline a plan for graduate studies, and indicate why Georgia Tech is the right graduate program to meet this plan. It should include what you plan to accomplish with our MSCS degree, and what we should remember about you when considering your application. 17. Whom should I ask to write my recommendation letters? Three letters of recommendation are required and it is recommended that at least one of your recommendations come from faculty (it is not required to provide computer science faculty recommender) who are familiar with your academic performance. At least one of the letters must be from a professor. The letters of recommendation are submitted online. Information regarding the submission of the letters is given in the directions for submitting your online application. Please visit these links for more information regarding recommendation letters: Recommendation letters FAQ Supporting documents 18. How can I check the status of my application or check if my application materials have been received by Georgia Tech? Applications, transcripts, test scores, and all other application materials sent to Georgia Tech are received and processed by the Office of Graduate Studies. Graduate Studies must certify these materials, scan transcripts, etc. before forwarding them to the College of Computing. To check your application status and/or what materials have been received by Georgia Tech, please visit the Graduate Studies website. On this page, there is a link called \"Status Checking\" where you can check the most current information regarding the status of your application including received materials. The Graduate Studies Office sets all the requirements for the necessary documents, and all application materials are received and processed by Georgia Tech Graduate Studies. If you have any questions, please refer to Georgia Tech Graduate Studies Admissions frequently asked questions (FAQ) or contact the Graduate Studies staff or call 404-894-1610 19. What is the deadline for letters of recommendation, and test scores? We allow applicants an additional two weeks to submit these after the deadline. They are due no later than February 14. 20. My supporting documents such as my transcript (or GRE or TOEFL scores) have been sent to Georgia Tech, but my application status is still showing incomplete, or Graduate Admissions hold due to Missing Documentation. It sometimes takes time to receive and log these documents. Keep checking, and if admitted, we will let you know if there is anything we are missing from you. ETS scores are only received from ETS once monthly in a large batch. 21. Should I resend missing documents? No. The application status site shows what has been received and processed. Transcripts must be scanned in order to be added to the database, and some of the data from other documents must be entered manually into the database. This takes time, especially near the application deadlines, since Georgia Tech receives thousands of applications each year, many of them arriving right before the application deadlines. Documents arriving during school holidays and school breaks will not be posted during that time. A minimum of 10 working days is typically required to process received documents. Please be sure you have allowed sufficient time for the materials to be sent and processed. If any of the materials you sent or arranged to be sent to Georgia Tech are not acknowledged as received, you should contact the Office of Graduate Studies. Please visit the supporting documents page of the Graduate Studies website. The Graduate Studies Office sets all the requirements for the necessary documents. These materials are received and processed by Graduate Studies. If you have any questions throughout the application process, please refer to Georgia Tech Graduate Studies Admissions frequently asked questions (FAQ), and IF your question is not answered please contact the Graduate Studies staff by visiting their Contact Us page at or call 404-894-1610 and they can tell you what exactly is missing and how to rectify it. As a reminder, letters of recommendation and test scores do not have to be received by the application deadline. We allow applicants an additional two weeks to submit these after the deadline. 22. How can I check if my letters of recommendation have been received by Georgia Tech? Your recommenders submit letters of recommendation directly to Georgia Tech Graduate Studies. Please visit the Graduate Studies Recommendations Letters category of their FAQs for more information regarding recommendation letters. 23. I have applied to your program. When will decisions be made? Do you make admissions decisions on a “rolling basis”? The Admissions Committee prefers to view the entire pool of applications before making admission decisions. We will begin the review process after the February 1 application deadline. All application decisions should be available for applicants during the first week of April. 24. When and how will I be informed if I have been admitted? Please learn more at the Graduate Studies admissions FAQ page. Log In using the same user id that you used to apply to Georgia Tech. Your admissions process can be tracked via your Application Status Portal. Once a decision has been made, you will receive a notification that an update has been made to your Application Status Portal. Once you are logged in, you will be able to see the decision, whether you are admitted and any funding that you may have been awarded. 25. I was admitted to the program. However, is it possible to defer my acceptance? If a request is approved, applicants accepted to our MSCS degree program may be eligible to defer for up to one year from accepted admissions term. 26. Length of study/How long does it take to complete the degree? 30 credit hours are required for the MSCS degree. Students typically complete the program within 24 months 27. What is the cost to attend? Tuition, fees, etc Total cost? Please visit the Bursar's website for tuition and fee rates per semester. Our program is included in the MASTER & PHD CANDIDATES line at the very top of the GRADUATE RATES section. Only the programs that have special fee structures are listed individually. 28. When can I expect my I-20? I20s are initiated by the admitted student after confirmation of your admission by the Office of Graduate Education. More information can be found here: https://isss.oie.gatech.edu/isss/obtaining-initial-student-georgia-tech-i-20-or-ds-2019 29. How do I provide supporting documents; transcripts, etc? You’ll have the option to upload supporting documents with your application (documents should be pdf files). Note that if you do this you won’t need to mail your documents. However, if you are admitted, you will be asked to submit the official documents. Learn more by visiting the Graduate Studies FAQ page for supporting documents. 30. Whom do I contact with questions about applications, admissions process, test score, recommendation letter, and status checking? you have any questions throughout the application process, please refer to Georgia Tech Graduate Studies Admissions frequently asked questions (FAQ), and IF your question is not answered please contact the Graduate Studies staff by visiting their Contact Us page or call 404-894-1610 31. Do you offer financial assistance? What types of funding are available? How are students funded? The College does not offer financial aid to students entering this program. If you need assistance, please contact the Georgia Tech Office of Scholarships and Financial Aid. Master's students are not guaranteed funding but frequently receive compensation after establishing a good working relationship with a faculty member. You are welcome to visit faculty members in your area of interest to ascertain if GRA (Graduate Research Assistantship) support is available. GRA is not guaranteed, but if you have a particular skill that a faculty member needs on a project, it can happen. Start looking as soon as possible. Often students find a GRA position during or by the end of their first semester. A few meet faculty during the “Admitted Students Visit” in the spring or use email and have one when they arrive in August, but very few students are able to do this. When working as a GTA (Graduate Teaching Assistant), you are required to have completed the course or its equivalent and scored an “A” grade. You should be prepared to cover at least your first semester as an out of state student. GRA and GTA positions provide a 12-credit tuition waiver, along with a monthly stipend based on percentage time worked) and a waiver of all but $25 of the tuition. With a GRA, students can expect to work 15 to 20 hours per week in addition to school work. Students are responsible for the mandatory fees and tuition supplement. 32. Where do I view my admission decision? Please view your decision letter on the Applicant Status Portal, a notification that an update has been made to your Application Status Portal. Once you are logged in, you will be able to see the decision, whether you are admitted and any funding that you may have been awarded. Log In using the same user id that you used to apply to Georgia Tech. 33. When will Georgia Tech’s Office of Graduate Studies make their final review of the admission decision? Acceptance into this program is not final until confirmed by Georgia Tech's Office of Graduate Studies. Once they have made their review of your application and noted any final documents needed, they will send you a notification. A \"Complete Your Decision\" button will also appear in the CollegeNET portal where you can either accept or decline this offer of admission. Georgia Tech Office of Graduate Studies receives a large volume of mail, and they process everything as quickly as possible. When an admission decision is made on your application, they will update Status Checking and note any documents they require from you. They will send you an email as soon as they review your application, and note any final documents needed. If you have any questions throughout the application process, please refer to Georgia Tech Graduate Studies Admissions frequently asked questions (FAQ), and IF your question is not answered please contact the Office of Graduate Studies staff by email at gradinfo@mail.gatech.edu or call 404-894-1610. 34. I was admitted to MSCS. What are the next steps? Congratulations! We hope you are doing well and excited about starting your MSCS degree program at Georgia Tech! We will follow-up with an email to all accepted students. Both the College of Computing and the Georgia Tech Office of Graduate Studies will hold orientation events during the week before the semester starts. New graduate students always register during Phase II of the term that they are starting. We will cover a lot of valuable information and answer all of your questions at an orientation which you will be invited to later this summer. You will also have an opportunity to meet with a College of Computing faculty member during orientation. Please visit the New Student checklist for helpful information. You may want to join a community on the web and communicate with current and former students. There are fantastic resources to answer your questions. You can do your research to find a resource. 35. I was admitted to a different degree program and would like to switch to MSCS. Do you allow students to change majors? Unfortunately, you are admitted only to the program to which you applied. If you want to switch to MSCS, you will have to apply again to the next available admit term. We do not accept change of majors into the MSCS program. 36. I am currently pursuing an MS CS at a different institution and would like to transfer to your program. Do you allow students to transfer? Students are not allowed to transfer to our program as they must apply with all other applicants. Learn more at our MS CS admissions requirements page. Georgia Tech Master’s students are only allowed to transfer in a maximum of 6 credit hours. 37. I was denied admission. I am disappointed that I was not accepted into your program. I feel that my record is very good. Can I find out what was wrong with my application? Admission decisions are final. Our degree program is extremely competitive and due to space and financial limitations we can only enroll a small number of students and must decline many qualified applicants. The decision to accept is based on many factors including the GPA, letters of recommendation, GRE, area of interest of the student, TOEFL, available funding for students who want to pursue a Ph.D., specific faculty interest in the student, and available space. Many of these factors are not visible to students. Unfortunately, due to the volume of applicants, we cannot give specific feedback for any one student. Georgia Tech Coronavirus Resources Academic Continuity Resources Guidance for Graduate Education Hosting a Virtual Event Monitoring Coronavirus On Campus OneUSG Connect Training Online Partial Day Absence (How to Submit) Which GT services require VPN? Dean's Messages Tuesday, August 3, 2021 Thursday, July 29, 2021 Tuesday, July 27, 2021 Tuesday, July 20, 2021 Tuesday, July 13, 2021 Archive GT Computing Helping Stories New Study Shows Explainability is a Must for Older Adults to Trust AI Researchers Look to Bolster Technology Support for Menopause New LLMs Could Provide Strength-based Job Coaching for Autistic People Students Collaborating with Nonprofit to Reduce Bird Collisions with Buildings Ph.D. Student Making Digital Maps That Blind People Can Hear Resources Georgia Tech Resources Offices and Departments News Center Campus Calendar Special Events GreenBuzz Institute Communications Visitor Resources Campus Visits Directions to Campus Visitor Parking Information GT visitor Wireless Network Information Georgia Tech Global Learning Center Georgia Tech Hotel and Conference Center Barnes and Noble at Georgia Tech Ferst Center for the Arts Robert C. Williams Paper Museum Colleges, Instructional Sites and Research Colleges College of Computing College of Design College of Engineering College of Sciences Ivan Allen College of Liberal Arts Scheller College of Business Instructional Sites Georgia Tech-Europe Georgia Tech-Shenzhen Georgia Tech Online Professional Education The Language Institute Global Footprint Global Engagement Research Georgia Tech Research Institute Research at Georgia Tech Executive Vice President for Research College of Computing Resources Intranet Student and Parent Resources Student Resources Apply BuzzPort Buzzcard Career Center Commencement Library Student Life Student Entrepreneurship Education Abroad Canvas Parent Resources Parent and Family Programs Division of Student Life Scholarships and Financial Aid News Feed AI, Analytics, and Health Tech Take Center Stage at Spring 2026 College of Computing Capstone Expo From AI-powered tools that support dementia care to platforms that… Computational Media Grad Builds at the Intersection of Computing and Music Jack Hayley’s path through Georgia Tech’s computational media program… Computing Grad Pursues Parallel Paths in Computer Science and Film For Kathy Tran, choosing to major in computer science (CS) at Georgia… Georgia Institute of Technology North Avenue Atlanta, GA 30332 +1 404.894.2000 Campus Map General Directory Employment Emergency Information Legal Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Legal & Privacy Information Human Trafficking Notice Title IX/Sexual Misconduct Hazing Public Disclosures Accessibility Accountability Accreditation Report Free Speech and Censorship Concern © 2026 Georgia Institute of Technology GT LOGIN GT LOGIN Search here... GO Georgia Institute of Technology Georgia Tech Georgia Institute of Technology Toggle navigation College of Computing About Advisory Board Future Students Current Students College of Computing Career Services Office Undergraduate FASET Schools News & Events News Upcoming Events Calendar People Directory Faculty Staff PhD Students College of Computing Hall of Fame Research About Research Centers Industry search Enter the terms you wish to search for. Georgia Tech Resources Main Menu Category Georgia Tech Offices and Departments Directory Georgia Tech News Center Georgia Tech Campus Calendar Georgia Tech Special Events and Protocol A resource for showcasing green behaviors, activities, initiatives, and events at Georgia Tech Georgia Tech Office of Institute Communications Visitor Resources Main Menu Category Georgia Tech Campus Visits Visit Georgia Tech Campus Georgia Tech Parking and Transportation Services GT visitor Wireless Network Information Georgia Tech Global Learning Center Georgia Tech Hotel and Conference Center Barnes and Noble at Georgia Tech Official Bookstore Georgia Tech Ferst Center for the Arts The Robert C. Williams Museum of Papermaking Colleges, Instructional Sites and Research Main Menu Category Georgia Tech Colleges Georgia Tech College of Computing Georgia Tech College of Design Georgia Tech College of Engineering Georgia Tech College of Sciences Georgia Tech Ivan Allen College of Liberal Arts Georgia Tech Scheller College of Business Instructional Sites Main Menu Category Georgia Techs European Campus Georgia Tech Study Abroad in China Georgia Tech Professional Education Online Georgia Tech Professional Education Unit Georgia Tech Language Institute Global Footprint Main Menu Category Georgia Tech Office of Global Engagement Research Main Menu Category Georgia Tech Research Institute Research at Georgia Tech Executive Vice President for Research at the Georgia Institute of Technology College of Computing Resources Intranet Student and Parent Resources Main Menu Category Georgia Tech Student Resources Georgia Tech Prospective Students Services to students, faculty, and administrative staff at Georgia Tech Georgia Tech Buzzcard Services Georgia Tech Career Center Commencement Information for Students Georgia Tech Library services Student Life at Georgia Tech CREATE-X Student Entrepreneurship Georgia Tech Office of International Education Digital Learning Georgia Tech Parent Resources Georgia Tech Office of Parent and Family Programs Student Life at Georgia Tech Georgia Tech Office of Scholarships & Financial Aid telephone Campus Map General Main Menu Category Georgia Institute of Technology Directory Georgia Institute of Technology Employment Georgia Institute of Technology Emergency Information Legal Main Menu Category Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Georgia Institute of Technology Legal & Privacy Information Georgia Human Trafficking Resources Georgia Tech Title IX/Sexual Misconduct Resources Georgia Tech Hazing Conduct History Georgia Institute of Technology Accessibility Resources Georgia Institute of Technology Accountability Resources Georgia Institute of Technology Accreditation University System of Georgia Ethics and Compliance Reporting Hotline georgia tech logo and copyright Georgia Tech logo link to main campus site admin login admin login AddToAny Utility Frame",
+      "char_count": 26292
+    },
+    {
+      "url": "https://grad.gatech.edu/english-proficiency",
+      "title": "English Proficiency | Graduate Education",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 0.98
+        },
+        {
+          "type": "faq",
+          "score": 0.7
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 0.98
+        },
+        {
+          "type": "faq",
+          "confidence": 0.7
+        }
+      ],
+      "content_hash": "8bfa7d78ea634ee881361ccf03bfa259",
+      "program_codes": [
+        {
+          "program_code": "INTERNATIONAL_CS_MASTERS",
+          "degree_type": "MS",
+          "program_name": "International Computer Science Master's",
+          "department": "Computer Science",
+          "scope": "school_wide",
+          "official_evidence": "English Proficiency | Graduate Education English Proficiency Graduate Education Audience Main Quick Actions Search Breadcrumb Upcoming Policy Change (Effective Fall 2027) Satisfying the English Proficiency Requirement Test Score Requirements Questions? Accessibility Information Office of Graduate and Postdoctoral Education Disability Accommodations",
+          "source_program_name": null
+        }
+      ],
+      "scope": "school_wide",
+      "target_assessment": {
+        "masters_available": true
+      },
+      "extraction": {
+        "programs": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "fields": {
+              "toefl_ibt_min": {
+                "value": 90,
+                "source_excerpt": "TOEFL iBT Prior to January 2026: TOEFL iBT Overall ≥ 90"
+              },
+              "toefl_ibt_new_scale_min": {
+                "value": 4.5,
+                "source_excerpt": "TOEFL iBT After January 2026: TOEFL iBT Overall ≥ 4.5"
+              },
+              "toefl_section_requirements": {
+                "value": "Prior to January 2026: Each section score ≥ 19; After January 2026: Reading ≥ 4, Listening ≥ 4, Writing ≥ 4, Speaking ≥ 3.5",
+                "source_excerpt": "TOEFL iBT Prior to January 2026: Each section score ≥ 19; TOEFL iBT After January 2026: Reading ≥ 4 Listening ≥ 4 Writing ≥ 4 Speaking ≥ 3.5"
+              },
+              "ielts_min": {
+                "value": 7.0,
+                "source_excerpt": "IELTS ≥ 7 overall band score"
+              },
+              "language_waiver": {
+                "value": "Proof of citizenship from an approved country, or successful completion of GTLI Upper Advanced 700 Level Intensive English Program, or evidence of degree earned from a regionally accredited (or international equivalent) institution where English was the sole language of instruction. Proof of degree has to be provided at least 30 days before the start of the term to which you applied.",
+                "source_excerpt": "All other applicants can provide: Proof of citizenship from an approved country, or Valid Test score as outlined below in the Test Score Requirements section, or Successful completion of GTLI Upper Advanced 700 Level Intensive English Program, or Evidence of degree earned from a regionally accredited (or international equivalent) institution where English was the sole language of instruction. Proof of degree has to be provided at least 30 days before the start of the term to which you applied."
+              },
+              "english_test_notes": {
+                "value": "Scores must be no more than two years old on the day you are scheduled to begin your graduate education. Meeting Georgia Tech’s minimum score does not guarantee admission since some programs have higher score requirements. Accepted tests: IELTS Academic, TOEFL iBT (test center or Home Edition). Scores must be sent via the official electronic delivery service to Georgia Institute of Technology, 'Graduate'. We do not accept Duolingo as proof of English proficiency.",
+                "source_excerpt": "Scores must be no more than two years old on the day you are scheduled to begin your graduate education. Meeting Georgia Tech’s minimum score does not guarantee admission since some programs have higher score requirements. Please note that your test score is valid only if it meets the Institute’s minimum requirements and is not expired when your program begins. ... We do not accept Duolingo as proof of English proficiency."
+              }
+            }
+          }
+        ],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": [],
+        "evidence_paragraphs": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "english",
+            "field_name": null,
+            "evidence_kind": "conditional",
+            "evidence_text": "Georgia Tech requires that all applicants demonstrate proof of English language proficiency at the time of application. International applicants may satisfy the requirement by providing proof of citizenship from an approved country, a valid test score (IELTS or TOEFL iBT), successful completion of the GTLI Upper Advanced 700 Level Intensive English Program, or evidence of a degree earned from a regionally accredited (or international equivalent) institution where English was the sole language of instruction. Proof of degree must be provided at least 30 days before the start of the term to which you applied.",
+            "source_excerpt": "Georgia Tech requires that all applicants demonstrate proof of English language proficiency at the time of application. ... All other applicants can provide: Proof of citizenship from an approved country, or Valid Test score as outlined below in the Test Score Requirements section, or Successful completion of GTLI Upper Advanced 700 Level Intensive English Program, or Evidence of degree earned from a regionally accredited (or international equivalent) institution where English was the sole language of instruction. Proof of degree has to be provided at least 30 days before the start of the term to which you applied."
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "english",
+            "field_name": "toefl_ibt_min",
+            "evidence_kind": "context_note",
+            "evidence_text": "TOEFL iBT minimum overall score requirements differ by test date: Prior to January 2026, the minimum is 90 (0-120 scale); after January 2026, the minimum is 4.5 (1-6 scale in 0.5 increments). Section minimums also apply.",
+            "source_excerpt": "TOEFL iBT Prior to January 2026: TOEFL iBT Overall ≥ 90 Each section score ≥ 19; TOEFL iBT After January 2026: TOEFL iBT Overall ≥ 4.5 Reading ≥ 4 Listening ≥ 4 Writing ≥ 4 Speaking ≥ 3.5"
+          },
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "english",
+            "field_name": "english_test_notes",
+            "evidence_kind": "context_note",
+            "evidence_text": "English proficiency test scores must be no more than two years old on the day you are scheduled to begin your graduate education. Meeting the minimum does not guarantee admission, as some programs may have higher requirements.",
+            "source_excerpt": "Scores must be no more than two years old on the day you are scheduled to begin your graduate education. Meeting Georgia Tech’s minimum score does not guarantee admission since some programs have higher score requirements."
+          }
+        ]
+      },
+      "confidence": 1.0,
+      "retries": 1,
+      "tags": [
+        "INTERNATIONAL_CS_MASTERS",
+        "admissions",
+        "faq"
+      ],
+      "data": "Skip to main navigation Skip to main content MENU Graduate Education Office of Graduate and Postdoctoral Education Audience Information For: Prospective Students New Students Current Students Faculty & Staff Main About Tech Why Choose Georgia Tech Contact Us Statistics Ph.D. Career Outcomes Doctoral Program Statistics Master's Program Statistics Graduate Student Experience Survey Visit Tech Program Information Cost & Funding Cost & Fees Paying for Grad School Conference Travel Funds Admissions Admissions Overview Check Application Status BS/MS Degree Pathway English Proficiency Application Fee Waivers 62 and Older Students Professional Development Career and Professional Development Resources Mentoring & Conflict Resolution Career, Research, and Innovation Development Conference (CRIDC) Three Minute Thesis (3MT) News & Events Grad Buzz e-Newsletter Recent News Grad Student Events Events Past Event Photo Archive MS and Ph.D. Defenses Information For: Prospective Students New Students Current Students Faculty & Staff Quick Actions Apply FAQs Request Info Give Now Search Search English Proficiency Breadcrumb Home Admissions International Applicants English Proficiency Georgia Tech requires that all applicants demonstrate proof of English language proficiency at the time of application. Upcoming Policy Change (Effective Fall 2027) Starting with Fall 2027 admission, citizenship alone will no longer be sufficient to satisfy Georgia Tech’s English language proficiency requirement. Applicants may satisfy the requirement through approved academic study, English-medium instruction, or official test scores. Satisfying the English Proficiency Requirement U.S. citizens and U.S. permanent residents can submit one of the following U.S. government-issued documents to satisfy English Proficiency Requirement: Birth Certificate Certificate of Birth Abroad Certificate of Citizenship Certificate of Naturalization Consular report of birth abroad Passport Permanent Resident card All other applicants can provide: Proof of citizenship from an approved country, or Valid Test score as outlined below in the Test Score Requirements section, or Successful completion of GTLI Upper Advanced 700 Level Intensive English Program, or Evidence of degree earned from a regionally accredited (or international equivalent) institution where English was the sole language of instruction. Proof of degree has to be provided at least 30 days before the start of the term to which you applied. For details on acceptable documentation and how Georgia Tech verifies English-only instruction, read this FAQ. Test Score Requirements Georgia Tech's accepted tests and minimum score requirement for graduate admission are listed below. Meeting Georgia Tech’s minimum score does not guarantee admission since some programs have higher score requirements. Please note that your test score is valid only if it meets the Institute’s minimum requirements and is not expired when your program begins. Test Type Test Location Minimum Score Require­ments Submitting Scores Official IELTS Academic test score IELTS test location or IELTS Indicator at home test IELTS ≥ 7 overall band score Reading ≥ 6.5 Listening ≥ 6.5 Speaking ≥ 6.5 Writing ≥ 5.5 Scores must be sent via the IELTS electronic score delivery service to Georgia Institute of Technology, \"Graduate\" Official TOEFL iBT test score Authorized test center or TOEFL Home Edition test TOEFL iBT Prior to January 2026: TOEFL iBT Overall ≥ 90 Each section score ≥ 19 TOEFL iBT After January 2026: TOEFL iBT Overall ≥ 4.5 Reading ≥ 4 Listening ≥ 4 Writing ≥ 4 Speaking ≥ 3.5 Scores must be sent via the ETS electronic score delivery service to Georgia Institute of Technology, \"Graduate\", institute code 5248 Successful completion of Upper Advanced 700 Level of GTLI Intensive English Program This intensive program is 8-weeks long and is offered face to face and online five times a year. All four core classes (Reading, Writing, Speaking, and Listening) must be passed with a B or higher. We do not accept Duolingo as proof of English proficiency. Disability Accommodations Applicants who require accommodations, special arrangements for disabilities, or health-related needs should refer to the services of TOEFL or IELTS. Applicants must provide medical evidence to the testing service to support their claim. IELTS Special Arrangements TOEFL Disability Accommodations We recommend that you achieve acceptable scores prior to submitting your application. Scores must be no more than two years old on the day you are scheduled to begin your graduate education. Failure to satisfy the English Language Proficiency requirement will impact our ability to review an application. Questions? Applicant FAQs Accessibility Information Download Microsoft Products. Download Adobe Reader Office of Graduate Education Georgia Institute of Technology Savant Building, Room 301 631 Cherry St., NW Atlanta, GA 30332-0321 404.894.2000 Office of Graduate Education Map General Directory Employment Emergency Information Legal Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Legal & Privacy Information Human Trafficking Notice Title IX/Sexual Misconduct Hazing Public Disclosures Accessibility Accountability Accreditation Report Free Speech and Censorship Concern © 2026 Georgia Institute of Technology GT LOGIN This website uses cookies. For more information, review our Privacy & Legal Notice. Questions? Please email privacy@gatech.edu. Accept No, thanks Search here... GO Georgia Institute of Technology Georgia Tech Georgia Institute of Technology Menu: Toggle navigation Graduate Education Graduate Education Office of Graduate and Postdoctoral Education Office of Graduate and Postdoctoral Education search Enter the terms you wish to search for. Help Page Title and Breadcrumbs After content Full width content Contact Us Contact Us Follow us on Facebook Follow us on Facebook Find us on Flickr Find us on Flickr Follow us on Instagram Follow us on Instagram Follow us on Linkedin Follow us on Linkedin Find us on YouTube Find us on YouTube 404.894.2000 telephone georgia tech general menu General Main Menu Category Georgia Institute of Technology Directory Georgia Institute of Technology Employment Georgia Institute of Technology Emergency Information georgia tech legal menu Legal Main Menu Category Georgia Institute of Technology Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Georgia Institute of Technology Legal & Privacy Information Georgia Human Trafficking Resources Georgia Tech Title IX/Sexual Misconduct Resources Georgia Tech Hazing Conduct History Georgia Institute of Technology Accessibility Resources Georgia Institute of Technology Accountability Resources Georgia Institute of Technology Accreditation University System of Georgia Ethics and Compliance Reporting Hotline Georgia Tech GT login for admin Back to top Back to top Cookie compliance banner popup-text Georgia Tech requires that all applicants demonstrate proof of English language proficiency at the time of graduate admission application.",
+      "char_count": 7092
+    },
+    {
+      "url": "https://grad.gatech.edu/admissions/domestic",
+      "status": "dropped",
+      "types": [
+        {
+          "type": "other",
+          "confidence": 0.98
+        }
+      ],
+      "reason": "The page provides a general admissions checklist for domestic (U.S. citizen and permanent resident) graduate applicants at Georgia Tech, but it does not contain Computer Science or CSE-specific information, nor does it provide program-specific requirements, deadlines, or details. The content is university-wide and not tailored to international applicants or to CS/CSE master's admissions. Therefore, it is not relevant for an international applicant seeking a master's in CS/CSE.",
+      "data": "Skip to main navigation Skip to main content MENU Graduate Education Office of Graduate and Postdoctoral Education Audience Information For: Prospective Students New Students Current Students Faculty & Staff Main About Tech Why Choose Georgia Tech Contact Us Statistics Ph.D. Career Outcomes Doctoral Program Statistics Master's Program Statistics Graduate Student Experience Survey Visit Tech Program Information Cost & Funding Cost & Fees Paying for Grad School Conference Travel Funds Admissions Admissions Overview Check Application Status BS/MS Degree Pathway English Proficiency Application Fee Waivers 62 and Older Students Professional Development Career and Professional Development Resources Mentoring & Conflict Resolution Career, Research, and Innovation Development Conference (CRIDC) Three Minute Thesis (3MT) News & Events Grad Buzz e-Newsletter Recent News Grad Student Events Events Past Event Photo Archive MS and Ph.D. Defenses Information For: Prospective Students New Students Current Students Faculty & Staff Quick Actions Apply FAQs Request Info Give Now Search Search Domestic Applicants Breadcrumb Home Admissions Domestic Applicants The Office of Graduate Education is here to help you navigate the application process. To facilitate your success, Tech provides resources and services for you as a student and a nationally acclaimed career services department for you as a graduate. Admissions Checklist for Domestic Applicants This checklist is specific to U.S. citizens and U.S. permanent residents. Before You Apply Review admissions requirements. Before You Apply Ready to Apply Complete and submit your application. Ready to Apply After You Apply Submit additional materials. After You Apply Recent Admissions Statistics 47% of prospective graduate students who applied were admitted. 32,772 students enrolled in graduate-level classes. All 50 states and 149 countries are represented on campus. Office of Graduate Education Georgia Institute of Technology Savant Building, Room 301 631 Cherry St., NW Atlanta, GA 30332-0321 404.894.2000 Office of Graduate Education Map General Directory Employment Emergency Information Legal Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Legal & Privacy Information Human Trafficking Notice Title IX/Sexual Misconduct Hazing Public Disclosures Accessibility Accountability Accreditation Report Free Speech and Censorship Concern © 2026 Georgia Institute of Technology GT LOGIN This website uses cookies. For more information, review our Privacy & Legal Notice. Questions? Please email privacy@gatech.edu. Accept No, thanks Search here... GO Georgia Institute of Technology Checklist icon Submit button on laptop computer Upload document icon on computer screen Georgia Tech Georgia Institute of Technology Menu: Toggle navigation Graduate Education Graduate Education Office of Graduate and Postdoctoral Education Office of Graduate and Postdoctoral Education search Enter the terms you wish to search for. Help Page Title and Breadcrumbs Checklist icon Submit button on laptop computer Upload document icon on computer screen Contact Us Contact Us Follow us on Facebook Follow us on Facebook Find us on Flickr Find us on Flickr Follow us on Instagram Follow us on Instagram Follow us on Linkedin Follow us on Linkedin Find us on YouTube Find us on YouTube 404.894.2000 telephone georgia tech general menu General Main Menu Category Georgia Institute of Technology Directory Georgia Institute of Technology Employment Georgia Institute of Technology Emergency Information georgia tech legal menu Legal Main Menu Category Georgia Institute of Technology Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Georgia Institute of Technology Legal & Privacy Information Georgia Human Trafficking Resources Georgia Tech Title IX/Sexual Misconduct Resources Georgia Tech Hazing Conduct History Georgia Institute of Technology Accessibility Resources Georgia Institute of Technology Accountability Resources Georgia Institute of Technology Accreditation University System of Georgia Ethics and Compliance Reporting Hotline Georgia Tech GT login for admin Back to top Back to top Cookie compliance banner popup-text The Office of Graduate Education is here to help domestic applicants navigate the application process. To facilitate your success, Tech provides resources and services for you as a student and a nationally acclaimed career services department for you as a graduate.",
+      "char_count": 4471
+    },
+    {
+      "url": "https://grad.gatech.edu/admissions/application-fee-waivers",
+      "title": "Application Fee Waivers | Graduate Education",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 0.9
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 0.9
+        }
+      ],
+      "content_hash": "89257e5560398c03c20dc440df9dccda",
+      "program_codes": [
+        {
+          "program_code": "INTERNATIONAL_CS_MASTERS",
+          "degree_type": "MS",
+          "program_name": "International Computer Science Master's",
+          "department": "Computer Science",
+          "scope": "school_wide",
+          "official_evidence": "Application Fee Waivers | Graduate Education Application Fee Waivers Graduate Education Audience Main Quick Actions Search Breadcrumb Institute-Level Fee Waivers How to Request a Waiver Accessibility Information Office of Graduate and Postdoctoral Education Applicants with Financial or Other Hardship Federal Pell Grant recipient Perkins or other subsidized loan recipient SAI of 0 or less SNAP, SSI, TANF, or WIC recipient GRE Fee Reduction recipient Residing in FEMA Declared Disaster Areas Applic",
+          "source_program_name": null
+        }
+      ],
+      "scope": "school_wide",
+      "target_assessment": {
+        "masters_available": true
+      },
+      "extraction": {
+        "programs": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "fields": {
+              "fee_waiver_available": {
+                "value": true,
+                "source_excerpt": "The Office of Graduate Education provides Institute-level application fee waivers for participants of the specific programs listed below."
+              },
+              "fee_waiver_criteria": {
+                "value": "Institute-level application fee waivers for participants of the specific programs listed below. ... If you don't meet the criteria for an Institute-level waiver, we encourage you to reach out directly to the graduate program you are applying to. They may have department-level fee waivers or other options available. The Office of Graduate Education does not review or approve requests based on financial hardship for international applicants.",
+                "source_excerpt": "The Office of Graduate Education provides Institute-level application fee waivers for participants of the specific programs listed below. ... The Office of Graduate Education does not review or approve requests based on financial hardship for international applicants."
+              }
+            }
+          }
+        ],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": [],
+        "evidence_paragraphs": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "fee",
+            "field_name": "fee_waiver_criteria",
+            "evidence_kind": "context_note",
+            "evidence_text": "Institute-level application fee waivers are available only for participants of specific programs listed by the Office of Graduate Education. International applicants are not eligible for fee waivers based on financial hardship. Applicants who do not meet the institute-level criteria are encouraged to contact their graduate program for possible department-level waivers.",
+            "source_excerpt": "The Office of Graduate Education provides Institute-level application fee waivers for participants of the specific programs listed below. ... The Office of Graduate Education does not review or approve requests based on financial hardship for international applicants. ... If you don't meet the criteria for an Institute-level waiver, we encourage you to reach out directly to the graduate program you are applying to. They may have department-level fee waivers or other options available."
+          }
+        ]
+      },
+      "confidence": 1.0,
+      "retries": 1,
+      "tags": [
+        "INTERNATIONAL_CS_MASTERS",
+        "admissions"
+      ],
+      "data": "Skip to main navigation Skip to main content MENU Graduate Education Office of Graduate and Postdoctoral Education Audience Information For: Prospective Students New Students Current Students Faculty & Staff Main About Tech Why Choose Georgia Tech Contact Us Statistics Ph.D. Career Outcomes Doctoral Program Statistics Master's Program Statistics Graduate Student Experience Survey Visit Tech Program Information Cost & Funding Cost & Fees Paying for Grad School Conference Travel Funds Admissions Admissions Overview Check Application Status BS/MS Degree Pathway English Proficiency Application Fee Waivers 62 and Older Students Professional Development Career and Professional Development Resources Mentoring & Conflict Resolution Career, Research, and Innovation Development Conference (CRIDC) Three Minute Thesis (3MT) News & Events Grad Buzz e-Newsletter Recent News Grad Student Events Events Past Event Photo Archive MS and Ph.D. Defenses Information For: Prospective Students New Students Current Students Faculty & Staff Quick Actions Apply FAQs Request Info Give Now Search Search Application Fee Waivers Breadcrumb Home Admissions Application Fee Waivers The Office of Graduate Education provides Institute-level application fee waivers for participants of the specific programs listed below. To be eligible, you must provide the required documentation at the time of application. Go to “How to Request a Waiver” for more information. If you don't meet the criteria for an Institute-level waiver, we encourage you to reach out directly to the graduate program you are applying to. They may have department-level fee waivers or other options available. The Office of Graduate Education does not review or approve requests based on financial hardship for international applicants. Institute-Level Fee Waivers Applicants with Financial or Other Hardship Federal Pell Grant recipient Perkins or other subsidized loan recipient SAI of 0 or less SNAP, SSI, TANF, or WIC recipient GRE Fee Reduction recipient Residing in FEMA Declared Disaster Areas Applicants from Qualifying Programs DOCNET Recruiting Forum ENGINE GEM Fellowship Program GT-ENGAGES GT-EQUAL GT-ESTEEMED Fulbright Scholar McNair Scholar National Name Exchange (NNE) NSF Graduate Research Fellowship Program (GRFP) Awardee NSF REU Summer Undergraduate Research in Engineering/Sciences (SURE) Other Qualifying Applicants Approved Georgia Tech bilateral exchange partners U.S. Veterans and U.S. Military Service Members First-generation college students How to Request a Waiver Requesting an application fee waiver is part of the online graduate admission application. Please follow these steps carefully to guarantee the efficient processing of your fee waiver request. Please note that only one institute-level application fee waiver may be approved per admission cycle. Each admission cycle begins with Fall, followed by Spring, and ends with Summer. Once a waiver is approved, additional requests for the same cycle will not be accepted. Confirm your eligibility for the requested fee waiver. Ensure you submit valid documentation at the time of application. Inadequate documentation will result in the denial of your fee waiver request. A decision on your fee waiver request will be communicated via email within 5-10 business days, along with any additional steps you need to follow. Do not pay the application fee before receiving a decision on your waiver request. The application fee is non-refundable. As long as you have submitted your waiver request before the graduate program's deadline, your admission application will be counted as on time. If your waiver request gets approved, your admission application will then be queued for review by your chosen program. If your waiver request gets denied, you’ll be prompted to make payment before your admission application can be queued for review by your chosen program. Accessibility Information Download Microsoft Products. Download Adobe Reader Office of Graduate Education Georgia Institute of Technology Savant Building, Room 301 631 Cherry St., NW Atlanta, GA 30332-0321 404.894.2000 Office of Graduate Education Map General Directory Employment Emergency Information Legal Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Legal & Privacy Information Human Trafficking Notice Title IX/Sexual Misconduct Hazing Public Disclosures Accessibility Accountability Accreditation Report Free Speech and Censorship Concern © 2026 Georgia Institute of Technology GT LOGIN This website uses cookies. For more information, review our Privacy & Legal Notice. Questions? Please email privacy@gatech.edu. Accept No, thanks Search here... GO Georgia Institute of Technology Georgia Tech Georgia Institute of Technology Menu: Toggle navigation Graduate Education Graduate Education Office of Graduate and Postdoctoral Education Office of Graduate and Postdoctoral Education search Enter the terms you wish to search for. Help Page Title and Breadcrumbs Full width content Contact Us Contact Us Follow us on Facebook Follow us on Facebook Find us on Flickr Find us on Flickr Follow us on Instagram Follow us on Instagram Follow us on Linkedin Follow us on Linkedin Find us on YouTube Find us on YouTube 404.894.2000 telephone georgia tech general menu General Main Menu Category Georgia Institute of Technology Directory Georgia Institute of Technology Employment Georgia Institute of Technology Emergency Information georgia tech legal menu Legal Main Menu Category Georgia Institute of Technology Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Georgia Institute of Technology Legal & Privacy Information Georgia Human Trafficking Resources Georgia Tech Title IX/Sexual Misconduct Resources Georgia Tech Hazing Conduct History Georgia Institute of Technology Accessibility Resources Georgia Institute of Technology Accountability Resources Georgia Institute of Technology Accreditation University System of Georgia Ethics and Compliance Reporting Hotline Georgia Tech GT login for admin Back to top Back to top Cookie compliance banner popup-text",
+      "char_count": 6099
+    },
+    {
+      "url": "https://www.cc.gatech.edu/funding-sources",
+      "title": "Funding Sources | College of Computing",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "scholarship",
+          "score": 0.85
+        },
+        {
+          "type": "tuition",
+          "score": 0.7
+        },
+        {
+          "type": "faq",
+          "score": 0.6
+        }
+      ],
+      "types": [
+        {
+          "type": "scholarship",
+          "confidence": 0.85
+        },
+        {
+          "type": "tuition",
+          "confidence": 0.7
+        },
+        {
+          "type": "faq",
+          "confidence": 0.6
+        },
+        {
+          "type": "other",
+          "confidence": 0.98
+        }
+      ],
+      "content_hash": "abcf1a142599cb9eb578720bdba4d945",
+      "program_codes": [
+        {
+          "program_code": "INTERNATIONAL_CS_MASTERS",
+          "degree_type": "MS",
+          "program_name": "International Computer Science Master's",
+          "department": "Computer Science",
+          "scope": "school_wide",
+          "official_evidence": "Funding Sources | College of Computing Funding Sources College of Computing Main navigation Action Menu Search Georgia Tech Coronavirus Resources Dean's Messages GT Computing Helping Stories Georgia Institute of Technology",
+          "source_program_name": null
+        }
+      ],
+      "scope": "school_wide",
+      "target_assessment": {
+        "masters_available": true
+      },
+      "extraction": {
+        "programs": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "fields": {
+              "tuition_note": {
+                "value": "MS Students GTA (33% FTE) - $1184 per month, 4.5 months per semester, plus tuition waiver. MS Students GRA (33% FTE) - $1895 per month, 4.5 months per semester, plus tuition waiver.",
+                "source_excerpt": "MS Students GTA (33% FTE) - $1184 per month, 4.5 months per semester, plus tuition waiver. MS Students GRA (33% FTE) - $1895 per month, 4.5 months per semester, plus tuition waiver."
+              }
+            }
+          }
+        ],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": [],
+        "evidence_paragraphs": []
+      },
+      "confidence": 1.0,
+      "retries": 1,
+      "tags": [
+        "INTERNATIONAL_CS_MASTERS",
+        "faq",
+        "scholarship",
+        "tuition"
+      ],
+      "data": "Skip to main navigation Skip to main content MENU College of Computing Main navigation About Advisory Board Awards Community Contact Facts and Rankings Faculty Position Opportunities Leadership College Administration Organization Chart Techlanta Website Feedback Form Future Students Degree Programs Graduate Degrees Minors Threads Prospective Undergraduates Online Education Funding Sources Current Students Academic Resources Advising Program Advising Undergraduate Advising Registration Dates Career Fair Tutoring Assistance Career Services Entrepreneurship Mentoring Program Office of Community and Student Engagement FASET International Studies Schools School of Computing Instruction School of Computational Science and Engineering School of Computer Science School of Cybersecurity and Privacy School of Interactive Computing News & Events News Upcoming Events Calendar Press Contacts The Compiler Communications: Let Us Tell Your Story MS Graduation People Directory Faculty Staff PhD Students Alumni Curriculum Vitae Hall of Fame Research Facilities Impact and Leadership Interdisciplinary Research Institutes Research Areas Research Centers About Research Centers Undergrad Research Industry Computing Affiliates Program Corporate Recruiting Support the College Action Menu Give to Computing Search Search Funding Sources Policies regarding GTAs and TAs This policy document is intended for two groups: 1) faculty requesting GTA support for their courses, 2) PhD students admitted Fall 2011 and later whose degree requirement thus serving twice as a GTA. For more information on demographics, admissions, and time-to-degree in our doctoral students in our programs, go to the Doctoral Program Statistics page in the Institute's public data portal, LITE. Use the search functions to find your program. For information on travel funding, please visit our Graduate Student Council and Graduate Program Office Travel funds page. Basic policy for faculty One GTA or grader per 25 students, when needed to provide a superior educational experience for students and to leverage faculty time. Basic policy for PhD students You are expected to complete one GTA by the end of your third year of study, and the second by the end of your fifth year. Stipend Levels Students who receive stipends will be paid at the following rates: MS Students GTA (33% FTE) - $1184 per month, 4.5 months per semester, plus tuition waiver. MS Students GRA (33% FTE) - $1895 per month, 4.5 months per semester, plus tuition waiver. Ph.D. Students (50% FTE) - $3500 per month, 4.5 months per semester, plus tuition waiver. Additional information about Graduate Assistantships, fellowships, loans and off-campus employment options is available on the Office of Graduate Studies site. Concerning PhD GTAs PhD students covered by the GTA requirement are expected to complete one GTA by the end of the third year and the second by the end of the fifth year. (Applies to PhD students entering in August 2011 or later). If a PhD student at the start of their third year, in consultation with their advisor, does not have a plan to GTA in the third year, they may be assigned to GTA a course for which they are qualified and that does not have a PhD GTA. This applies also to the fifth year. Serving as a GTA satisfies the 2-semester requirement only if course enrollment is at least 25, unless prior approval has been given by the faculty member overseeing GTA assignments. See the FAQs for further restrictions on what courses can count toward the requirement. Students doing a GTA for the first time must simultaneously take and pass GTA Preparation - CETL 8000 - COC; for the second time, Special Topics - CETL 8801 - COC. Exemptions from taking these two TA classes will be granted only in exceptional circumstances (such as someone with many years of full time teaching experience), and are at the discretion of the PhD coordinator. Exemptions are not granted from the TA requirement, and only teaching or TAing for IC during the two-term academic year fulfills the requirement. PhD GTAs are preferably used to support graduate rather than undergraduate courses. Generally only one PhD GTA per course. Additional support is generally provided by MS or BS students. PhD GRA students are paid to GTA with the expectation of either 18 or 20 hours of work each week (18 hours pre-quals, 20 hours post-quals, including exam week) - which is thus the maximum number of hours that a PhD student fulfilling a GTA requirement can be expected to work in their GTA role. PhD students admitted prior to 2011 (when the two GTA requirement took effect) who have not opted into the requirement by serving as a GTA twice while being paid as a GRA will only in exceptional circumstances be hired by IC as a GTA. They will be paid at the 37.5% level, and are expected to work no more than 15 hours per week, including exam week. Concerning MS GTAs MS GTAs are employed as an MS I, with a stipend per month for 4 months, plus tuition waiver. The stipend rates are reviewed and adjusted by the school each year. The student is responsible for fees and any tuition supplement, such as for the MS-HCI degree. They are expected to work no more than 15 hours per week during the semester, including exam week. Concerning BS (undergrad) Graders BS graders are paid on a sliding scale of $7.75 an hour plus $0.65 more for each previous course TA’d, for up to 15 hours per week. The course instructor signs a biweekly time sheet recording actual hours worked. BS Graders are hired via email to Monica Sweat, sweat@cc.gatech.edu. Concerning Conflicts of Interest in Grading It is important that TA’s and graders work together with the course instructor to avoid conflicts of interest during grading. A grader or TA has a conflict of interest in grading any family member, close friend, boyfriend, girlfriend, or small-group partner on projects in other classes. This is not an exhaustive list of possible conflicts of interest. When in doubt, it is best to avoid the perceived conflict. In the case where there are two or more TA’s or graders for a course, they should re-balance who grades which student. If there is just one TA or grader for the course, it is the responsibility of the course instructor to grade those students for which there is a conflict of interest. These guidelines apply to all TA’s and graders, whether they are undergraduates, MS students or PhD students. It is the responsibility of all those involved in teaching and grading to explicitly discuss potential conflicts. Note to Faculty The best way for you to ensure high-quality GTA/TA help is to directly recruit students. Undergrad courses are often staffed with undergrads that previously earned A’s in the course or MS students who earned A’s in the graduate version of the course or took a comparable course at their undergraduate school. Be careful about making final commitments if there is uncertainty about the course enrollment! Enrollment refers to enrollment after DROP/ADD is over, Friday of the first week of classes. Remember that enrollment often drops during the first week - students often register for more classes than they plan to take, or may drop your course if the wait list for another course clears. Olufisayo Omojokun has a sign-up mechanism for undergrad students interested in TAing specific undergrad courses. If you use undergrad TAs and want help from Fisayo in finding TAs, you should let him know at least one month before the end of the previous semester. When you speak with potential undergrad graders, emphasize that they will not always be called upon to work the maximum number of hours per week, so they should not expect to earn the maximum amount each week. You should not automatically approve 15 hours each week. If your enrollment is close to a break-point for an additional GTA or grader, it may be possible to have a grader for a number of hours for the entire semester that is less than the maximum. Talk with the faculty member overseeing GTA assignments. Elaboration in the Form of FAQS Q: If a student has been supported by IC for two (or more) semesters (and hence has been a GTA for those semesters) and then moves into a GRA position, does the student now need to do two additional GTAs? A: No. The degree requirement is to GTA twice. Period. The degree requirement does not say that you have to GTA twice while being a GRA. Q: If student has already done two GTAs and is now being supported by IC because the advisor has run out of funds, is student expected to GTA? A: Yes Q: What if the advisor’s funding for a student runs out after 2 or 3 years, so the student has 2 or more years to go. The advisor may have funding in a new area in which the student is not interested. What happens? A: This is the joint responsibility of both the advisor and student. The student may have to GRA on the advisor’s new project while completing their dissertation, rather than being a GTA supported by IC. Q: Must the classes for which a student GTAs be taught by an IC faculty member during the academic year? A: Yes, effective fall semester 2014. The class must be in IC, because it is IC that is providing the back-up funding for the student. In this context, think of GTAing an IC course as paying the insurance policy premium to guarantee student funding if the advisor cannot support the student. Thus, if your advisor has a fractional appointment in IC and does not teach IC courses with an enrollment of 25 or more, you will need to GTA courses not taught by your advisor. Summer school GTAing does not count for a similar reason, because IC is not financially involved in summer school payment of faculty or GTAs. MOOM GTAing does not count for the same reason. Q: May a student GTA for two courses during the same semester? A: No, effective fall semester 2014. The time demands of managing two courses, each with 25 or more students, places an unreasonable burden on the GTA, and can be unfair to students in the two classes by spreading the GTA out “too thin”. Q: If student is not supported as a GRA and has to GTA, what is the stipend? A: Same as it would be otherwise. 45% prior to passing quals, 50% after that. For students admitted prior to the 2011 start of the two GTA requirement who have NOT opted into the requirement, 37.5% Q: During what years is it recommended to GTA? A: As per the School of IC’s “Doctoral Academic Policies and Procedures” – a document approved by the faculty – the first should be completed no later than during the third year, and the second no later than the fifth year. If there are difficulties in so doing, then the advisor should have a prior discussion with the faculty member having oversight of GTA assignments. Q: If a student successfully defends and is about to graduate but has not done the two GTAs, what happens? A: Doing two GTAs is a degree requirement, so the student cannot graduate without having met this requirement. Q: Student has NSF or other fellowship. Must student do the two GTAs? A: Yes. Doing two GTAs is a degree requirement, so the student cannot graduate without having met this requirement. Q: What if a student needs to GTA, but no one wants the student as a GTA - maybe the student did a bad job on their first GTA, maybe English is a problem? A: This is first and foremost the responsibility of the student’s advisor. In most cases the student GTAs with the advisor. If not, the advisor works with the student to find a suitable GTA position. In the limit, the School assigns the student to GTA a specific course. The advisor, in consultation with the student and the faculty member in charge of GTA assignments, will have first taken steps to ensure that the student has remedied whatever the issues might have been. Q: Do students normally GTA for a course taught by their advisor. A: Yes, this is the norm but is not required. A student might benefit by GTAing some other course. Q: Are there limits on the class size of the class being GTAd in order for it to count? A: Yes, the size must be 25 or more unless explicit prior approval for a smaller class has been given. Q: Can a student graduate if they have TA'd twice, but have failed one or both of the mandatory TA classes? A: No. If a student fails one of the courses, they must retake it and pass in order to graduate. Q: Does being 'instructor of record' count as one of the TAships for this requirement? A: Yes, teaching a course rather than being GTA satisfies one GTA requirement. Q: Would a student who is either a GTA or an instructor of record who has considerable prior teaching experience in high school, college or other venues still have to take the appropriate first/second TA class? A: Almost certainly yes. Exemptions from taking the TA classes will be granted only in exceptional circumstances (such as someone with many years full time teaching experience), and are at the discretion of the PhD coordinator. Exemptions are not granted from the TA requirement. Q: Is there an expectation that the TA provide at least one lecture to the class? If so, should the professor be expected to watch and critique the lecture or can it be, for example while the professor is traveling. A: This is not required, but some faculty may choose to do so, and GTAs should request to do should if they want to have this experience Q: Does TAing an undergrad course count? Is there a preference, at least, for TAing grad courses? A: Yes it does count. There is a preference that PhD students GTA grad courses, since MS students often are able to GTA undergrad courses. But this is not an absolute. Georgia Tech Coronavirus Resources Academic Continuity Resources Guidance for Graduate Education Hosting a Virtual Event Monitoring Coronavirus On Campus OneUSG Connect Training Online Partial Day Absence (How to Submit) Which GT services require VPN? Dean's Messages Tuesday, August 3, 2021 Thursday, July 29, 2021 Tuesday, July 27, 2021 Tuesday, July 20, 2021 Tuesday, July 13, 2021 Archive GT Computing Helping Stories New Study Shows Explainability is a Must for Older Adults to Trust AI Researchers Look to Bolster Technology Support for Menopause New LLMs Could Provide Strength-based Job Coaching for Autistic People Students Collaborating with Nonprofit to Reduce Bird Collisions with Buildings Ph.D. Student Making Digital Maps That Blind People Can Hear Resources Georgia Tech Resources Offices and Departments News Center Campus Calendar Special Events GreenBuzz Institute Communications Visitor Resources Campus Visits Directions to Campus Visitor Parking Information GT visitor Wireless Network Information Georgia Tech Global Learning Center Georgia Tech Hotel and Conference Center Barnes and Noble at Georgia Tech Ferst Center for the Arts Robert C. Williams Paper Museum Colleges, Instructional Sites and Research Colleges College of Computing College of Design College of Engineering College of Sciences Ivan Allen College of Liberal Arts Scheller College of Business Instructional Sites Georgia Tech-Europe Georgia Tech-Shenzhen Georgia Tech Online Professional Education The Language Institute Global Footprint Global Engagement Research Georgia Tech Research Institute Research at Georgia Tech Executive Vice President for Research College of Computing Resources Intranet Student and Parent Resources Student Resources Apply BuzzPort Buzzcard Career Center Commencement Library Student Life Student Entrepreneurship Education Abroad Canvas Parent Resources Parent and Family Programs Division of Student Life Scholarships and Financial Aid News Feed AI, Analytics, and Health Tech Take Center Stage at Spring 2026 College of Computing Capstone Expo From AI-powered tools that support dementia care to platforms that… Computational Media Grad Builds at the Intersection of Computing and Music Jack Hayley’s path through Georgia Tech’s computational media program… Computing Grad Pursues Parallel Paths in Computer Science and Film For Kathy Tran, choosing to major in computer science (CS) at Georgia… Georgia Institute of Technology North Avenue Atlanta, GA 30332 +1 404.894.2000 Campus Map General Directory Employment Emergency Information Legal Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Legal & Privacy Information Human Trafficking Notice Title IX/Sexual Misconduct Hazing Public Disclosures Accessibility Accountability Accreditation Report Free Speech and Censorship Concern © 2026 Georgia Institute of Technology GT LOGIN GT LOGIN Search here... GO Georgia Institute of Technology Georgia Tech Georgia Institute of Technology Toggle navigation College of Computing About Advisory Board Future Students Current Students College of Computing Career Services Office Undergraduate FASET Schools News & Events News Upcoming Events Calendar People Directory Faculty Staff PhD Students College of Computing Hall of Fame Research About Research Centers Industry search Enter the terms you wish to search for. Georgia Tech Resources Main Menu Category Georgia Tech Offices and Departments Directory Georgia Tech News Center Georgia Tech Campus Calendar Georgia Tech Special Events and Protocol A resource for showcasing green behaviors, activities, initiatives, and events at Georgia Tech Georgia Tech Office of Institute Communications Visitor Resources Main Menu Category Georgia Tech Campus Visits Visit Georgia Tech Campus Georgia Tech Parking and Transportation Services GT visitor Wireless Network Information Georgia Tech Global Learning Center Georgia Tech Hotel and Conference Center Barnes and Noble at Georgia Tech Official Bookstore Georgia Tech Ferst Center for the Arts The Robert C. Williams Museum of Papermaking Colleges, Instructional Sites and Research Main Menu Category Georgia Tech Colleges Georgia Tech College of Computing Georgia Tech College of Design Georgia Tech College of Engineering Georgia Tech College of Sciences Georgia Tech Ivan Allen College of Liberal Arts Georgia Tech Scheller College of Business Instructional Sites Main Menu Category Georgia Techs European Campus Georgia Tech Study Abroad in China Georgia Tech Professional Education Online Georgia Tech Professional Education Unit Georgia Tech Language Institute Global Footprint Main Menu Category Georgia Tech Office of Global Engagement Research Main Menu Category Georgia Tech Research Institute Research at Georgia Tech Executive Vice President for Research at the Georgia Institute of Technology College of Computing Resources Intranet Student and Parent Resources Main Menu Category Georgia Tech Student Resources Georgia Tech Prospective Students Services to students, faculty, and administrative staff at Georgia Tech Georgia Tech Buzzcard Services Georgia Tech Career Center Commencement Information for Students Georgia Tech Library services Student Life at Georgia Tech CREATE-X Student Entrepreneurship Georgia Tech Office of International Education Digital Learning Georgia Tech Parent Resources Georgia Tech Office of Parent and Family Programs Student Life at Georgia Tech Georgia Tech Office of Scholarships & Financial Aid telephone Campus Map General Main Menu Category Georgia Institute of Technology Directory Georgia Institute of Technology Employment Georgia Institute of Technology Emergency Information Legal Main Menu Category Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Georgia Institute of Technology Legal & Privacy Information Georgia Human Trafficking Resources Georgia Tech Title IX/Sexual Misconduct Resources Georgia Tech Hazing Conduct History Georgia Institute of Technology Accessibility Resources Georgia Institute of Technology Accountability Resources Georgia Institute of Technology Accreditation University System of Georgia Ethics and Compliance Reporting Hotline georgia tech logo and copyright Georgia Tech logo link to main campus site admin login admin login AddToAny Utility Frame",
+      "char_count": 19893
+    },
+    {
+      "url": "https://grad.gatech.edu/admissions/international",
+      "title": "International Applicants | Graduate Education",
+      "status": "ok",
+      "passed_types": [
+        {
+          "type": "admissions",
+          "score": 0.85
+        }
+      ],
+      "types": [
+        {
+          "type": "admissions",
+          "confidence": 0.85
+        }
+      ],
+      "content_hash": "9670c26af50e29a60fdbcb94c2971a57",
+      "program_codes": [
+        {
+          "program_code": "INTERNATIONAL_CS_MASTERS",
+          "degree_type": "MS",
+          "program_name": "International Computer Science Master's",
+          "department": "Computer Science",
+          "scope": "school_wide",
+          "official_evidence": "International Applicants | Graduate Education International Applicants Graduate Education Audience Main Quick Actions Search Breadcrumb Admissions Checklist for International Applicants Who Is an International Applicant? Recent Admissions Statistics Office of Graduate and Postdoctoral Education Before You Apply Ready to Apply After You Apply",
+          "source_program_name": null
+        }
+      ],
+      "scope": "school_wide",
+      "target_assessment": {
+        "masters_available": true
+      },
+      "extraction": {
+        "programs": [],
+        "deadlines": [],
+        "scholarships": [],
+        "app_materials": [],
+        "evidence_paragraphs": [
+          {
+            "program_code": "INTERNATIONAL_CS_MASTERS",
+            "category": "other",
+            "field_name": null,
+            "evidence_kind": "context_note",
+            "evidence_text": "The page provides general information for international applicants, including a checklist to review admissions requirements, complete and submit the application, and submit additional materials. However, it does not state any explicit requirements, scores, fees, deadlines, or materials for international Computer Science master's applicants.",
+            "source_excerpt": "Admissions Checklist for International Applicants\n\nBefore You Apply\n\nReview admissions requirements.\n\nReady to Apply\n\nComplete and submit your application.\n\nAfter You Apply\n\nSubmit additional materials."
+          }
+        ]
+      },
+      "confidence": 1.0,
+      "retries": 1,
+      "tags": [
+        "INTERNATIONAL_CS_MASTERS",
+        "admissions"
+      ],
+      "data": "Skip to main navigation Skip to main content MENU Graduate Education Office of Graduate and Postdoctoral Education Audience Information For: Prospective Students New Students Current Students Faculty & Staff Main About Tech Why Choose Georgia Tech Contact Us Statistics Ph.D. Career Outcomes Doctoral Program Statistics Master's Program Statistics Graduate Student Experience Survey Visit Tech Program Information Cost & Funding Cost & Fees Paying for Grad School Conference Travel Funds Admissions Admissions Overview Check Application Status BS/MS Degree Pathway English Proficiency Application Fee Waivers 62 and Older Students Professional Development Career and Professional Development Resources Mentoring & Conflict Resolution Career, Research, and Innovation Development Conference (CRIDC) Three Minute Thesis (3MT) News & Events Grad Buzz e-Newsletter Recent News Grad Student Events Events Past Event Photo Archive MS and Ph.D. Defenses Information For: Prospective Students New Students Current Students Faculty & Staff Quick Actions Apply FAQs Request Info Give Now Search Search International Applicants Breadcrumb Home Admissions International Applicants The Office of Graduate Education is here to help you navigate the application process. Tech also provides services and resources for international students to facilitate your success as a student and acclimate to life in the United States. Admissions Checklist for International Applicants Before You Apply Review admissions requirements. Before You Apply Ready to Apply Complete and submit your application. Ready to Apply After You Apply Submit additional materials. After You Apply Who Is an International Applicant? At Georgia Tech, you are considered an international applicant if you are: Living outside of the United States and will require an F-1 or J-1 visa to study in the United States, Living in the United States on a nonimmigrant visa, Going through the process of becoming a United States permanent resident, Living outside of the U.S. and planning to apply to an online master's degree program as a non-U.S. citizen or non-U.S. permanent resident Recent Admissions Statistics 149 countries are represented at Georgia Tech. 10,935 international students enrolled* in graduate education at Georgia Tech. *mix of online and on campus 32,772 total graduate enrollment. Nearly 40% of enrolled graduate students are international students. Office of Graduate Education Georgia Institute of Technology Savant Building, Room 301 631 Cherry St., NW Atlanta, GA 30332-0321 404.894.2000 Office of Graduate Education Map General Directory Employment Emergency Information Legal Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Legal & Privacy Information Human Trafficking Notice Title IX/Sexual Misconduct Hazing Public Disclosures Accessibility Accountability Accreditation Report Free Speech and Censorship Concern © 2026 Georgia Institute of Technology GT LOGIN This website uses cookies. For more information, review our Privacy & Legal Notice. Questions? Please email privacy@gatech.edu. Accept No, thanks Search here... GO Georgia Institute of Technology Checklist icon Submit button on laptop computer Upload document icon on computer screen Georgia Tech Georgia Institute of Technology Menu: Toggle navigation Graduate Education Graduate Education Office of Graduate and Postdoctoral Education Office of Graduate and Postdoctoral Education search Enter the terms you wish to search for. Help Page Title and Breadcrumbs Checklist icon Submit button on laptop computer Upload document icon on computer screen Contact Us Contact Us Follow us on Facebook Follow us on Facebook Find us on Flickr Find us on Flickr Follow us on Instagram Follow us on Instagram Follow us on Linkedin Follow us on Linkedin Find us on YouTube Find us on YouTube 404.894.2000 telephone georgia tech general menu General Main Menu Category Georgia Institute of Technology Directory Georgia Institute of Technology Employment Georgia Institute of Technology Emergency Information georgia tech legal menu Legal Main Menu Category Georgia Institute of Technology Equal Opportunity, Nondiscrimination, and Anti-Harassment Policy Georgia Institute of Technology Legal & Privacy Information Georgia Human Trafficking Resources Georgia Tech Title IX/Sexual Misconduct Resources Georgia Tech Hazing Conduct History Georgia Institute of Technology Accessibility Resources Georgia Institute of Technology Accountability Resources Georgia Institute of Technology Accreditation University System of Georgia Ethics and Compliance Reporting Hotline Georgia Tech GT login for admin Back to top Back to top Cookie compliance banner popup-text The Office of Graduate Education is here to help international applicants navigate the application process. Tech also provides services and resources to facilitate your success as a student and to acclimate to life in the United States.",
+      "char_count": 4934
+    }
+  ],
+  "review_items": [
+    {
+      "program_code": "INTERNATIONAL_CS_MASTERS",
+      "field_name": "deadlines[regular]",
+      "field_value": null,
+      "source_excerpt": "The application deadline is Feb. 1 for admission to the following fall semester.",
+      "problem": "not an actionable program application deadline",
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admission-requirements",
+      "reason": "hallucination_detected"
+    },
+    {
+      "program_code": "INTERNATIONAL_CS_MASTERS",
+      "field_name": "toefl_ibt_new_scale_min",
+      "field_value": 5.0,
+      "source_excerpt": "we generally do not accept applicants with less than 100 on the older scale and 5.0 on the newer scale because most of our applicants exceed the minimum TOEFL.",
+      "problem": "source_excerpt does not semantically support this field",
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "reason": "hallucination_detected"
+    },
+    {
+      "program_code": "INTERNATIONAL_CS_MASTERS",
+      "field_name": "deadlines[regular]",
+      "field_value": null,
+      "source_excerpt": "Students are admitted to the master’s program only once a year. The application deadline is February 1 for admission to the following fall semester. We allow applicants an additional two weeks to submit these after the deadline. They are due no later than February 14. All application decisions should be available for applicants during the first week of April.",
+      "problem": "not an actionable program application deadline",
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "reason": "hallucination_detected"
+    },
+    {
+      "program_code": "INTERNATIONAL_CS_MASTERS",
+      "field_name": "evidence[english]",
+      "field_value": "There is no mention of the Duolingo English Test (DET) as an accepted English proficiency test for admission.",
+      "source_excerpt": "No mention of Duolingo English Test (DET) as accepted.",
+      "problem": "evidence paragraph is not grounded in the source",
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "reason": "hallucination_detected"
+    },
+    {
+      "program_code": "INTERNATIONAL_CS_MASTERS",
+      "field_name": "evidence[english]",
+      "field_value": "No explicit English test waiver policy is stated for international applicants.",
+      "source_excerpt": "No explicit English test waiver policy is stated.",
+      "problem": "evidence paragraph is not grounded in the source",
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "reason": "hallucination_detected"
+    },
+    {
+      "program_code": "INTERNATIONAL_CS_MASTERS",
+      "field_name": "evidence[materials]",
+      "field_value": "There is no mention of a CV or resume requirement for the application.",
+      "source_excerpt": "No mention of a CV/resume requirement.",
+      "problem": "evidence paragraph is not grounded in the source",
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "reason": "hallucination_detected"
+    },
+    {
+      "program_code": "INTERNATIONAL_CS_MASTERS",
+      "field_name": "evidence[materials]",
+      "field_value": "There is no mention of a writing sample requirement for the application.",
+      "source_excerpt": "No mention of a writing sample requirement.",
+      "problem": "evidence paragraph is not grounded in the source",
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "reason": "hallucination_detected"
+    },
+    {
+      "program_code": "INTERNATIONAL_CS_MASTERS",
+      "field_name": "evidence[fee]",
+      "field_value": "No application fee amount is stated in the FAQ.",
+      "source_excerpt": "No application fee amount is stated.",
+      "problem": "evidence paragraph is not grounded in the source",
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "reason": "hallucination_detected"
+    },
+    {
+      "program_code": "INTERNATIONAL_CS_MASTERS",
+      "field_name": "evidence[fee]",
+      "field_value": "No mention of fee waivers or criteria for fee waivers is provided.",
+      "source_excerpt": "No mention of fee waivers.",
+      "problem": "evidence paragraph is not grounded in the source",
+      "url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "reason": "hallucination_detected"
+    }
+  ],
+  "url_filter_decisions": [
+    {
+      "url": "https://www.cc.gatech.edu/funding-sources",
+      "source_url": "https://www.cc.gatech.edu/ms-computer-science-admission-requirements",
+      "anchor_text": "Funding Sources",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "This page is likely to provide information about scholarships, fellowships, or other funding options relevant to master's CS applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://www.cc.gatech.edu/prospective-graduate-students",
+      "source_url": "https://www.cc.gatech.edu/ms-computer-science-admission-requirements",
+      "anchor_text": "Graduate Degrees",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely a general overview for prospective graduate students without concrete application requirements or procedures.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.gatech.edu/admissions/application-fee-waivers",
+      "source_url": "https://grad.gatech.edu/admissions",
+      "anchor_text": "Application Fee Waivers",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "keep",
+      "reason": "This page likely details application fee waiver policies relevant to master's CS applicants.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.gatech.edu/admissions/domestic",
+      "source_url": "https://grad.gatech.edu/admissions",
+      "anchor_text": "Admissions Checklist for Domestic Applicants",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "keep",
+      "reason": "This page likely provides an admissions checklist for domestic master's applicants, including required documents and procedures.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.gatech.edu/admissions/international",
+      "source_url": "https://grad.gatech.edu/admissions",
+      "anchor_text": "Admissions Checklist for International Applicants",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "keep",
+      "reason": "This page likely provides an admissions checklist for international master's applicants, including language and credential requirements.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.gatech.edu/prospective-students",
+      "source_url": "https://grad.gatech.edu/admissions",
+      "anchor_text": "Prospective Students",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "This is likely a general landing page for prospective students without specific application requirements or procedures.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "http://www.cc.gatech.edu/academics/degree-programs/masters/computer-science/admissionreqs",
+      "source_url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "anchor_text": "L",
+      "depth": 1,
+      "root_index": 1,
+      "decision": "keep",
+      "reason": "This page is likely to contain admission requirements for the master's in computer science program.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    }
+  ],
+  "sufficiency_report": {
+    "coverage": {
+      "INTERNATIONAL_CS_MASTERS": {
+        "fields_extracted": [
+          "application_system",
+          "application_url",
+          "english_test_notes",
+          "fee_waiver_available",
+          "fee_waiver_criteria",
+          "gpa_min",
+          "gpa_note",
+          "gpa_scale",
+          "gre_required",
+          "ielts_min",
+          "language_waiver",
+          "rec_letter_count",
+          "sop_prompt",
+          "toefl_ibt_min",
+          "toefl_ibt_new_scale_min",
+          "toefl_min",
+          "toefl_section_requirements",
+          "transcript_format",
+          "tuition_note"
+        ],
+        "deadline_count": 0,
+        "missing_important": [
+          "application_fee_usd",
+          "tuition_per_year_usd"
+        ]
+      }
+    },
+    "sufficient": false,
+    "missing_summary": "缺少：application_fee_usd, tuition_per_year_usd",
+    "seed_urls": [],
+    "auto_recrawl_disabled": true,
+    "international_cs_masters_available": true
+  },
+  "chunk_count": 55
+}

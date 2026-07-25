@@ -17,6 +17,7 @@ from .text_clean import clean_noise
 from .llm import call_llm_json
 from .prompts import url_filter_prompt
 from . import db as dbm
+from .demo_events import emit_event, preview, reset_events
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 URL_RESULT_DIR = Path(__file__).resolve().parent / "url"
@@ -29,12 +30,40 @@ IMPORTANT_FIELDS = ["toefl_ibt_min", "ielts_min", "gre_required",
                     "application_fee_usd", "tuition_per_year_usd", "rec_letter_count"]
 
 
+def _crawl_candidate_priority(item: dict) -> tuple:
+    """Prioritize evidence pages when MAX_PAGES cannot cover every kept URL."""
+    evidence = f"{item.get('url', '')} {item.get('anchor_text', '')}".lower()
+    score = 0
+    weighted_hints = (
+        (("application-checklist", "application checklist", "graduate-requirement",
+          "admission-requirement", "required-material", "/requirements"), 150),
+        (("english-proficiency", "english proficiency", "toefl", "ielts", "duolingo"), 130),
+        (("international-applicant", "international applicant"), 120),
+        (("masters-admission", "master's admission", "ms admission"), 115),
+        (("application-fee", "application fee", "fee-waiver", "fee waiver"), 110),
+        (("tuition", "cost-of-attendance", "cost of attendance"), 105),
+        (("deadline", "admission-calendar"), 100),
+        (("admission", "apply", "application"), 80),
+        (("faq", "frequently-asked"), 70),
+        (("funding", "financial-aid", "fellowship", "scholarship"), 60),
+    )
+    for hints, weight in weighted_hints:
+        if any(hint in evidence for hint in hints):
+            score = max(score, weight)
+    if any(hint in evidence for hint in (
+            "joint-degree", "joint degree", "msmba", "ms-law",
+            "bachelors-masters", "bachelor's/master")):
+        score -= 150
+    return (-score, item.get("root_index", 0), item.get("url", ""))
+
+
 # ──────────────────────────────────────────────
 # Node 1：init_crawl
 # ──────────────────────────────────────────────
 
 def init_crawl(state: SchoolState) -> dict:
     school_id = state["school_id"]
+    reset_events(school_id)
     school = next((s for s in SCHOOLS if s["school_id"] == school_id), None)
     if school is None:
         raise ValueError(f"setting/root_url.py 找不到 school_id={school_id}")
@@ -67,6 +96,10 @@ def init_crawl(state: SchoolState) -> dict:
 
     queue = [{"url": r, "depth": 0, "root_index": i} for i, r in enumerate(roots)]
     print(f"[INIT] {school_id}: {len(roots)} roots, max_depth={max_depth}, max_pages={max_pages}")
+    emit_event(school_id, "init_crawl", "completed", "初始化爬蟲設定", data={
+        "roots": roots, "max_depth": max_depth, "max_pages": max_pages,
+        "dry_run": bool(state.get("dry_run")),
+    })
 
     return {
         "roots": roots,
@@ -113,6 +146,9 @@ def discover_urls(state: SchoolState) -> dict:
 
     depth = layer[0]["depth"]
     print(f"\n[BFS depth={depth}] {len(layer)} 頁待爬（{state['school_id']}）")
+    emit_event(state["school_id"], "discover_urls", "running",
+               f"開始探索 depth={depth} 的 {len(layer)} 個 URL",
+               data={"depth": depth, "urls": [item["url"] for item in layer]})
 
     layer_results = crawl_one_layer(layer, state["roots"])
 
@@ -154,6 +190,13 @@ def discover_urls(state: SchoolState) -> dict:
     if reasons:
         top = sorted(reasons.items(), key=lambda x: x[1], reverse=True)[:8]
         print(f"  [depth={depth} drop] " + "  ".join(f"{r}={c}" for r, c in top))
+    emit_event(state["school_id"], "discover_urls", "completed",
+               f"depth={depth} 探索完成", data={
+                   "discovered": [url for url, _, result in layer_results if not result["error"]],
+                   "candidate_urls": list(candidates_by_url),
+                   "rule_drop_summary": reasons,
+                   "total_crawled": total_crawled,
+               })
 
     return {
         "current_depth": depth + 1,
@@ -271,6 +314,8 @@ def _write_url_filter_review(state: SchoolState, decisions: list[dict]) -> str:
 def filter_discovered_urls(state: SchoolState) -> dict:
     """批次 LLM 初篩本層新 URL，整理成下一層 BFS queue 並寫 audit。"""
     candidates = state.get("url_filter_candidates", [])
+    emit_event(state["school_id"], "filter_discovered_urls", "running",
+               f"準備判斷 {len(candidates)} 個候選 URL")
     previous = list(state.get("url_filter_decisions", []))
     if not candidates:
         _write_url_filter_review(state, previous)
@@ -297,9 +342,13 @@ def filter_discovered_urls(state: SchoolState) -> dict:
                              "confidence": 0.0, "decision_source": "fallback"}
                             for item in batch])
 
+    kept = sorted(
+        (item for item in current if item["decision"] == "keep"),
+        key=_crawl_candidate_priority,
+    )
     queue = [{"url": item["url"], "depth": item["depth"],
               "root_index": item["root_index"]}
-             for item in current if item["decision"] == "keep"]
+             for item in kept]
     dropped = dict(state.get("dropped_urls", {}))
     for item in current:
         if item["decision"] == "drop":
@@ -309,6 +358,9 @@ def filter_discovered_urls(state: SchoolState) -> dict:
     audit_file = _write_url_filter_review(state, decisions)
     print(f"  [URL FILTER] batches={(len(llm_candidates) + URL_FILTER_BATCH_SIZE - 1) // URL_FILTER_BATCH_SIZE} "
           f"keep={len(queue)} drop={len(current) - len(queue)} audit={audit_file}")
+    emit_event(state["school_id"], "filter_discovered_urls", "completed",
+               f"URL 過濾完成：保留 {len(queue)}、排除 {len(current) - len(queue)}",
+               data={"decisions": current, "audit_file": audit_file})
     return {
         "url_queue": queue,
         "dropped_urls": dropped,
@@ -339,6 +391,8 @@ def dispatch_scrape(state: SchoolState):
     if not pending:
         return "collect_scraped"
     print(f"\n[SCRAPE] fan-out {len(pending)} 頁（{state['school_id']}）")
+    emit_event(state["school_id"], "scrape_page", "running",
+               f"開始平行抓取 {len(pending)} 個頁面", data={"urls": pending})
     return [Send("scrape_page", {"school_id": state["school_id"], "url": url})
             for url in pending]
 
@@ -347,18 +401,27 @@ def scrape_page(state: ScrapeState) -> dict:
     """Node 4：單頁全文 + structured_markdown / tables / content_hash / PDF。"""
     url = state["url"]
     extracted = scrape_url(url)
-    record = {"url": url, **extracted}
+    record = {"url": url, "requested_url": url, **extracted}
     status = f"⚠️ {extracted['error'][:60]}" if extracted["error"] else f"{len(extracted['full_text'])} chars"
     print(f"  [scraped] {url} → {status}")
+    emit_event(state["school_id"], "scrape_page",
+               "failed" if extracted["error"] else "completed",
+               f"頁面抓取：{status}", url=url, data={
+                   "title": extracted.get("title", ""),
+                   "final_url": extracted.get("final_url", url),
+                   "char_count": len(extracted.get("full_text", "")),
+                   "content_preview": preview(extracted.get("full_text", "")),
+                   "error": extracted.get("error", ""),
+               })
     return {"scraped_pages": [record]}
 
 
 def collect_scraped(state: SchoolState) -> dict:
-    """依 URL 去重並過濾錯誤頁；content hash 僅供診斷，不跨 URL 丟資料。
+    """依最終 URL 去重並過濾錯誤頁；content hash 僅供診斷，不跨 URL 丟資料。
 
     不同官方頁可能因共用模板、載入失敗或舊 checkpoint 缺少 hash 而得到
     相同/空 content_hash。跨 URL 直接 hash 去重會漏掉 admissions requirements，
-    因此只有完全相同 URL 才跳過。
+    因此只有相同 final URL（包含 redirect alias）才跳過。
     """
     first_url_by_hash: dict[str, str] = {}
     seen_urls: set[str] = set()
@@ -368,26 +431,38 @@ def collect_scraped(state: SchoolState) -> dict:
     for rec in state.get("scraped_pages", []):
         if rec.get("error") or not rec.get("full_text"):
             continue
-        if rec["url"] in processed_urls:
+        requested_url = rec.get("requested_url") or rec["url"]
+        effective_url = normalize_url(rec.get("final_url") or rec["url"])
+        if effective_url in processed_urls:
             continue  # sufficiency 迴圈時不重複處理
-        if rec["url"] in seen_urls:
-            print(f"  ⏭ duplicate URL skipped: {rec['url'][:80]}")
+        if effective_url in seen_urls:
+            print(f"  ⏭ redirect alias skipped: {requested_url[:70]} → {effective_url[:70]}")
             continue
-        seen_urls.add(rec["url"])
+        seen_urls.add(effective_url)
+        rec["requested_url"] = requested_url
+        rec["url"] = effective_url
+        rec["final_url"] = effective_url
 
         h = rec.get("content_hash")
         if h:
             first_url = first_url_by_hash.get(h)
-            if first_url and first_url != rec["url"]:
-                print(f"  ⚠️ same content hash retained: {rec['url'][:70]} "
+            if first_url and first_url != effective_url:
+                print(f"  ⚠️ same content hash retained: {effective_url[:70]} "
                       f"(same as {first_url[:70]})")
             else:
-                first_url_by_hash[h] = rec["url"]
+                first_url_by_hash[h] = effective_url
         else:
-            print(f"  ⚠️ missing content hash retained: {rec['url'][:80]}")
+            print(f"  ⚠️ missing content hash retained: {effective_url[:80]}")
         unique.append(rec)
 
     print(f"[COLLECT] {len(unique)} 頁待分類（URL 去重/去錯誤後）")
+    emit_event(state["school_id"], "collect_scraped", "completed",
+               f"整理完成，{len(unique)} 頁送往 LLM", data={
+                   "pages": [{"url": p["url"], "title": p.get("title", ""),
+                              "char_count": len(p.get("full_text", "")),
+                              "preview": preview(p.get("full_text", ""))}
+                             for p in unique],
+               })
     return {"unique_pages": unique}
 
 
@@ -457,8 +532,21 @@ def sufficiency_evaluator(state: SchoolState) -> dict:
         "seed_urls": [],
         "auto_recrawl_disabled": True,
     }
+    assessments = [
+        r.get("target_assessment", {}).get("masters_available")
+        for r in state.get("page_results", [])
+        if r.get("target_assessment", {}).get("masters_available") is not None
+    ]
+    result["international_cs_masters_available"] = (
+        True if any(value is True for value in assessments)
+        else False if any(value is False for value in assessments)
+        else None
+    )
     print(f"[SUFFICIENCY] sufficient={result['sufficient']} "
           f"missing={result['missing_summary'][:100]}（自動補爬已關閉）")
+    emit_event(state["school_id"], "sufficiency_evaluator",
+               "completed" if result["sufficient"] else "warning",
+               result["missing_summary"], data={"coverage": report, **result})
 
     return {
         "sufficiency_iterations": iterations + 1,
@@ -504,6 +592,7 @@ def tagging(state: SchoolState) -> dict:
         tags = [t["type"] for t in r.get("passed_types", [])]
         tags += [p["program_code"] for p in r.get("program_codes", []) if p.get("program_code")]
         r["tags"] = sorted(set(tags))
+    emit_event(state["school_id"], "tagging", "completed", "頁面標籤整理完成")
     return {}
 
 
@@ -533,6 +622,12 @@ def chunking(state: SchoolState) -> dict:
             chunks.append({"url": r["url"], "text": prefix + piece.strip()})
 
     print(f"[CHUNK] 共 {len(chunks)} 個 chunk")
+    emit_event(state["school_id"], "chunking", "completed",
+               f"建立 {len(chunks)} 個 RAG chunks", data={
+                   "count": len(chunks),
+                   "sample": [{"url": item["url"], "text": preview(item["text"], 240)}
+                              for item in chunks[:5]],
+               })
     return {"chunks": chunks}
 
 
@@ -544,6 +639,8 @@ def embedding(state: SchoolState) -> dict:
     """
     if not state.get("enable_embedding"):
         print("[EMBED] ENABLE_EMBEDDING=off，跳過（之後可用 backfill_embeddings.py 補）")
+        emit_event(state["school_id"], "embedding", "skipped",
+                   "Embedding 關閉，保留全文檢索")
         return {}
 
     from sentence_transformers import SentenceTransformer
@@ -556,6 +653,8 @@ def embedding(state: SchoolState) -> dict:
     for c, v in zip(chunks, vectors):
         c["embedding"] = v.tolist()
     print(f"[EMBED] 完成 {len(chunks)} 個 chunk")
+    emit_event(state["school_id"], "embedding", "completed",
+               f"完成 {len(chunks)} 個向量")
     return {"chunks": chunks}
 
 
@@ -596,18 +695,29 @@ def _common_source_priority(result: dict) -> int:
     """同 scope 衝突時弱來源先寫、強來源後寫；DB 最後保留強證據。"""
     text = f"{result.get('url', '')} {result.get('title', '')}".lower()
     if "checklist" in text:
-        return 50
+        return 30
     if "faq" in text:
-        return 20
-    if "requirement" in text or "admission" in text:
         return 40
+    if "requirement" in text or "admission" in text:
+        return 50
     if "english" in text or "language" in text:
         return 35
     return 10
 
 
+def _program_write_priority(result: dict) -> tuple[int, int]:
+    """弱 scope 先寫、CS master's program-specific 最後寫。"""
+    scope_rank = {
+        "school_wide": 0,
+        "department_wide": 1,
+        "program_specific": 2,
+    }
+    return (scope_rank.get(result.get("scope"), 0), _common_source_priority(result))
+
+
 def db_writer(state: SchoolState) -> dict:
     school_id = state["school_id"]
+    emit_event(school_id, "db_writer", "running", "開始寫入資料庫")
     ok_results = [r for r in state.get("page_results", []) if r.get("status") == "ok"]
     _validate_school_write_scope(state, ok_results)
 
@@ -641,10 +751,22 @@ def db_writer(state: SchoolState) -> dict:
         print(f"  ⚠️ stale university_id corrected: state={stale_id} db={university_id} ({school_id})")
     stats = {"pages": 0, "programs": 0, "global_extractions": 0,
              "deadlines": 0, "scholarships": 0,
-             "materials": 0, "review": 0, "chunks": 0}
+             "materials": 0, "evidence": 0, "review": 0, "chunks": 0}
     chunks_by_url: dict[str, list] = {}
     for c in state.get("chunks", []):
         chunks_by_url.setdefault(c["url"], []).append(c)
+    # 同一事實若已由另一個較可靠頁面通過驗證，不應仍留在 review_queue。
+    accepted_program_values = {
+        (
+            prog.get("program_code"),
+            field_name,
+            str(field_value.get("value")),
+        )
+        for result in ok_results
+        for prog in (result.get("extraction") or {}).get("programs", [])
+        for field_name, field_value in (prog.get("fields") or {}).items()
+        if isinstance(field_value, dict) and field_value.get("value") is not None
+    }
 
     try:
         program_id_by_code: dict[str, int] = {}
@@ -664,18 +786,24 @@ def db_writer(state: SchoolState) -> dict:
                 elif code and meta.get("official_evidence"):
                     verified_meta.setdefault(code, meta)
 
-        # 最後保底：若整校沒有任何可建立的正式 CS program，仍建立一個 CS MS，
-        # 讓已驗證的全校／CS 系級共用申請資料有正式承接目標，不再全部停在 global_extractions。
-        if not verified_meta:
-            verified_meta["CS MS"] = {
-                "program_code": "CS MS",
+        # 最後保底：若沒有辨識到正式名稱，但頁面沒有明確否定 terminal
+        # master's，仍只建立目前唯一的國際 CS 碩士目標，不可回退到舊版多學程代碼。
+        target_explicitly_unavailable = any(
+            result.get("target_assessment", {}).get("masters_available") is False
+            for result in ok_results
+        )
+        if not verified_meta and not target_explicitly_unavailable:
+            verified_meta["INTERNATIONAL_CS_MASTERS"] = {
+                "program_code": "INTERNATIONAL_CS_MASTERS",
                 "degree_type": "MS",
-                "program_name": "Master of Science in Computer Science",
+                "program_name": "International Computer Science Master's",
                 "department": "Computer Science",
-                "official_evidence": "default fallback: no official CS program was identified",
+                "official_evidence": "default international CS master's target",
                 "is_default": True,
             }
-            print(f"  [program fallback] {school_id} → 建立預設 CS MS")
+            print(f"  [program fallback] {school_id} → 建立 INTERNATIONAL_CS_MASTERS")
+        elif not verified_meta:
+            print(f"  [program unavailable] {school_id} → 不建立虛構的國際 CS 碩士目標")
 
         for code, meta in verified_meta.items():
             program_id_by_code[code] = dbm.upsert_program(
@@ -700,7 +828,9 @@ def db_writer(state: SchoolState) -> dict:
                         result["url"], result.get("confidence"),
                     )
 
-        for r in ok_results:
+        # 單一 target code 下以 scope 解決衝突：
+        # university-wide < CS/CSE department < CS master's program。
+        for r in sorted(ok_results, key=_program_write_priority):
             ext = r.get("extraction") or {}
             meta_by_code = {p["program_code"]: p for p in r.get("program_codes", [])
                             if p.get("program_code") in verified_meta}
@@ -752,6 +882,10 @@ def db_writer(state: SchoolState) -> dict:
                                          if p.get("program_code") == code],
                         "app_materials": [p for p in ext.get("app_materials", [])
                                           if p.get("program_code") == code],
+                        "evidence_paragraphs": [
+                            p for p in ext.get("evidence_paragraphs", [])
+                            if p.get("program_code") == code
+                        ],
                     }
                     if any(scoped_extraction.values()):
                         dbm.upsert_global_extraction(
@@ -779,6 +913,11 @@ def db_writer(state: SchoolState) -> dict:
                 if pid and m.get("material_type") and (m.get("requirement") or m.get("note")):
                     dbm.upsert_app_material(conn, pid, m)
                     stats["materials"] += 1
+            for evidence in ext.get("evidence_paragraphs", []):
+                pid = program_id_by_code.get(evidence.get("program_code"))
+                if pid and evidence.get("evidence_text"):
+                    dbm.upsert_program_evidence(conn, pid, evidence, r["url"])
+                    stats["evidence"] += 1
 
             # document_chunks
             page_chunks = chunks_by_url.get(r["url"], [])
@@ -790,6 +929,14 @@ def db_writer(state: SchoolState) -> dict:
             # review_queue（該頁驗證失敗的欄位）
             for item in state.get("review_items", []):
                 if item.get("url") == r["url"]:
+                    accepted_key = (
+                        item.get("program_code"),
+                        item.get("field_name"),
+                        str(item.get("field_value")),
+                    )
+                    if item.get("field_value") is not None \
+                            and accepted_key in accepted_program_values:
+                        continue
                     dbm.insert_review_item(conn, university_id, page_id, item)
                     stats["review"] += 1
 
@@ -813,10 +960,18 @@ def db_writer(state: SchoolState) -> dict:
                             item.get("requirement") or item.get("note")):
                         dbm.upsert_app_material(conn, pid, {**item, "program_code": code})
                         stats["materials"] += 1
+                for item in ext.get("evidence_paragraphs", []):
+                    if (item.get("program_code") in ("SCHOOL_WIDE", "CS_DEPARTMENT_WIDE")
+                            and item.get("evidence_text")):
+                        dbm.upsert_program_evidence(
+                            conn, pid, {**item, "program_code": code}, result["url"]
+                        )
+                        stats["evidence"] += 1
     finally:
         conn.close()
 
     print(f"[DB] {school_id}: {stats}")
+    emit_event(school_id, "db_writer", "completed", "資料庫寫入完成", data=stats)
     return {"summary": {"db": stats, "output_file": str(out)}}
 
 
@@ -844,4 +999,6 @@ def finalize_school(state: SchoolState) -> dict:
         "finished_at": datetime.now().isoformat(),
     }
     print(f"\n{'='*60}\n[FINISH] {json.dumps(summary, ensure_ascii=False, indent=2)}\n{'='*60}")
+    emit_event(state["school_id"], "finalize_school", "completed",
+               "整校 crawler 流程完成", data=summary)
     return {"summary": summary}

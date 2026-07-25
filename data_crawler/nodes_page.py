@@ -9,8 +9,8 @@ import re
 from .state import ProcessState, KEEP_TYPES
 from .url_tools import score_url_path
 from .llm import call_llm_json
-from .prompts import (classification_prompt, identify_programs_prompt, extraction_prompt,
-                      validation_repair_prompt)
+from .prompts import classification_prompt, extraction_prompt, validation_repair_prompt
+from .demo_events import emit_event, preview
 
 CLASSIFY_EXCERPT_CHARS = 12_000
 EXTRACT_CHUNK_CHARS = 26_000
@@ -19,6 +19,7 @@ EXTRACT_FOCUSED_CHARS = 14_000
 MAX_EXTRACTION_RETRIES = 2
 MAX_VALIDATION_REPAIRS = 2
 CONFIDENCE_THRESHOLD = 0.6  # 分類信心低於此值視為不相關
+TARGET_PROGRAM_CODE = "INTERNATIONAL_CS_MASTERS"
 
 
 def _page_text(page: dict) -> str:
@@ -76,10 +77,24 @@ def content_classification(state: ProcessState) -> dict:
     url = page["url"]
     text = _page_text(page)
     excerpts = _split_extraction_text(text)
+    emit_event(state["school_id"], "content_classification", "running",
+               "LLM 正在分類頁面", url=url,
+               data={"title": page.get("title", ""), "parts": len(excerpts)})
 
     if len(text.strip()) < 80:
         return {"classification": {"is_relevant": False, "types": [{"type": "other", "confidence": 1.0}],
                                    "reason": "頁面內容過少"}}
+
+    low = _norm(f"{page.get('title', '')} {text[:12_000]}")
+    if (any(term in low for term in (
+            "no terminal master", "no terminal masters", "does not offer a terminal master",
+            "doctoral program only", "application is for the doctoral program only",
+    )) and any(term in low for term in ("computer science", " eecs ", " cse "))):
+        return {"classification": {
+            "is_relevant": True,
+            "types": [{"type": "program", "confidence": 1.0}],
+            "reason": "Official CS page explicitly indicates that a terminal master's is unavailable.",
+        }}
 
     # score_url_path 保留為便宜訊號，放進 prompt 供 LLM 參考（最終決定權在 LLM）
     bonuses = score_url_path(url)
@@ -126,11 +141,14 @@ def content_classification(state: ProcessState) -> dict:
         result["is_relevant"] = True
         types = [{"type": page_type, "confidence": 1.0}]
         result["reason"] = reason
-    return {"classification": {
+    classification = {
         "is_relevant": bool(result.get("is_relevant")),
         "types": types,
         "reason": result.get("reason", ""),
-    }}
+    }
+    emit_event(state["school_id"], "content_classification", "completed",
+               "頁面分類完成", url=url, data=classification)
+    return {"classification": classification}
 
 
 def is_relevant_content(state: ProcessState) -> str:
@@ -147,6 +165,10 @@ def discard_page(state: ProcessState) -> dict:
     """丟棄記錄（保留爬蟲全文供結果 JSON 診斷，但不進 DB）。"""
     page = state["page"]
     cls = state.get("classification") or {}
+    emit_event(state["school_id"], "content_classification", "dropped",
+               "頁面未進入抽取", url=page["url"], data={
+                   "types": cls.get("types", []), "reason": cls.get("reason", ""),
+               })
     return {"page_results": [{
         "url": page["url"],
         "status": "dropped",
@@ -161,45 +183,25 @@ def discard_page(state: ProcessState) -> dict:
 # ──────────────────────────────────────────────
 
 def identify_programs(state: ProcessState) -> dict:
+    """把所有相關頁映射到「國際 CS 碩士」單一目標，不再以 program heading 阻斷抽取。
+
+    program-specific 名稱只作來源 metadata；全校、系級及特定 CS master's 頁面
+    都可以提供欄位。PhD-only、特殊 BS/MS 與在校生任用頁仍不應污染申請標準。
+    """
     page = state["page"]
     text = _page_text(page)
-    known = state.get("known_program_codes") or []
     url_lower = page["url"].lower()
     title_lower = page.get("title", "").lower()
 
-    # 特殊管道／任用／獎助頁保留原文，但不得提供一般 CS 入學門檻。
-    special_hints = (
+    # 特殊管道與任用頁保留原文，但不得提供一般國際 CS 碩士入學門檻。
+    excluded_hints = (
         "bachelorsmasters", "bachelor-master", "bs-ms", "bs/ms", "bsms",
         "teaching-assistant", "applying-teaching", "ta-position",
-        "fellowship", "financial-opportunities",
+        "qualifying-exam", "dissertation", "current-student",
     )
-    if any(hint in f"{url_lower} {title_lower}" for hint in special_hints):
+    if any(hint in f"{url_lower} {title_lower}" for hint in excluded_hints):
         return {"program_codes": [], "extraction_retries": 0, "scope": "reference_only"}
 
-    try:
-        parts = _split_extraction_text(text)
-        results = [call_llm_json(identify_programs_prompt(
-            page["url"], page.get("title", ""),
-            f"[Part {i}/{len(parts)} of the same page]\n{part}", known,
-        )) for i, part in enumerate(parts, 1)]
-        programs_by_code = {}
-        for partial in results:
-            for program in partial.get("programs", []):
-                if isinstance(program, dict) and program.get("program_code"):
-                    programs_by_code.setdefault(program["program_code"], program)
-        result = {
-            "school_wide": any(bool(p.get("school_wide")) for p in results),
-            "programs": list(programs_by_code.values()),
-        }
-    except Exception as e:
-        print(f"  ⚠️ identify_programs 失敗（{page['url']}）：{e}")
-        result = {"school_wide": False, "programs": []}
-
-    programs = [p for p in result.get("programs", []) if isinstance(p, dict) and p.get("program_code")]
-    school_wide = bool(result.get("school_wide"))
-
-    # program 必須由官方頁面的 title/heading 支持。正文的下拉選單、Programs A-Z、
-    # 導覽列或順帶提及不能建立 program 空殼。
     heading_text = " ".join([
         page.get("title", ""),
         *(page.get("h1_list") or []),
@@ -207,69 +209,58 @@ def identify_programs(state: ProcessState) -> dict:
         *(page.get("h3_list") or []),
     ])
     heading_norm = _norm(heading_text)
-    verified_programs = []
-    for program in programs:
-        code = str(program.get("program_code", "")).upper()
-        name = _norm(program.get("program_name", ""))
-        department = _norm(program.get("department", ""))
-        is_cs_program = (code.startswith(("CS ", "CSE ", "EECS ", "CCSE "))
-                         or any(term in name for term in (
-                             "computer science", "computational science", "electrical engineering and computer science"))
-                         or any(term in department for term in (
-                             "computer science", "computational science", "eecs", "cse", "ccse")))
-        if not is_cs_program:
-            print(f"  [program rejected] {page['url']} → {program.get('program_code')} "
-                  "（目前僅收錄 Computer Science/CSE 正式學程）")
-            continue
-        degree = str(program.get("degree_type") or program.get("program_code", "").split()[-1]).lower()
-        degree_terms = {
-            "ms": ("master", " ms ", "m.s."), "msc": ("master", "msc"),
-            "meng": ("master", "meng", "m.eng"), "mcs": ("master", "mcs"),
-            "mds": ("master", "mds"), "phd": ("phd", "ph.d", "doctor"),
-        }.get(degree, (degree,))
-        name_in_heading = bool(name and name in heading_norm)
-        department_degree_heading = bool(
-            department and department in heading_norm
-            and any(term and term in f" {heading_norm} " for term in degree_terms)
-        )
-        # 官方 program 主題頁常用 CSE/EECS/CCSE 簡稱，名稱不一定逐字等於 LLM
-        # 正規化後的 program_name；只要標題明確同時含系所簡稱與學位層級即可。
-        cs_heading = any(term in f" {heading_norm} " for term in (
-            " cse ", " eecs ", " ccse ", " computer science ", " computational science "))
-        degree_heading = any(term and term in f" {heading_norm} " for term in degree_terms)
-        abbreviated_official_heading = cs_heading and degree_heading
-        if name_in_heading or department_degree_heading or abbreviated_official_heading:
-            program["official_evidence"] = heading_text[:500]
-            verified_programs.append(program)
-        else:
-            print(f"  [program rejected] {page['url']} → {program.get('program_code')} "
-                  "（官方 title/heading 無明確 program 證據）")
-    programs = verified_programs
-
-    # admissions/語言/學費等共用頁常不會寫出特定 program 名稱；LLM 即使漏標
-    # school_wide，也要套用既有目標 program，否則抓到全文卻完全不做欄位抽取。
-    classification = state.get("classification") or {}
-    generic_types = {"admissions", "deadlines", "tuition", "scholarship", "faq"}
-    classified_types = {t.get("type") for t in classification.get("types", [])
-                        if isinstance(t, dict)}
-    if not programs and classified_types & generic_types:
-        school_wide = True
-
-    if not programs and school_wide:
-        # CS/CSE 官網是系級共用；Graduate Division 等校級網站才是全校共用。
-        host = re.sub(r"^www\.", "", re.sub(r"^https?://", "", url_lower).split("/", 1)[0])
-        department_signal = (host.startswith(("cs.", "cse."))
-                             or "computer science" in heading_norm
-                             or " cse " in f" {heading_norm} ")
-        placeholder = "CS_DEPARTMENT_WIDE" if department_signal else "SCHOOL_WIDE"
-        scope = "department_wide" if department_signal else "school_wide"
-        programs = [{"program_code": placeholder, "scope": scope}]
-        school_wide = scope == "school_wide"
-
-    return {"program_codes": programs,
+    low = _norm(f"{heading_text} {text[:8_000]}")
+    master_signal = any(term in low for term in (
+        "master of science", "master's", "masters", " m.s.", " ms program",
+        "m.sc", "msc", "meng", "m.eng", "mcs",
+    ))
+    no_terminal_master = any(term in low for term in (
+        "no terminal master", "no terminal masters", "does not offer a terminal master",
+        "doctoral program only", "application is for the doctoral program only",
+    ))
+    # Do not infer that a master's is unavailable merely because a generic
+    # graduate page mentions PhD/doctoral/postdoctoral study.  Navigation and
+    # school-wide admissions pages routinely contain those words.  A negative
+    # target assessment must be backed by an explicit official statement.
+    if no_terminal_master:
+        return {
+            "program_codes": [],
             "extraction_retries": 0,
-            "scope": (programs[0].get("scope") if programs and programs[0].get("scope")
-                      else "school_wide" if school_wide else "page")}
+            "scope": "masters_unavailable",
+            "target_assessment": {
+                "masters_available": False,
+                "reason": "Official page is PhD-only or explicitly states no terminal master's program.",
+            },
+        }
+
+    host = re.sub(r"^www\.", "", re.sub(r"^https?://", "", url_lower).split("/", 1)[0])
+    department_signal = (
+        host.startswith(("cs.", "cse."))
+        or any(term in heading_norm for term in (
+            "computer science", "computer engineering", " cse ", " eecs ", " scs ",
+        ))
+    )
+    program_specific = master_signal and department_signal
+    scope = "program_specific" if program_specific else (
+        "department_wide" if department_signal else "school_wide"
+    )
+    target = {
+        "program_code": TARGET_PROGRAM_CODE,
+        "degree_type": "MS",
+        "program_name": "International Computer Science Master's",
+        "department": "Computer Science",
+        "scope": scope,
+        "official_evidence": heading_text[:500] or page.get("title", ""),
+        "source_program_name": page.get("title", "") if program_specific else None,
+    }
+    result = {"program_codes": [target],
+            "extraction_retries": 0,
+            "scope": scope,
+            "target_assessment": {"masters_available": True}}
+    emit_event(state.get("school_id", "unknown"), "identify_programs", "completed",
+               f"套用 {scope} 的國際 CS 碩士目標", url=page["url"],
+               data={"scope": scope, "program_code": TARGET_PROGRAM_CODE})
+    return result
 
 
 def has_program_target(state: ProcessState) -> str:
@@ -321,6 +312,8 @@ def _list_item_key(list_name: str, item: dict) -> str:
         fields = ("program_code", "deadline_type", "semester")
     elif list_name == "scholarships":
         fields = ("program_code", "name")
+    elif list_name == "evidence_paragraphs":
+        fields = ("program_code", "category", "field_name")
     else:
         fields = ("program_code", "material_type", "requirement", "word_limit")
     values = tuple(str(item.get(field) or "").strip().lower() for field in fields)
@@ -330,7 +323,8 @@ def _list_item_key(list_name: str, item: dict) -> str:
 
 def _merge_extractions(parts: list[dict]) -> dict:
     """合併同一頁各片段的抽取結果，並維持首次出現順序。"""
-    merged = {"programs": [], "deadlines": [], "scholarships": [], "app_materials": []}
+    merged = {"programs": [], "deadlines": [], "scholarships": [],
+              "app_materials": [], "evidence_paragraphs": []}
     programs_by_code: dict[str, dict] = {}
 
     for part in parts:
@@ -350,7 +344,7 @@ def _merge_extractions(parts: list[dict]) -> dict:
                 if current is None or (isinstance(current, dict) and current.get("value") is None):
                     target["fields"][field] = field_value
 
-        for list_name in ("deadlines", "scholarships", "app_materials"):
+        for list_name in ("deadlines", "scholarships", "app_materials", "evidence_paragraphs"):
             existing_by_key = {_list_item_key(list_name, item): item
                                for item in merged[list_name]}
             for item in part.get(list_name, []):
@@ -364,6 +358,21 @@ def _merge_extractions(parts: list[dict]) -> dict:
                     merged[list_name].append(copied)
                     existing_by_key[key] = copied
     return merged
+
+
+def _normalize_target_codes(extraction: dict, program_codes: list[str]) -> dict:
+    """單一目標模式下，不接受 LLM 自行創造或沿用舊版 program code。"""
+    if not isinstance(extraction, dict) or not program_codes:
+        return extraction if isinstance(extraction, dict) else {}
+    target = program_codes[0]
+    for program in extraction.get("programs", []):
+        if isinstance(program, dict):
+            program["program_code"] = target
+    for list_name in ("deadlines", "scholarships", "app_materials", "evidence_paragraphs"):
+        for item in extraction.get(list_name, []):
+            if isinstance(item, dict):
+                item["program_code"] = target
+    return extraction
 
 
 _EXTRACTION_TERMS = re.compile(
@@ -403,6 +412,9 @@ def structured_extraction(state: ProcessState) -> dict:
     if page.get("structured_tables"):
         markdown = markdown + "\n\n## 表格\n" + page["structured_tables"]
     chunks = _split_extraction_text(markdown)
+    emit_event(state["school_id"], "structured_extraction", "running",
+               f"LLM 正在抽取頁面（{len(chunks)} 段）", url=page["url"],
+               data={"program_codes": codes})
 
     feedback = None
     validation = state.get("validation")
@@ -423,14 +435,26 @@ def structured_extraction(state: ProcessState) -> dict:
                 f"{focused_chunk}", feedback,
             ))
             if isinstance(extraction, dict):
-                extractions.append(extraction)
+                extractions.append(_normalize_target_codes(extraction, codes))
         except Exception as e:
             print(f"  ⚠️ structured_extraction 第 {index}/{len(chunks)} 段失敗"
                   f"（{page['url']}）：{e}")
 
-    extraction = _merge_extractions(extractions)
+    extraction = _promote_grounded_evidence(_merge_extractions(extractions))
     if len(chunks) > 1:
         print(f"  [extraction] {page['url']} → {len(chunks)} 段已合併")
+    field_names = sorted({
+        field
+        for program in extraction.get("programs", [])
+        for field in (program.get("fields") or {})
+    })
+    emit_event(state["school_id"], "structured_extraction", "completed",
+               f"抽取完成：{len(field_names)} 個結構化欄位", url=page["url"], data={
+                   "fields": field_names,
+                   "programs": extraction.get("programs", []),
+                   "deadlines": extraction.get("deadlines", []),
+                   "evidence_count": len(extraction.get("evidence_paragraphs", [])),
+               })
 
     return {"extraction": extraction,
             "extraction_retries": state.get("extraction_retries", 0) + 1}
@@ -457,7 +481,8 @@ def _excerpt_in_source(excerpt: str, haystack: str) -> bool:
     if not meaningful:
         return False
     overlap = sum(1 for w in meaningful if w in source_words) / len(meaningful)
-    return overlap >= 0.75
+    # DOM/table 正規化常會少掉欄名或標點；其餘數值與欄位語意檢查仍會把關。
+    return overlap >= 0.55
 
 
 def _digits_of(value) -> list[str]:
@@ -525,10 +550,15 @@ def _field_semantics_supported(field_name: str, excerpt: str) -> bool:
     post_admission_signals = (
         "current student", "current students", "enrolled student", "enrolled students",
         "during the course of their studies", "maintain a cumulative", "remain in good standing",
+        "maintain a minimum", "good academic standing", "satisfactory academic progress",
+        "satisfactory progress toward", "academic probation",
         "after enrollment", "after enrolment", "degree requirements", "graduation requirement",
         "graduate writing exam", "qualifying exam",
     )
-    if field_name in admission_only_fields and any(signal in low for signal in post_admission_signals):
+    prospective_signals = ("applicant", "application", "admission", "apply")
+    if (field_name in admission_only_fields
+            and any(signal in low for signal in post_admission_signals)
+            and not any(signal in low for signal in prospective_signals)):
         return False
     if field_name in ("toefl_min", "toefl_ibt_min", "toefl_ibt_new_scale_min"):
         if "toefl" not in low and "internet-based test" not in low:
@@ -538,8 +568,13 @@ def _field_semantics_supported(field_name: str, excerpt: str) -> bool:
             return False
         if field_name == "toefl_ibt_new_scale_min":
             # 新制必須有 1–6 scale/band/new score 等明確制度證據，避免把 IELTS 5 誤填。
-            if not any(term in low for term in ("1-6", "1 – 6", "1 to 6", "new scale",
-                                                 "updated scale", "band score")):
+            if not any(term in low for term in ("1-6", "1-to-6", "1 – 6", "1 to 6",
+                                                 "new scale", "new scoring scale",
+                                                 "updated scale", "band score",
+                                                 "on or after january 21 2026",
+                                                 "on or after january 21, 2026",
+                                                 "starting january 21 2026",
+                                                 "starting january 21, 2026")):
                 return False
     elif field_name == "duolingo_min" and not any(term in low for term in (
             "duolingo", "det score", "english test (det", "english test (det;")):
@@ -556,7 +591,157 @@ def _field_semantics_supported(field_name: str, excerpt: str) -> bool:
         if not re.search(r"(?:https?://)?[a-z0-9.-]+\.[a-z]{2,}(?:/[^\s]*)?", excerpt,
                          re.IGNORECASE):
             return False
+    elif field_name == "sop_word_limit":
+        # schema 是 word limit，characters/pages 不可被當成字數。
+        if any(term in low for term in ("character", "characters", "page", "pages")) \
+                and not any(term in low for term in ("word", "words")):
+            return False
     return True
+
+
+_NUMBER_WORD_VALUES = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+}
+_MONTH_VALUES = {
+    name: index for index, name in enumerate(
+        ("january", "february", "march", "april", "may", "june",
+         "july", "august", "september", "october", "november", "december"),
+        1,
+    )
+}
+
+
+def _promote_grounded_evidence(extraction: dict) -> dict:
+    """將 evidence 中無歧義的推薦信數量與完整日期提升回結構化欄位。"""
+    programs = extraction.setdefault("programs", [])
+    deadlines = extraction.setdefault("deadlines", [])
+
+    def program_for(code: str) -> dict:
+        for program in programs:
+            if program.get("program_code") == code:
+                return program
+        program = {"program_code": code, "fields": {}}
+        programs.append(program)
+        return program
+
+    existing_deadlines = {
+        (item.get("program_code"), item.get("application_close_date"))
+        for item in deadlines
+    }
+    for item in extraction.get("evidence_paragraphs", []):
+        code = item.get("program_code")
+        excerpt = item.get("source_excerpt") or item.get("evidence_text") or ""
+        low = _norm(excerpt)
+        field_name = item.get("field_name") or ""
+
+        if code and (field_name == "rec_letter_count" or "letter" in low) \
+                and any(term in low for term in ("recommendation", "reference")) \
+                and any(term in low for term in ("required", "must submit", "at least")):
+            match = re.search(
+                r"\b(?:at least\s+)?(\d+|one|two|three|four|five)\b"
+                r"(?:(?:\s+\w+){0,3})?\s+(?:letters?|recommendations?|references?)\b",
+                low,
+            )
+            if match:
+                raw = match.group(1)
+                count = int(raw) if raw.isdigit() else _NUMBER_WORD_VALUES.get(raw)
+                if count:
+                    fields = program_for(code).setdefault("fields", {})
+                    fields.setdefault("rec_letter_count", {
+                        "value": count,
+                        "source_excerpt": excerpt,
+                    })
+
+        if not code or (item.get("category") != "deadline" and "deadline" not in low):
+            continue
+        for match in re.finditer(
+            r"\b(" + "|".join(_MONTH_VALUES) + r")\s+(\d{1,2})(?:st|nd|rd|th)?"
+            r"\s*,?\s*(20\d{2})\b",
+            low,
+        ):
+            month_name, day, year = match.groups()
+            date_value = f"{year}-{_MONTH_VALUES[month_name]:02d}-{int(day):02d}"
+            if (code, date_value) in existing_deadlines:
+                continue
+            nearby = low[max(0, match.start() - 80):match.end() + 80]
+            if any(term in nearby for term in (
+                "earliest valid test", "latest valid test", "test date",
+                "score validity", "scores valid",
+            )):
+                continue
+            if not any(term in nearby for term in ("deadline", "application", "start")):
+                continue
+            # 取日期之前最近的 term，避免同一段列 Spring/Fall 時交叉綁定。
+            prefix = low[max(0, match.start() - 120):match.start()]
+            term_matches = list(re.finditer(
+                r"\b(fall|spring|summer|winter)\s+(20\d{2})\b", prefix
+            ))
+            term_match = term_matches[-1] if term_matches else None
+            deadlines.append({
+                "program_code": code,
+                "deadline_type": "regular",
+                "application_open_date": None,
+                "application_close_date": date_value,
+                "decision_release_date": None,
+                "semester": (
+                    f"{term_match.group(1)}_{term_match.group(2)}" if term_match else None
+                ),
+                "note": item.get("evidence_text") or excerpt,
+                "source_excerpt": excerpt,
+            })
+            existing_deadlines.add((code, date_value))
+    return extraction
+
+
+def _excerpt_context(excerpt: str, haystack: str, radius: int = 1000) -> str:
+    """Return nearby source text so table rows can inherit their test/header label.
+
+    Official tables often put ``TOEFL`` or ``IELTS`` in a preceding header while
+    the extracted row contains only ``Minimum score: 7``.  The excerpt itself
+    remains the grounding evidence; nearby text is used only for field semantics.
+    """
+    normalized_excerpt = _norm(excerpt)
+    if not normalized_excerpt:
+        return ""
+    normalized_haystack = _norm(haystack)
+    position = normalized_haystack.find(normalized_excerpt)
+    if position < 0:
+        # LLM excerpts may faithfully compress a table row whose cells are not
+        # contiguous in DOM text. Locate a distinctive leading fragment so the
+        # surrounding column headers remain available for semantic checks.
+        words = normalized_excerpt.split()
+        for width in (8, 6, 4, 2):
+            if len(words) < width:
+                continue
+            fragment = " ".join(words[:width])
+            position = normalized_haystack.find(fragment)
+            if position >= 0:
+                break
+        else:
+            return normalized_excerpt
+    start = max(0, position - radius)
+    end = min(len(normalized_haystack), position + len(normalized_excerpt) + radius)
+    return normalized_haystack[start:end]
+
+
+def _deadline_semantics_supported(item: dict, excerpt: str) -> bool:
+    """Reject non-admission and non-actionable records from program deadlines."""
+    values = [
+        item.get("application_open_date"),
+        item.get("application_close_date"),
+        item.get("decision_release_date"),
+    ]
+    if not any(values):
+        return False
+    low = _norm(excerpt)
+    if any(term in low for term in (
+            "fee waiver request", "scholarship", "fellowship", "award commencing",
+            "tuition deposit", "recommendation letter deadline")):
+        return False
+    return any(term in low for term in (
+        "application", "applications", "admission", "entry", "enrollment",
+        "deadline", "decision",
+    ))
 
 
 def hallucination_validation(state: ProcessState) -> dict:
@@ -588,7 +773,8 @@ def hallucination_validation(state: ProcessState) -> dict:
                 issues.append({"program_code": code, "field_name": fname,
                                "field_value": fval["value"], "source_excerpt": excerpt,
                                "problem": "the numeric value is not supported by source_excerpt"})
-            elif not _field_semantics_supported(fname, excerpt):
+            elif not _field_semantics_supported(
+                    fname, f"{_excerpt_context(excerpt, haystack)} {excerpt}"):
                 issues.append({"program_code": code, "field_name": fname,
                                "field_value": fval["value"], "source_excerpt": excerpt,
                                "problem": "source_excerpt does not semantically support this field"})
@@ -622,10 +808,31 @@ def hallucination_validation(state: ProcessState) -> dict:
                 issues.append({"program_code": item.get("program_code"), "field_name": field_label,
                                "field_value": check_value, "source_excerpt": excerpt,
                                "problem": "the numeric value or date is not supported by source_excerpt"})
+            elif list_name == "deadlines" and not _deadline_semantics_supported(item, excerpt):
+                issues.append({"program_code": item.get("program_code"), "field_name": field_label,
+                               "field_value": check_value, "source_excerpt": excerpt,
+                               "problem": "not an actionable program application deadline"})
+
+    for item in extraction.get("evidence_paragraphs", []):
+        total += 1
+        excerpt = item.get("source_excerpt", "")
+        if not item.get("evidence_text") or not _excerpt_in_source(excerpt, haystack):
+            issues.append({
+                "program_code": item.get("program_code"),
+                "field_name": f"evidence[{item.get('category') or 'other'}]",
+                "field_value": item.get("evidence_text"),
+                "source_excerpt": excerpt,
+                "problem": "evidence paragraph is not grounded in the source",
+            })
 
     confidence = 1.0 if total == 0 else round(1.0 - len(issues) / total, 2)
-    return {"validation": {"passed": not issues, "issues": issues,
-                           "confidence": confidence, "total_fields": total}}
+    validation = {"passed": not issues, "issues": issues,
+                  "confidence": confidence, "total_fields": total}
+    emit_event(state["school_id"], "hallucination_validation",
+               "completed" if not issues else "warning",
+               f"驗證 {total} 項，發現 {len(issues)} 項需修正",
+               url=page["url"], data=validation)
+    return {"validation": validation}
 
 
 def extraction_quality_check(state: ProcessState) -> str:
@@ -647,6 +854,9 @@ def semantic_repair(state: ProcessState) -> dict:
     if page.get("structured_tables"):
         source += "\n\n## Tables\n" + page["structured_tables"]
     parts = _split_extraction_text(source)
+    emit_event(state["school_id"], "semantic_repair", "running",
+               f"針對 {len(issues)} 個問題進行語意修正", url=page["url"],
+               data={"issues": issues, "parts": len(parts)})
 
     repairs = []
     for index, part in enumerate(parts, 1):
@@ -655,15 +865,20 @@ def semantic_repair(state: ProcessState) -> dict:
                 page["url"], codes, current, issues, part, index, len(parts),
             ))
             if isinstance(result, dict):
-                repairs.append(result)
+                repairs.append(_normalize_target_codes(result, codes))
         except Exception as exc:
             print(f"  ⚠️ semantic_repair 第 {index}/{len(parts)} 段失敗"
                   f"（{page['url']}）：{exc}")
 
     # 先移除已知無效值，讓有原文證據的修正值可以補回；既有有效值維持優先。
     valid_current = _strip_invalid_fields(current, issues)
-    repaired = _merge_extractions([valid_current, *repairs])
+    _append_issue_evidence(valid_current, issues, page)
+    repaired = _promote_grounded_evidence(_merge_extractions([valid_current, *repairs]))
     print(f"  [validation repair] {page['url']} → {len(parts)} 段完成修正")
+    emit_event(state["school_id"], "semantic_repair", "completed",
+               "語意修正完成，重新交給驗證節點", url=page["url"], data={
+                   "field_preview": preview(repaired),
+               })
     return {
         "extraction": repaired,
         "validation_repair_retries": state.get("validation_repair_retries", 0) + 1,
@@ -677,7 +892,8 @@ def semantic_repair(state: ProcessState) -> dict:
 def _strip_invalid_fields(extraction: dict, issues: list[dict]) -> dict:
     """把驗證失敗的欄位從抽取結果移除（它們會進 review_queue，不進正式表）。"""
     bad = {(i.get("program_code"), i.get("field_name")) for i in issues}
-    out = {"programs": [], "deadlines": [], "scholarships": [], "app_materials": []}
+    out = {"programs": [], "deadlines": [], "scholarships": [],
+           "app_materials": [], "evidence_paragraphs": []}
 
     for prog in extraction.get("programs", []):
         code = prog.get("program_code")
@@ -691,7 +907,102 @@ def _strip_invalid_fields(extraction: dict, issues: list[dict]) -> dict:
             label = f"{list_name}[{item.get('deadline_type') or item.get('name') or item.get('material_type') or '?'}]"
             if (item.get("program_code"), label) not in bad:
                 out[list_name].append(item)
+    out["evidence_paragraphs"] = [
+        item for item in extraction.get("evidence_paragraphs", [])
+        if (item.get("program_code"),
+            f"evidence[{item.get('category') or 'other'}]") not in bad
+    ]
     return out
+
+
+def _evidence_category(field_name: str) -> str:
+    low = (field_name or "").lower()
+    if "deadline" in low:
+        return "deadline"
+    if any(term in low for term in ("toefl", "ielts", "duolingo", "english", "language")):
+        return "english"
+    if "gpa" in low:
+        return "gpa"
+    if "gre" in low:
+        return "gre"
+    if "fee" in low:
+        return "fee"
+    if any(term in low for term in ("transcript", "recommend", "sop", "cv", "material")):
+        return "materials"
+    return "other"
+
+
+def _issues_as_evidence(issues: list[dict], page: dict) -> list[dict]:
+    """Preserve grounded rejected values as contextual paragraphs for RAG."""
+    haystack = _norm(" ".join([
+        page.get("full_text", ""),
+        page.get("structured_markdown", ""),
+        page.get("structured_tables", ""),
+    ]))
+    evidence = []
+    for issue in issues:
+        excerpt = issue.get("source_excerpt", "")
+        if not excerpt or not _excerpt_in_source(excerpt, haystack):
+            continue
+        field_name = issue.get("field_name") or "other"
+        context = _excerpt_context(excerpt, haystack, radius=700)
+        evidence.append({
+            "program_code": issue.get("program_code"),
+            "category": _evidence_category(field_name),
+            "field_name": field_name,
+            "evidence_kind": "validator_rejected",
+            "evidence_text": context or excerpt,
+            "source_excerpt": excerpt,
+        })
+    return evidence
+
+
+def _append_issue_evidence(extraction: dict, issues: list[dict], page: dict) -> None:
+    """Add validator evidence unless the LLM already preserved the same fact."""
+    target = extraction.setdefault("evidence_paragraphs", [])
+    for candidate in _issues_as_evidence(issues, page):
+        candidate_excerpt = _norm(candidate.get("source_excerpt", ""))
+        duplicate = any(
+            item.get("category") == candidate.get("category")
+            and (
+                candidate_excerpt in _norm(item.get("source_excerpt", ""))
+                or _norm(item.get("source_excerpt", "")) in candidate_excerpt
+            )
+            for item in target
+            if item.get("source_excerpt")
+        )
+        if not duplicate:
+            target.append(candidate)
+
+
+def _issue_resolved_by_extraction(issue: dict, extraction: dict) -> bool:
+    """已由 grounded evidence 補回正式欄位的 issue 不再留在人工 review。"""
+    code = issue.get("program_code")
+    field_name = issue.get("field_name") or ""
+    if field_name.startswith("deadlines["):
+        expected = issue.get("field_value")
+        expected_dates = set(expected if isinstance(expected, list) else [expected])
+        expected_dates.discard(None)
+        actual_dates = {
+            value
+            for item in extraction.get("deadlines", [])
+            if item.get("program_code") == code
+            for value in (
+                item.get("application_open_date"),
+                item.get("application_close_date"),
+                item.get("decision_release_date"),
+            )
+            if value
+        }
+        return bool(expected_dates) and expected_dates.issubset(actual_dates)
+
+    for program in extraction.get("programs", []):
+        if program.get("program_code") != code:
+            continue
+        field = (program.get("fields") or {}).get(field_name)
+        if isinstance(field, dict) and field.get("value") is not None:
+            return True
+    return False
 
 
 def finalize_page(state: ProcessState) -> dict:
@@ -700,11 +1011,21 @@ def finalize_page(state: ProcessState) -> dict:
     validation = state.get("validation") or {}
     issues = validation.get("issues", [])
     extraction = _strip_invalid_fields(state.get("extraction") or {}, issues)
+    _append_issue_evidence(extraction, issues, page)
+    # 最後一次驗證才轉成 evidence 的明確數值，也要有機會回到正式欄位。
+    extraction = _promote_grounded_evidence(extraction)
+    unresolved_issues = [
+        issue for issue in issues
+        if not _issue_resolved_by_extraction(issue, extraction)
+    ]
 
     passed_types = [{"type": t["type"], "score": round(float(t.get("confidence", 0)), 2)}
                     for t in cls.get("types", []) if t["type"] in KEEP_TYPES]
 
-    review_items = [{**i, "url": page["url"], "reason": "hallucination_detected"} for i in issues]
+    review_items = [
+        {**i, "url": page["url"], "reason": "hallucination_detected"}
+        for i in unresolved_issues
+    ]
 
     result = {
         "url": page["url"],
@@ -717,8 +1038,17 @@ def finalize_page(state: ProcessState) -> dict:
         "content_hash": page.get("content_hash", ""),
         "program_codes": state.get("program_codes", []),
         "scope": state.get("scope", "page"),
+        "target_assessment": state.get("target_assessment", {}),
         "extraction": extraction,
         "confidence": validation.get("confidence", 1.0),
         "retries": state.get("extraction_retries", 0),
     }
+    emit_event(state["school_id"], "finalize_page", "completed",
+               f"頁面處理完成，保留 {len(unresolved_issues)} 個人工檢視項",
+               url=page["url"], data={
+                   "types": passed_types,
+                   "scope": result["scope"],
+                   "extraction": extraction,
+                   "review_items": review_items,
+               })
     return {"page_results": [result], "review_items": review_items}
