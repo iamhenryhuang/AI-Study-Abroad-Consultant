@@ -47,19 +47,27 @@ def experience_search_node(state: AgentState) -> dict:
 
     original_query = state["original_query"]
     sub_queries    = state.get("sub_queries", []) or [original_query]
-    school_ids     = _detect_school_ids(original_query)
-    school_id      = school_ids[0] if school_ids else None
+    fallback_ids   = _detect_school_ids(original_query)
+    fallback_id    = fallback_ids[0] if fallback_ids else None
 
     exp_docs: list[dict] = []
     seen_urls: set = set()
+    sparse_school_ids: set = set()
     for q in sub_queries:
         _check_cancel()
+        # 每個子問題各自偵測學校，避免多校問題（如「A 跟 B 哪個容易上」）被
+        # 整句偵測到的第一間學校蓋掉其他子問題的學校，導致其他學校查不到資料。
+        q_school_ids = _detect_school_ids(q)
+        school_id = q_school_ids[0] if q_school_ids else fallback_id
         _emit({
             "type": "tool_call",
             "tool": "applicant_search",
             "args": {"query": q, **({"school_id": school_id} if school_id else {})},
         })
-        for doc in applicant_search(q, school_id=school_id):
+        docs = applicant_search(q, school_id=school_id)
+        if school_id is not None and len(docs) < SPARSE_THRESHOLD:
+            sparse_school_ids.add(school_id)
+        for doc in docs:
             key = doc.get("source_url") or doc.get("chunk_text", "")[:80]
             if key not in seen_urls:
                 seen_urls.add(key)
@@ -72,11 +80,11 @@ def experience_search_node(state: AgentState) -> dict:
     })
     print(f"[Experience] 共取得 {len(exp_docs)} 筆申請經驗回報")
 
-    # 資料不足且有鎖定學校 → 標記 sparse（答案加註）並在背景補爬該校 GradCafe
-    sparse = school_id is not None and len(exp_docs) < SPARSE_THRESHOLD
-    if sparse:
-        print(f"[Experience] {school_id} 資料不足（{len(exp_docs)}<{SPARSE_THRESHOLD}），排背景補爬")
-        maybe_enqueue_crawl(school_id)
+    # 有子問題鎖定學校但該校資料不足 → 標記 sparse（答案加註）並在背景補爬該校 GradCafe
+    sparse = bool(sparse_school_ids)
+    for sid in sparse_school_ids:
+        print(f"[Experience] {sid} 資料不足（<{SPARSE_THRESHOLD}），排背景補爬")
+        maybe_enqueue_crawl(sid)
 
     return {"experience_docs": exp_docs, "experience_sparse": sparse}
 
