@@ -32,7 +32,7 @@ flowchart LR
         SerpAPI[["🔍 SerpAPI<br/>Google Scholar 教授資料"]]
     end
 
-    DB[("🗄️ db container<br/>PostgreSQL + pgvector<br/>programs 家族（結構化）<br/>+ document_chunks（內文/全文檢索）<br/>+ applicant_reports（申請經驗回報）")]
+    DB[("🗄️ db container<br/>PostgreSQL + pgvector<br/>programs 家族（結構化）<br/>+ document_chunks（內文/全文檢索）<br/>+ applicant_reports（申請經驗回報）<br/>+ professors（教授名單種子資料）")]
     Crawler["🕷️ data_crawler<br/>LangGraph 爬蟲<br/>抽取結構化欄位 + 頁面全文"]
 
     Crawler -- "抽取後寫入" --> DB
@@ -57,7 +57,7 @@ flowchart TD
     Start(["原始問題"]) --> D["🔍 decompose<br/>意圖判斷 + 子問題拆解"]
 
     D -->|needs_sql_search| S["📊 search<br/>text-to-SQL"]
-    D -->|professor_query| E["🎓 extension_function<br/>SerpAPI 抓教授"]
+    D -->|professor_query / professor_list_query| E["🎓 extension_function<br/>SerpAPI 抓教授研究細節<br/>或 professors 表查名單"]
     D -->|needs_experience| X["🗣️ experience_search<br/>applicant_reports 錄取經驗"]
 
     S --> V
@@ -88,14 +88,17 @@ flowchart TD
 > 各節點的詳細行為見下方「路由規則」與 Verifier / Refiner / Critic 說明。
 
 **路由規則**（三條檢索支線 `search` / `extension_function` / `experience_search` 依旗標並行觸發）：
-| 問題類型 | professor_query | needs_sql_search | needs_experience | 執行路徑 |
-|---|---|---|---|---|
-| 一般申請要求（GPA/TOEFL/deadline） | 無 | true | false | `decompose → search → verify → finalize → critic` |
-| SQL 結構化欄位查不到（如學分數） | 無 | true | false | `... → search → verify(不足) → fulltext → verify(足夠) → finalize → critic` |
-| 純教授查詢（研究領域/論文） | 有 | false | false | `decompose → extension_function → verify → finalize → critic` |
-| 教授 + 申請要求混合 | 有 | true | false | `decompose → (search ‖ extension_function) → verify → finalize → critic` |
-| 錄取經驗 / 某分數有無機會 | 無 | 視情況 | true | `decompose → (search ‖ experience_search) → verify(經驗題短路放行) → finalize → critic` |
-| 全文檢索後仍不足但曾找到資料 | - | - | - | `... → verify → fulltext → verify → refine → (search ‖ …) → verify → finalize` |
+| 問題類型 | professor_query | professor_list_query | needs_sql_search | needs_experience | 執行路徑 |
+|---|---|---|---|---|---|
+| 一般申請要求（GPA/TOEFL/deadline） | 無 | 無 | true | false | `decompose → search → verify → finalize → critic` |
+| SQL 結構化欄位查不到（如學分數） | 無 | 無 | true | false | `... → search → verify(不足) → fulltext → verify(足夠) → finalize → critic` |
+| 純教授查詢（指名，研究領域/論文） | 有 | 無 | false | false | `decompose → extension_function → verify → finalize → critic` |
+| 教授名單查詢（某校有哪些教授） | 無 | 有 | false | false | `decompose → extension_function（查 professors 表）→ verify → finalize → critic` |
+| 教授 + 申請要求混合 | 有 | 無 | true | false | `decompose → (search ‖ extension_function) → verify → finalize → critic` |
+| 錄取經驗 / 某分數有無機會 | 無 | 無 | 視情況 | true | `decompose → (search ‖ experience_search) → verify(經驗題短路放行) → finalize → critic` |
+| 全文檢索後仍不足但曾找到資料 | - | - | - | - | `... → verify → fulltext → verify → refine → (search ‖ …) → verify → finalize` |
+
+> `professor_query` 與 `professor_list_query` 互斥：問題已指名教授姓名時，一律走指名查詢，不會同時觸發名單查詢。
 
 **分層檢索（fallback 順序）**：text-to-SQL 查結構化欄位 → 不足時 fulltext 對 `document_chunks` 全文檢索 → 仍不足時 refine 改寫重查（最多 1 輪）。觸發 fallback 的條件是「Verifier 判定資料不足」，不是「SQL 回傳 0 筆」，因此「SQL 查到 program 列但缺該欄位」（如學分數不在結構化欄位）也能正確觸發全文檢索。
 
@@ -106,6 +109,7 @@ flowchart TD
 - **申請經驗回報**：問「錄取者背景 / 某分數有無機會」時查 GradCafe / 一畝三分地的錄取案例，並標註「非官方經驗談」、禁止當成錄取門檻。
 - **不亂編答案**：檢索結果先經 Verifier 判斷是否文不對題，生成後再經 Critic 複查有無幻覺，有疑慮就誠實告知或附上警告。
 - **教授即時查詢**：問題提到教授姓名時即時呼叫 SerpAPI 抓取研究領域 / 論文。
+- **教授名單查詢**：問「某校有哪些教授」時查 `professors` 表（種子資料，目前收錄 Georgia Tech / Purdue / Stanford，含職稱與研究領域），可接續指名其中一位深入查研究細節。
 - **未收錄學校辨識**：分辨「學校不在收錄範圍」與「有收錄但查無該欄位」，給對應的誠實回覆。
 - **模型分級**：判斷與結構化任務用 `gpt-4.1`、答案生成用 `gpt-4o`。
 - **來源可追溯**：答案附上官網來源連結。
@@ -127,7 +131,7 @@ flowchart TD
 ├── frontend/                # React/Vite：申請經驗上傳與依學校查詢
 ├── data_crawler/            # LangGraph 爬蟲：抓取頁面 → LLM 抽取結構化欄位 + 切段全文 → 寫入 DB（正式資料源）
 ├── crawler/                 # 舊版 Playwright 爬蟲 + 設定（root_url / 黑名單，data_crawler 沿用其設定）
-├── db/                      # schema（schema_programs.sql，與 data_crawler 共用）+ migrations（applicant_reports）+ 測試資料（data/）+ 載入腳本
+├── db/                      # schema（schema_programs.sql，與 data_crawler 共用）+ migrations（applicant_reports）+ 測試資料（data/，含 schools_data.json / professors.json）+ 載入腳本（load_schools.py / load_professors.py）
 └── requirements.txt          # 所有 Python 依賴（backend + data_crawler + crawler）
 ```
 
@@ -152,14 +156,14 @@ pip install -r requirements.txt
 建立 `backend/.env`：
 
 ```env
-DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/studyabroad
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5434/studyabroad
 OPENAI_API_KEY=your_openai_api_key   # 判斷型任務與答案生成共用這把 key
 OPENAI_MODEL=gpt-4.1                 # 判斷/結構型任務（decomposer/verifier/critic/text-to-SQL）
 OPENAI_ANSWER_MODEL=gpt-4o           # 最終答案生成（面向使用者的長文，用強一點的模型）
 SERPAPI_KEY=your_serpapi_key         # 教授查詢功能專用
 ```
 
-> ⚠️ **DB port**：上例的 `5432` 是原生安裝 PostgreSQL 的埠。若 DB 是用 `docker compose up -d db` 起的（本專案常見做法），對外埠是 **5433**，請改成 `127.0.0.1:5433`，否則會 connection timeout。
+> ⚠️ **DB port**：上例的 `5434` 是本專案 `docker-compose.yml` 目前設定的對外埠（`db` 容器用 `docker compose up -d db` 啟動）。原生安裝的 PostgreSQL 預設是 `5432`，兩者不要搞混；若改過 `docker-compose.yml` 的 port 映射，記得同步這裡的 `DATABASE_URL`，否則會 connection timeout（Windows 下常見報錯為存取被拒或逾時，而非「port 已占用」）。
 
 > 模型分級：判斷與結構化任務使用 `gpt-4.1`；最終答案生成預設使用 `gpt-4o`。兩者皆可用上述環境變數各自覆寫。
 
@@ -315,9 +319,15 @@ docker compose exec backend python backend/scripts/run.py agent "Compare Stanfor
 
 ## 教授資料查詢
 
-**1. 即時查詢（推薦）**：問題中直接提到教授姓名，Agent 會自動偵測意圖並呼叫 SerpAPI 即時抓取，不需要手動操作。
+**1. 教授名單查詢**：問「某校有哪些教授」「某校有沒有做 XX 領域的教授」，Agent 查 `professors` 表（種子資料，`db/load_professors.py` 寫入，目前收錄 Georgia Tech / Purdue / Stanford，每校約 30 位、含職稱與研究領域）。查到名單後可接著指名其中一位深入問（見下）。
 
-**2. 手動預先抓取**：
+```bash
+python db/load_professors.py   # 重新載入 db/data/professors.json 的種子資料（新增學校需先手動整理資料）
+```
+
+**2. 指名教授即時查詢（研究細節）**：問題中直接提到教授姓名，Agent 會自動偵測意圖並呼叫 SerpAPI 即時抓取研究領域與最新論文，不需要手動操作。
+
+**3. 手動預先抓取（CLI）**：
 
 ```bash
 python backend/scripts/professor_fetcher/run_fetch.py \
@@ -331,9 +341,9 @@ python backend/scripts/professor_fetcher/run_fetch.py \
 
 ## 資料庫 Schema
 
-三個資料源、9 張核心表 + `applicant_reports` + `user_experiences`，schema 與各檔案用途詳見 [`db/README.md`](db/README.md)。
+三個資料源、9 張核心表 + `applicant_reports` + `user_experiences` + `professors`，schema 與各檔案用途詳見 [`db/README.md`](db/README.md)。
 
-重點：正式資料由 `data_crawler/` 爬蟲寫入 `programs` 家族；`db/data/schools_data.json` 是測試假資料（目前 5 校）。新增學校時記得同步更新 `backend/scripts/retriever/agent/state.py` 的 `_SCHOOL_ALIASES`，Decomposer 才能辨識學校縮寫/別名。
+重點：正式資料由 `data_crawler/` 爬蟲寫入 `programs` 家族；`db/data/schools_data.json` 是測試假資料（目前 5 校）；`db/data/professors.json` 是手動整理的教授名單種子資料（目前 3 校）。新增學校時記得同步更新 `backend/scripts/retriever/agent/state.py` 的 `_SCHOOL_ALIASES`，Decomposer 才能辨識學校縮寫/別名。
 
 ---
 

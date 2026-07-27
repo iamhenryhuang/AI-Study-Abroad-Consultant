@@ -303,3 +303,21 @@ CREATE TABLE IF NOT EXISTS review_queue (
 
 CREATE INDEX IF NOT EXISTS idx_review_queue_university ON review_queue(university_id);
 CREATE INDEX IF NOT EXISTS idx_review_queue_status     ON review_queue(status);
+
+
+-- ════════════════════════════════════════════════════════════════
+-- 9. professors  —— 教授名單種子資料（db/load_professors.py 手動維護寫入，
+--    非 data_crawler 產出；data_crawler 目前不處理 faculty 頁）
+-- ════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS professors (
+    id             SERIAL PRIMARY KEY,
+    university_id  INTEGER NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+    name           VARCHAR(200) NOT NULL,
+    title          VARCHAR(100),                -- Professor / Associate Professor / Assistant Professor
+    research_areas TEXT[],
+    profile_url    TEXT,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (university_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_professors_university ON professors(university_id);

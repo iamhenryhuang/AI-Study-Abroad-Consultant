@@ -1,0 +1,948 @@
+[
+  {
+    "school_id": "gatech",
+    "name": "Ada Gavrilovska",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Systems",
+      "Edge Computing",
+      "High-Performance Computing"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/ada-gavrilovska"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Alex Endert",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Visual Analytics",
+      "Human-Centered AI"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/alex-endert"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Alexandra Boldyreva",
+    "research_areas": [
+      "Cryptography",
+      "Information Security"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/alexandra-boldyreva",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Alexandros Daglis",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Computer Architecture",
+      "Systems"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/alexandros-daglis"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Annie I. Anton",
+    "research_areas": [
+      "Privacy",
+      "Security",
+      "Software Engineering"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/annie-anton",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Ashutosh Dhekne",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Wireless Networking",
+      "Mobile Computing",
+      "IoT"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/ashutosh-dhekne"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Clio Andris",
+    "research_areas": [
+      "Information Visualization",
+      "Geovisualization",
+      "GIS"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/clio-andris",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Daniel Genkin",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Hardware and System Security",
+      "Side Channel Attacks",
+      "Cryptography"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/daniel-genkin"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Duen Horng (Polo) Chau",
+    "research_areas": [
+      "AI Security",
+      "Explainable AI",
+      "Data Visualization"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/duen-horng-polo-chau",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Frank Dellaert",
+    "title": "Professor",
+    "research_areas": [
+      "Robotics",
+      "Computer Vision"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/frank-dellaert"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Glen Chou",
+    "title": "Assistant Professor",
+    "research_areas": [
+      "Robotics",
+      "Safe and Trustworthy Autonomy",
+      "Control Theory"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/glen-chou"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Irfan Essa",
+    "title": "Professor",
+    "research_areas": [
+      "Computer Vision",
+      "Machine Learning",
+      "Computer Graphics"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/irfan-essa"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Jacob Abernethy",
+    "research_areas": [
+      "Machine Learning",
+      "Game Theory",
+      "Optimization"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/jacob-abernethy",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "James Hays",
+    "title": "Professor",
+    "research_areas": [
+      "Computer Vision",
+      "Robotics",
+      "Machine Learning"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/james-hays"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Joy Arulraj",
+    "research_areas": [
+      "Database Systems",
+      "Data Analytics",
+      "Machine Learning"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/joy-arulraj",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Kartik Goyal",
+    "title": "Assistant Professor",
+    "research_areas": [
+      "Machine Learning",
+      "Natural Language Processing"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/kartik-goyal"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Matthew Gombolay",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Human-Robot Interaction",
+      "Explainable AI",
+      "Multi-Agent Reinforcement Learning"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/matthew-gombolay"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Michael Bailey",
+    "research_areas": [
+      "Distributed Systems Security",
+      "Internet Measurement",
+      "Networked Systems Security"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/michael-bailey",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Mostafa Ammar",
+    "research_areas": [
+      "Computer Networking",
+      "Multimedia Streaming",
+      "Mobile Cloud Computing"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/mostafa-ammar",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Munmun De Choudhury",
+    "title": "Professor",
+    "research_areas": [
+      "Computational Social Science",
+      "Social Computing",
+      "Mental Health Informatics"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/munmun-de-choudhury"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Peng Chen",
+    "title": "Assistant Professor",
+    "research_areas": [
+      "Scientific Machine Learning",
+      "Uncertainty Quantification",
+      "Bayesian Inference"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/peng-chen"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Rosa Arriaga",
+    "research_areas": [
+      "HCI",
+      "Ubiquitous Computing",
+      "mHealth"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/rosa-arriaga",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Sonia Chernova",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Robot Learning",
+      "Human-Robot Interaction",
+      "Explainable AI"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/sonia-chernova"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Spencer Bryngelson",
+    "research_areas": [
+      "Computational Physics",
+      "Fluid Dynamics",
+      "High Performance Computing"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/spencer-bryngelson",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Suguman Bansal",
+    "research_areas": [
+      "Formal Methods",
+      "AI",
+      "Programming Languages"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/suguman-bansal",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Teodora Baluta",
+    "research_areas": [
+      "Computer Security",
+      "Machine Learning Security"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/teodora-baluta",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Vijay Ganesh",
+    "title": "Professor",
+    "research_areas": [
+      "SAT/SMT Solvers",
+      "Automated Reasoning",
+      "AI"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/vijay-ganesh"
+  },
+  {
+    "school_id": "gatech",
+    "name": "Willow Ahrens",
+    "research_areas": [
+      "Compilers",
+      "Programming Languages",
+      "High Performance Computing"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/willow-ahrens",
+    "title": null
+  },
+  {
+    "school_id": "gatech",
+    "name": "Zongchen Chen",
+    "title": "Assistant Professor",
+    "research_areas": [
+      "Randomized Algorithms",
+      "Discrete Probability",
+      "Learning Theory"
+    ],
+    "profile_url": "https://www.cc.gatech.edu/people/zongchen-chen"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Alex Pothen",
+    "title": "Professor",
+    "research_areas": [
+      "Computational Science",
+      "Bioinformatics",
+      "Graph Algorithms"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/apothen.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Ananth Grama",
+    "research_areas": [
+      "Computational Science and Engineering",
+      "Bioinformatics",
+      "Distributed Systems"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/ayg.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Aniket Bera",
+    "research_areas": [
+      "Graphics and Visualization",
+      "Computer Vision",
+      "HCI"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/aniketbera.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Aniket Kate",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Information Security",
+      "Distributed Systems",
+      "Applied Cryptography"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/akate.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Antonio Bianchi",
+    "research_areas": [
+      "Information Security",
+      "Software Engineering",
+      "Networking"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/antoniob.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Benjamin J. Delaware",
+    "research_areas": [
+      "Software Engineering",
+      "Programming Languages and Compilers"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/bendy.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Bruno Ribeiro",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Networking and Operating Systems",
+      "Machine Learning"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/ribeirob.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Christina Garman",
+    "research_areas": [
+      "Information Security"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/clg.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Daniel G. Aliaga",
+    "research_areas": [
+      "Graphics and Visualization",
+      "Computer Vision",
+      "AI/ML"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/aliaga.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "David Gleich",
+    "title": "Professor",
+    "research_areas": [
+      "Computational Science",
+      "Machine Learning"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/dgleich.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Dongyan Xu",
+    "research_areas": [
+      "Information Security",
+      "Networking and Operating Systems"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/dxu.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Elisa Bertino",
+    "research_areas": [
+      "Information Security",
+      "Databases and Data Mining"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/bertino.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Hemanta K. Maji",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Information Security",
+      "Theory of Computing"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/hmaji.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Jennifer Neville",
+    "research_areas": [
+      "AI/ML",
+      "Databases and Data Mining"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/neville.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Jeremiah M. Blocki",
+    "research_areas": [
+      "Information Security",
+      "Theory of Computing"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/jblocki.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Jianguo Wang",
+    "title": "Assistant Professor",
+    "research_areas": [
+      "Databases and Data Mining"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/csjgwang.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Kihong Park",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Information Security",
+      "Networking/OS",
+      "Distributed Systems"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/park0.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Ming Yin",
+    "research_areas": [
+      "AI/ML",
+      "HCI"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/mingyin.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Ninghui Li",
+    "title": "Professor",
+    "research_areas": [
+      "Information Security",
+      "AI/ML",
+      "Databases/Data Mining"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/ninghui.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Pedro Fonseca",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Information Security",
+      "Networking and Operating Systems",
+      "Distributed Systems"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/pfonseca.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Simina Branzei",
+    "title": "Associate Professor",
+    "research_areas": [
+      "AI/ML",
+      "Theory of Computing"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/simina.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Sonia Fahmy",
+    "title": "Professor",
+    "research_areas": [
+      "Information Security",
+      "Networking and Operating Systems"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/fahmy.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Steve Hanneke",
+    "title": "Assistant Professor",
+    "research_areas": [
+      "Machine Learning Theory",
+      "AI",
+      "Theory of Computing"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/hanneke.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Suresh Jagannathan",
+    "title": "Professor",
+    "research_areas": [
+      "Distributed Systems",
+      "Programming Languages"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/sjaganna.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Tamal Krishna Dey",
+    "title": "Professor",
+    "research_areas": [
+      "Computational Geometry",
+      "Topological Data Analysis",
+      "Graphics/Visualization"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/tamaldey.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Voicu S. Popescu",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Graphics",
+      "Visualization",
+      "Computer Vision"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/popescu.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Walid G. Aref",
+    "title": "Professor",
+    "research_areas": [
+      "Databases and Data Mining",
+      "Spatial and Spatio-temporal Databases"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/aref.html"
+  },
+  {
+    "school_id": "purdue",
+    "name": "Wojciech Szpankowski",
+    "research_areas": [
+      "Bioinformatics",
+      "Theory of Computing"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/spa.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Xiangyu Zhang",
+    "research_areas": [
+      "Software Engineering",
+      "Programming Languages and Compilers"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/xyzhang.html",
+    "title": null
+  },
+  {
+    "school_id": "purdue",
+    "name": "Z. Berkay Celik",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Information Security",
+      "Networking/OS",
+      "AI/ML"
+    ],
+    "profile_url": "https://www.cs.purdue.edu/people/faculty/zcelik.html"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Alex Aiken",
+    "research_areas": [
+      "Programming Languages",
+      "Compilers",
+      "Program Analysis"
+    ],
+    "profile_url": "https://profiles.stanford.edu/alex-aiken",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Aviad Rubinstein",
+    "title": "Professor",
+    "research_areas": [
+      "Algorithmic Game Theory",
+      "Computational Complexity",
+      "Approximation Algorithms"
+    ],
+    "profile_url": "https://profiles.stanford.edu/aviad-rubinstein"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Carlos Guestrin",
+    "title": "Professor",
+    "research_areas": [
+      "Machine Learning Systems",
+      "Interpretable ML"
+    ],
+    "profile_url": "https://profiles.stanford.edu/carlos-guestrin"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Chelsea Finn",
+    "title": "Assistant Professor",
+    "research_areas": [
+      "Robot Learning",
+      "Reinforcement Learning",
+      "Meta-Learning"
+    ],
+    "profile_url": "https://profiles.stanford.edu/chelsea-finn"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Christopher Re",
+    "title": "Professor",
+    "research_areas": [
+      "Data Systems",
+      "Machine Learning",
+      "Weak Supervision"
+    ],
+    "profile_url": "https://profiles.stanford.edu/christopher-re"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Dan Boneh",
+    "research_areas": [
+      "Applied Cryptography",
+      "Computer Security"
+    ],
+    "profile_url": "https://profiles.stanford.edu/dan-boneh",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Daniel Yamins",
+    "research_areas": [
+      "Neuroscience and AI",
+      "Computational Modeling"
+    ],
+    "profile_url": "https://profiles.stanford.edu/daniel-yamins",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Diyi Yang",
+    "title": "Assistant Professor",
+    "research_areas": [
+      "Computational Social Science",
+      "Natural Language Processing"
+    ],
+    "profile_url": "https://profiles.stanford.edu/diyi-yang"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Dorsa Sadigh",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Robotics",
+      "Human-Robot Interaction",
+      "Autonomous Vehicles"
+    ],
+    "profile_url": "https://profiles.stanford.edu/dorsa-sadigh"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Emma Brunskill",
+    "research_areas": [
+      "Reinforcement Learning",
+      "AI for Education"
+    ],
+    "profile_url": "https://profiles.stanford.edu/emma-brunskill",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Fei-Fei Li",
+    "research_areas": [
+      "Computer Vision",
+      "Deep Learning",
+      "Human-Centered AI"
+    ],
+    "profile_url": "https://profiles.stanford.edu/fei-fei-li",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Jeannette Bohg",
+    "research_areas": [
+      "Robotics",
+      "Robotic Manipulation",
+      "Computer Vision"
+    ],
+    "profile_url": "https://profiles.stanford.edu/jeannette-bohg",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Jiajun Wu",
+    "research_areas": [
+      "Computer Vision",
+      "Robotics",
+      "Computational Cognitive Science"
+    ],
+    "profile_url": "https://profiles.stanford.edu/jiajun-wu",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Jure Leskovec",
+    "title": "Professor",
+    "research_areas": [
+      "Graph Neural Networks",
+      "Data Mining",
+      "Social Networks"
+    ],
+    "profile_url": "https://profiles.stanford.edu/jure-leskovec"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Kayvon Fatahalian",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Computer Graphics Systems",
+      "Real-time Rendering",
+      "Video Analysis at Scale"
+    ],
+    "profile_url": "https://profiles.stanford.edu/kayvon-fatahalian"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Leonidas Guibas",
+    "research_areas": [
+      "Computational Geometry",
+      "Computer Graphics",
+      "Computer Vision"
+    ],
+    "profile_url": "https://profiles.stanford.edu/leonidas-guibas",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Li-Yang Tan",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Theoretical Computer Science",
+      "Computational Complexity"
+    ],
+    "profile_url": "https://profiles.stanford.edu/li-yang-tan"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Mark Zhandry",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Quantum Cryptography",
+      "Post-Quantum Security",
+      "Program Obfuscation"
+    ],
+    "profile_url": "https://profiles.stanford.edu/mark-zhandry"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Mary Wootters",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Coding Theory",
+      "Information Theory"
+    ],
+    "profile_url": "https://profiles.stanford.edu/mary-wootters"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Matei Zaharia",
+    "research_areas": [
+      "Computer Systems",
+      "ML Systems",
+      "Data Analytics"
+    ],
+    "profile_url": "",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Michael Bernstein",
+    "title": "Professor",
+    "research_areas": [
+      "Human-Computer Interaction",
+      "Social Computing",
+      "Crowdsourcing"
+    ],
+    "profile_url": "https://profiles.stanford.edu/michael-bernstein"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Moses Charikar",
+    "research_areas": [
+      "Algorithms",
+      "Approximation Algorithms",
+      "Theoretical CS"
+    ],
+    "profile_url": "https://profiles.stanford.edu/moses-charikar",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Omer Reingold",
+    "title": "Professor",
+    "research_areas": [
+      "Algorithmic Fairness",
+      "Theoretical Computer Science",
+      "Cryptography"
+    ],
+    "profile_url": "https://profiles.stanford.edu/omer-reingold"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Percy Liang",
+    "research_areas": [
+      "Foundation Models",
+      "NLP",
+      "Machine Learning"
+    ],
+    "profile_url": "https://profiles.stanford.edu/percy-liang",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Sanmi Koyejo",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Trustworthy AI",
+      "AI Evaluation",
+      "Privacy-Preserving ML"
+    ],
+    "profile_url": "https://profiles.stanford.edu/sanmi-koyejo"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Sara Achour",
+    "research_areas": [
+      "Programming Languages",
+      "Compilers",
+      "Analog/Novel Computing"
+    ],
+    "profile_url": "https://profiles.stanford.edu/sara-achour",
+    "title": null
+  },
+  {
+    "school_id": "stanford",
+    "name": "Stefano Ermon",
+    "title": "Associate Professor",
+    "research_areas": [
+      "Probabilistic Inference",
+      "Generative Models",
+      "Computational Sustainability"
+    ],
+    "profile_url": "https://profiles.stanford.edu/stefano-ermon"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Tatsunori Hashimoto",
+    "title": "Assistant Professor",
+    "research_areas": [
+      "Natural Language Processing",
+      "Language Models",
+      "ML Robustness"
+    ],
+    "profile_url": "https://profiles.stanford.edu/tatsunori-hashimoto"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Tengyu Ma",
+    "title": "Assistant Professor",
+    "research_areas": [
+      "Machine Learning",
+      "Deep Learning Theory"
+    ],
+    "profile_url": "https://profiles.stanford.edu/tengyu-ma"
+  },
+  {
+    "school_id": "stanford",
+    "name": "Yejin Choi",
+    "research_areas": [
+      "Large Language Models",
+      "AI Safety",
+      "NLP"
+    ],
+    "profile_url": "https://profiles.stanford.edu/yejin-choi",
+    "title": null
+  }
+]

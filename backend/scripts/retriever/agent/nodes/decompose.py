@@ -28,11 +28,19 @@ def decomposer_node(state: AgentState) -> dict:
         professor_query  = _parse_professor_query(parsed.get("professor_query"))
         needs_sql_search = bool(parsed.get("needs_sql_search", True))
         needs_experience = bool(parsed.get("needs_experience", False))
+
+        plq_raw = parsed.get("professor_list_query")
+        plq_sid = (plq_raw.get("school_id") or "").strip() if isinstance(plq_raw, dict) else ""
+        # 與 professor_query 互斥：已指名教授姓名時不應同時觸發名單查詢
+        professor_list_query = (
+            {"school_id": plq_sid} if plq_sid in _SCHOOL_ALIASES and professor_query is None else None
+        )
     except Exception as e:
         print(f"[Decomposer] 意圖判斷失敗（{e}），使用原始問題作為 fallback")
         school_ids             = _detect_school_ids(query)
         mentioned_school_names = []
         professor_query         = None
+        professor_list_query    = None
         needs_sql_search        = True
         needs_experience        = False
 
@@ -62,6 +70,8 @@ def decomposer_node(state: AgentState) -> dict:
               f"[{professor_query.get('school_id', '?')}]")
     else:
         print("[Decomposer] professor_query = None（無教授查詢意圖）")
+    if professor_list_query:
+        print(f"[Decomposer] professor_list_query = {professor_list_query['school_id']}")
     print(f"[Decomposer] needs_sql_search = {needs_sql_search}  needs_experience = {needs_experience}")
 
     return {
@@ -73,6 +83,7 @@ def decomposer_node(state: AgentState) -> dict:
         "experience_docs":        [],
         "final_answer":           "",
         "professor_query":        professor_query,
+        "professor_list_query":   professor_list_query,
         "needs_sql_search":       needs_sql_search,
         "needs_experience":       needs_experience,
         "mentioned_school_ids":   school_ids,
@@ -84,15 +95,16 @@ def route_to_retrieval(state: AgentState):
     """
     決定要跑哪些檢索節點（decompose 完成後、以及 refine 重新產生查詢後皆共用此路由）：
     各檢索支線互相獨立，依旗標並行觸發：
-    - needs_sql_search → search（text-to-SQL 官方申請要求）
-    - professor_query   → extension_function（SerpAPI 教授資料）
-    - needs_experience  → experience_search（applicant_reports 錄取經驗）
-    至少會走一個節點；若三者皆無（理論上不會），退回只走 search 保底。
+    - needs_sql_search      → search（text-to-SQL 官方申請要求）
+    - professor_query       → extension_function（SerpAPI 教授研究細節）
+    - professor_list_query  → extension_function（教授名單，查 professors 表）
+    - needs_experience      → experience_search（applicant_reports 錄取經驗）
+    至少會走一個節點；若皆無（理論上不會），退回只走 search 保底。
     """
     targets = []
     if state.get("needs_sql_search", True):
         targets.append(Send("search", state))
-    if state.get("professor_query") is not None:
+    if state.get("professor_query") is not None or state.get("professor_list_query") is not None:
         targets.append(Send("extension_function", state))
     if state.get("needs_experience", False):
         targets.append(Send("experience_search", state))
