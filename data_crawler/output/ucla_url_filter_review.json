@@ -1,10 +1,10 @@
 {
   "school_id": "ucla",
-  "generated_at": "2026-07-26T01:16:25.230814",
+  "generated_at": "2026-07-27T21:22:15.988298",
   "summary": {
-    "total": 78,
-    "kept": 15,
-    "dropped": 63,
+    "total": 111,
+    "kept": 29,
+    "dropped": 82,
     "fallback_kept": 0
   },
   "decisions": [
@@ -213,8 +213,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "About pages provide general department information, not master's application fields.",
-      "confidence": 0.98,
+      "reason": "The page is likely about general information about the department, not specific to graduate admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -224,8 +224,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Contact pages do not contain master's application requirements or procedures.",
-      "confidence": 0.99,
+      "reason": "Contact pages do not typically contain specific application information.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -235,8 +235,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Clubs and associations are not related to graduate application requirements.",
-      "confidence": 0.99,
+      "reason": "Clubs and associations are not related to graduate admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -246,8 +246,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Computing facility FAQs are not related to master's application procedures.",
-      "confidence": 0.98,
+      "reason": "The page is likely about computing facilities, not admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -257,8 +257,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "keep",
-      "reason": "This FAQ page likely addresses master's application requirements, deadlines, and procedures.",
-      "confidence": 0.97,
+      "reason": "The page likely contains FAQs related to graduate application procedures.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -268,8 +268,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "keep",
-      "reason": "This page likely details master's admission procedures and requirements for CS.",
-      "confidence": 0.98,
+      "reason": "The page likely contains information on graduate admission procedures and requirements.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -279,8 +279,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "keep",
-      "reason": "Graduate application requirements page likely lists eligibility, documents, and test scores for master's applicants.",
-      "confidence": 0.97,
+      "reason": "The page likely details graduate application requirements.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -290,8 +290,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Handbooks typically cover enrolled student policies, not application requirements.",
-      "confidence": 0.92,
+      "reason": "Handbooks typically contain general program information, not specific application details.",
+      "confidence": 0.85,
       "decision_source": "llm"
     },
     {
@@ -301,8 +301,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Student welfare pages do not address master's application fields.",
-      "confidence": 0.97,
+      "reason": "The page is likely about student welfare, not admissions.",
+      "confidence": 0.9,
       "decision_source": "llm"
     },
     {
@@ -312,8 +312,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "History pages do not contain application requirements or procedures.",
-      "confidence": 0.99,
+      "reason": "History pages do not contain application information.",
+      "confidence": 0.98,
       "decision_source": "llm"
     },
     {
@@ -323,8 +323,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Affiliates program is unrelated to master's application requirements.",
-      "confidence": 0.98,
+      "reason": "Industry affiliation programs are not related to admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -334,8 +334,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "News articles do not contain master's application information.",
-      "confidence": 0.99,
+      "reason": "News articles do not contain application information.",
+      "confidence": 0.98,
       "decision_source": "llm"
     },
     {
@@ -345,8 +345,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Lecturer listings are not related to master's application requirements.",
-      "confidence": 0.99,
+      "reason": "Faculty pages do not contain application information.",
+      "confidence": 0.98,
       "decision_source": "llm"
     },
     {
@@ -356,8 +356,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Mission statements do not provide master's application fields.",
-      "confidence": 0.99,
+      "reason": "Mission statements do not contain application information.",
+      "confidence": 0.98,
       "decision_source": "llm"
     },
     {
@@ -367,7 +367,7 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Accreditation and mission pages do not contain application requirements.",
+      "reason": "Mission and accreditation pages do not contain application information.",
       "confidence": 0.98,
       "decision_source": "llm"
     },
@@ -378,8 +378,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Event and news pages are not related to master's application requirements.",
-      "confidence": 0.99,
+      "reason": "News articles do not contain application information.",
+      "confidence": 0.98,
       "decision_source": "llm"
     },
     {
@@ -389,8 +389,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "General student resources are not specific to master's application procedures.",
-      "confidence": 0.97,
+      "reason": "General student resources do not contain specific application information.",
+      "confidence": 0.9,
       "decision_source": "llm"
     },
     {
@@ -400,8 +400,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Room reservations are not related to master's application requirements.",
-      "confidence": 0.99,
+      "reason": "Room reservation pages do not contain application information.",
+      "confidence": 0.98,
       "decision_source": "llm"
     },
     {
@@ -411,8 +411,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Staff directories do not provide master's application information.",
-      "confidence": 0.99,
+      "reason": "Staff pages do not contain application information.",
+      "confidence": 0.98,
       "decision_source": "llm"
     },
     {
@@ -422,8 +422,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Technical reports are not related to master's application requirements.",
-      "confidence": 0.99,
+      "reason": "Technical reports do not contain application information.",
+      "confidence": 0.98,
       "decision_source": "llm"
     },
     {
@@ -433,8 +433,8 @@
       "depth": 1,
       "root_index": 2,
       "decision": "drop",
-      "reason": "Video highlights are not related to master's application requirements.",
-      "confidence": 0.99,
+      "reason": "Video highlights do not contain application information.",
+      "confidence": 0.98,
       "decision_source": "llm"
     },
     {
@@ -444,8 +444,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "keep",
-      "reason": "This page likely contains the application form and process for master's applicants.",
-      "confidence": 0.98,
+      "reason": "The page likely contains the application process for graduate admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -454,9 +454,9 @@
       "anchor_text": "Calendar",
       "depth": 1,
       "root_index": 0,
-      "decision": "keep",
-      "reason": "Admissions calendar likely lists application deadlines for master's programs.",
-      "confidence": 0.95,
+      "decision": "drop",
+      "reason": "Calendars do not typically contain specific application information.",
+      "confidence": 0.85,
       "decision_source": "llm"
     },
     {
@@ -466,8 +466,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "drop",
-      "reason": "Diversity pages do not directly provide master's application requirements or procedures.",
-      "confidence": 0.9,
+      "reason": "Diversity pages do not contain specific application information.",
+      "confidence": 0.85,
       "decision_source": "llm"
     },
     {
@@ -477,8 +477,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "keep",
-      "reason": "Admissions FAQs likely address master's application requirements and procedures.",
-      "confidence": 0.96,
+      "reason": "The page likely contains FAQs related to graduate application procedures.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -488,8 +488,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "keep",
-      "reason": "This page likely details language requirements and procedures for international master's applicants.",
-      "confidence": 0.97,
+      "reason": "The page likely contains information for international applicants.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -499,8 +499,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "keep",
-      "reason": "This page likely outlines the step-by-step application process for master's applicants.",
-      "confidence": 0.98,
+      "reason": "The page likely details the steps to apply for graduate admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -510,8 +510,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "drop",
-      "reason": "Visiting information is not related to master's application requirements.",
-      "confidence": 0.97,
+      "reason": "Visiting information is not related to application procedures.",
+      "confidence": 0.85,
       "decision_source": "llm"
     },
     {
@@ -521,7 +521,7 @@
       "depth": 1,
       "root_index": 0,
       "decision": "keep",
-      "reason": "Funding page likely details scholarships and fellowships for master's applicants.",
+      "reason": "The page likely contains information on funding opportunities for graduate students.",
       "confidence": 0.95,
       "decision_source": "llm"
     },
@@ -532,7 +532,7 @@
       "depth": 1,
       "root_index": 0,
       "decision": "drop",
-      "reason": "Funding calendar is unlikely to provide master's application requirements or procedures.",
+      "reason": "Calendars do not typically contain specific application information.",
       "confidence": 0.85,
       "decision_source": "llm"
     },
@@ -543,8 +543,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "keep",
-      "reason": "Funding FAQs likely address financial aid and scholarships for master's applicants.",
-      "confidence": 0.92,
+      "reason": "The page likely contains FAQs related to funding for graduate students.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -554,8 +554,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "keep",
-      "reason": "Financial aid page likely details aid options for master's applicants.",
-      "confidence": 0.93,
+      "reason": "The page likely contains information on financial aid for graduate students.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -565,8 +565,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "keep",
-      "reason": "Tuition page likely provides tuition rates for master's applicants.",
-      "confidence": 0.97,
+      "reason": "The page likely contains information on tuition fees for graduate students.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -576,8 +576,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "drop",
-      "reason": "Working at UCLA is not directly related to master's application requirements.",
-      "confidence": 0.9,
+      "reason": "Working opportunities are not directly related to application procedures.",
+      "confidence": 0.85,
       "decision_source": "llm"
     },
     {
@@ -587,8 +587,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "keep",
-      "reason": "Recommendations page likely provides information on submitting letters of recommendation for master's applications.",
-      "confidence": 0.92,
+      "reason": "The page likely contains information on recommendation letters for graduate applications.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -598,8 +598,8 @@
       "depth": 1,
       "root_index": 0,
       "decision": "keep",
-      "reason": "This page likely details the process for submitting recommendation letters for master's applications.",
-      "confidence": 0.93,
+      "reason": "The page likely contains information on recommendation letters for graduate applications.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -610,7 +610,7 @@
       "root_index": 1,
       "decision": "drop",
       "reason": "Bioengineering is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "confidence": 0.9,
       "decision_source": "llm"
     },
     {
@@ -621,7 +621,7 @@
       "root_index": 1,
       "decision": "drop",
       "reason": "Chemical & Biomolecular Engineering is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "confidence": 0.9,
       "decision_source": "llm"
     },
     {
@@ -632,7 +632,7 @@
       "root_index": 1,
       "decision": "drop",
       "reason": "Chemical Engineering is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "confidence": 0.9,
       "decision_source": "llm"
     },
     {
@@ -643,7 +643,7 @@
       "root_index": 1,
       "decision": "drop",
       "reason": "Civil & Environmental Engineering is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "confidence": 0.9,
       "decision_source": "llm"
     },
     {
@@ -653,8 +653,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for Civil Engineering, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Civil Engineering, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -664,8 +664,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "keep",
-      "reason": "This page is for the Computer Science graduate program and is likely to contain master's admission requirements and application procedures.",
-      "confidence": 0.97,
+      "reason": "The page likely contains admission procedures and requirements for the Computer Science master's program.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -675,8 +675,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for Electrical & Computer Engineering, which is out of scope as it is not a standalone Computer Science or CSE program.",
-      "confidence": 0.98,
+      "reason": "The page is related to Electrical & Computer Engineering, which is out of scope for standalone CS/CSE admissions.",
+      "confidence": 0.9,
       "decision_source": "llm"
     },
     {
@@ -686,8 +686,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for a general Master of Engineering program, not specifically Computer Science or CSE.",
-      "confidence": 0.95,
+      "reason": "The page is related to a general Master of Engineering program, not specific to CS/CSE.",
+      "confidence": 0.85,
       "decision_source": "llm"
     },
     {
@@ -697,8 +697,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for an MS in Engineering-Aerospace, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Aerospace Engineering, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -708,8 +708,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for an MS in Engineering-Computer Networking, which is not a standalone Computer Science or CSE program and is likely ECE-focused.",
-      "confidence": 0.96,
+      "reason": "The page is related to Computer Networking, which is out of scope for standalone CS/CSE admissions.",
+      "confidence": 0.9,
       "decision_source": "llm"
     },
     {
@@ -719,8 +719,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for an MS in Engineering-Electrical, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Electrical Engineering, which is out of scope for standalone CS/CSE admissions.",
+      "confidence": 0.9,
       "decision_source": "llm"
     },
     {
@@ -730,8 +730,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for an MS in Engineering-Electronic Materials, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Electronic Materials, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -741,8 +741,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for an MS in Engineering-Integrated Circuits, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Integrated Circuits, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -752,8 +752,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for an MS in Engineering-Manufacturing and Design, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Manufacturing and Design, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -763,8 +763,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for an MS in Engineering-Materials Science, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Materials Science, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -774,8 +774,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for an MS in Engineering-Mechanical, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Mechanical Engineering, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -785,8 +785,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for a general MS in Engineering, Online, which is not specifically Computer Science or CSE.",
-      "confidence": 0.95,
+      "reason": "The page is related to a general MS in Engineering, not specific to CS/CSE.",
+      "confidence": 0.85,
       "decision_source": "llm"
     },
     {
@@ -796,8 +796,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for an MS in Engineering-Signal Processing and Communications, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Signal Processing and Communications, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -807,8 +807,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for an MS in Engineering-Structural Materials, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Structural Materials, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -818,8 +818,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for Materials Science & Engineering, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Materials Science & Engineering, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -829,8 +829,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for the Mechanical & Aerospace Engineering Department, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Mechanical & Aerospace Engineering, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -840,8 +840,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for Aerospace Engineering, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Aerospace Engineering, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -851,8 +851,8 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for Manufacturing Engineering, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Manufacturing Engineering, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
       "decision_source": "llm"
     },
     {
@@ -862,8 +862,371 @@
       "depth": 1,
       "root_index": 1,
       "decision": "drop",
-      "reason": "This page is for Mechanical Engineering, which is not a Computer Science or CSE program.",
-      "confidence": 0.99,
+      "reason": "The page is related to Mechanical Engineering, which is out of scope for CS/CSE admissions.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/nsf-graduate-research-fellowships",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "NSF Grad Research Fellowships",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "hard-drop: non-application news/faculty/research/undergraduate page",
+      "confidence": 1.0,
+      "decision_source": "rule"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/concurrent-articulated-programs",
+      "source_url": "https://grad.ucla.edu/admissions/faqs",
+      "anchor_text": "concurrent or articulated degrees",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about concurrent or articulated degree programs, not specific to CS/CSE master's admissions.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/english-requirements",
+      "source_url": "https://grad.ucla.edu/admissions/faqs",
+      "anchor_text": "English Requirements page",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely contains English language requirements applicable to master's applicants.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/research-requirements",
+      "source_url": "https://grad.ucla.edu/admissions/faqs",
+      "anchor_text": "requirements section",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about research requirements, which are not specific to application procedures.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/boren-fellowships-for-graduate-students",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Boren Fellowships for Graduate Students",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides information on Boren Fellowships, which are relevant to funding for master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/bruindirect-deposit",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Bruin Direct Deposit",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about direct deposit procedures, not directly related to application funding.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/fellowship-proposal-resources",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Resources for Finding & Applying for Fellowships",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides resources for applying for fellowships, relevant to funding for master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/fulbright-fellowships",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Fulbright Fellowships",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides information on Fulbright Fellowships, relevant to funding for master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/funding-for-continuing-students",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Funding for Continuing Students",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about funding for continuing students, not directly related to new master's applicants.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/funding-for-continuing-students/graduate-summer-research-mentorship-program",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Graduate Summer Research Mentorship",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about a mentorship program for continuing students, not directly related to new master's applicants.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/funding-for-entering-students",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Funding for Entering Students",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides funding information for entering students, relevant to master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/funding-for-entering-students/extramural-fellowship-directories",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Fellowship Directories",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides directories for extramural fellowships, relevant to funding for master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/funding-opportunities-resources",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Funding Opportunities Resources",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides resources for funding opportunities, relevant to master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/gradfellowships-l-list-subscription",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Gradfellowships-L Email List",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about subscribing to an email list, not directly related to application funding.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/graduate-work-study-program",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Graduate Work-Study Program",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides information on the graduate work-study program, relevant to funding for master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/maximum-limit-of-merit-based-support",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Maximum Limit of Merit-Based Support",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides information on merit-based support limits, relevant to funding for master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/navigating-graduate-awards-in-bruin-financial-aid",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Navigating Graduate Awards in Bruin Financial Aid (BFA)",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about navigating financial aid systems, not directly related to application funding.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/supplementation-policy-for-graduate-student-support",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Supplementation Policy for Graduate Student Support",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides information on supplementation policies for graduate support, relevant to funding for master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/tax-information-forms-for-ucla-fellowship-recipients",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Tax Information & Forms for Fellowship Recipients at UCLA",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about tax information for fellowship recipients, not directly related to application funding.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/tax-information-forms-for-ucla-fellowship-recipients/completing-foreign-source-income-statement-fsis",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "Completing Foreign Source Income Statement (FSIS)",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about completing tax forms, not directly related to application funding.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/working-at-ucla/postdocs/ruth-l-kirschstein-national-research-service-awards-nrsa",
+      "source_url": "https://grad.ucla.edu/funding/financial-aid",
+      "anchor_text": "NRSA Fellowships",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about postdoctoral fellowships, not relevant to master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/financial-aid/funding-for-continuing-students/graduate-student-financial-support",
+      "source_url": "https://grad.ucla.edu/funding/faqs",
+      "anchor_text": "Graduate Student Support manua",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about financial support for continuing students, not directly related to new master's applicants.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/working-at-ucla/academic-apprentice-personnel-manual",
+      "source_url": "https://grad.ucla.edu/funding/faqs",
+      "anchor_text": "Academic Apprentice Personnel Manual",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about personnel policies, not directly related to application funding.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/funding/working-at-ucla/academic-student-employees-appointments-union-contract",
+      "source_url": "https://grad.ucla.edu/funding/faqs",
+      "anchor_text": "Academic Student Employees (ASE) Appointment Opportunities page",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about employment opportunities, not directly related to application funding.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/gasaa/admissions/admisinfo.html",
+      "source_url": "https://grad.ucla.edu/programs/school-of-engineering-and-applied-science/computer-science",
+      "anchor_text": "UCLA's minimum requirements for all graduate program applicants.",
+      "depth": 2,
+      "root_index": 1,
+      "decision": "keep",
+      "reason": "The page likely contains minimum requirements for all graduate program applicants, applicable to master's admissions.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/program-requirements",
+      "source_url": "https://grad.ucla.edu/programs/school-of-engineering-and-applied-science/computer-science",
+      "anchor_text": "Program\nRequirements",
+      "depth": 2,
+      "root_index": 1,
+      "decision": "drop",
+      "reason": "The page is likely about program requirements, not specific to application procedures.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/requirements",
+      "source_url": "https://grad.ucla.edu/programs/school-of-engineering-and-applied-science/computer-science",
+      "anchor_text": "Admission\nRequirements",
+      "depth": 2,
+      "root_index": 1,
+      "decision": "keep",
+      "reason": "The page likely contains admission requirements applicable to master's applicants.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/required-academic-records",
+      "source_url": "https://grad.ucla.edu/admissions/international-applicants",
+      "anchor_text": "Required Academic Records",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides information on required academic records for master's applicants.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/special-services-for-international-students-the-dashew-center",
+      "source_url": "https://grad.ucla.edu/admissions/international-applicants",
+      "anchor_text": "Special Services for International Students",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "drop",
+      "reason": "The page is likely about special services for international students, not directly related to application procedures.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.ucla.edu/admissions/visa-procedures",
+      "source_url": "https://grad.ucla.edu/admissions/international-applicants",
+      "anchor_text": "Visa Procedures",
+      "depth": 2,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "The page likely provides visa procedures applicable to international master's applicants.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://www.cs.ucla.edu/graduate-program",
+      "source_url": "https://www.cs.ucla.edu/graduate-admission-frequently-asked-questions",
+      "anchor_text": "Computer Science website",
+      "depth": 2,
+      "root_index": 2,
+      "decision": "keep",
+      "reason": "The page likely contains information on the graduate program, including admissions for master's applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://www.cs.ucla.edu/graduate-program/graduate-student-handbook",
+      "source_url": "https://www.cs.ucla.edu/graduate-admissions",
+      "anchor_text": "Graduate Student Handbook",
+      "depth": 2,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "The page is likely a handbook, not directly related to application procedures.",
+      "confidence": 0.85,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://www.cs.ucla.edu/job-postings",
+      "source_url": "https://www.cs.ucla.edu/graduate-admissions",
+      "anchor_text": "Job Announcements (for employers)",
+      "depth": 2,
+      "root_index": 2,
+      "decision": "drop",
+      "reason": "The page is likely about job postings, not related to application procedures.",
+      "confidence": 0.95,
       "decision_source": "llm"
     }
   ]
