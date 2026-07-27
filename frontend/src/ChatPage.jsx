@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { LoaderCircle, Send, Sparkles, ChevronDown, Square } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { streamChat } from './chatApi.js'
 
 const STEP_LABEL = {
@@ -37,8 +39,10 @@ function Message({ message }) {
   return (
     <div className="msg assistant">
       <StepsPanel steps={message.steps} done={message.done} />
-      <div className="bubble">
-        {message.content || (!message.done && <LoaderCircle className="spin" size={16} />)}
+      <div className="bubble markdown">
+        {message.content
+          ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+          : (!message.done && <LoaderCircle className="spin" size={16} />)}
       </div>
     </div>
   )
