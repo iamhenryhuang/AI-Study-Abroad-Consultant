@@ -154,7 +154,7 @@ def _run_link_worker(task_chunk: list, worker_id: int, print_lock: threading.Loc
             results.append((url, depth, result))
 
             with print_lock:
-                status = f"⚠️  {result['error'][:60]}" if result["error"] else f'"{result["title"][:50]}"'
+                status = f"[WARN] {result['error'][:60]}" if result["error"] else f'"{result["title"][:50]}"'
                 print(f"  [w{worker_id}|d={depth}|#{idx+1}] {url}  →  {status}")
 
             if idx < len(task_chunk) - 1:
@@ -188,7 +188,7 @@ def crawl_one_layer(layer: list[dict], roots: list[str]) -> list[tuple]:
             try:
                 layer_results.extend(future.result())
             except Exception as e:
-                print(f"  ⚠️  link worker 例外: {e}")
+                print(f"  [WARN] link worker 例外: {e}")
     return layer_results
 
 
@@ -464,7 +464,7 @@ def _html_to_markdown(html: str, url: str) -> str:
         )
         return md or ""
     except Exception as e:
-        print(f"  ⚠️ trafilatura 失敗（{url}）：{e}")
+        print(f"  [WARN] trafilatura 失敗（{url}）：{e}")
         return ""
 
 
@@ -487,7 +487,7 @@ def extract_page_content_with_js(page, url, extra_wait_ms=3000):
         # 網站可能把看似 button 的控制綁成導頁動作。若仍發生導航，重新載入
         # 展開前的頁面；絕不能把別頁內容掛在原始 URL 名下。
         if page.url != page_url_before_expand:
-            print(f"  ⚠️ expander navigation blocked: {page_url_before_expand} → {page.url}")
+            print(f"  [WARN] expander navigation blocked: {page_url_before_expand} → {page.url}")
             page.goto(page_url_before_expand, wait_until="domcontentloaded", timeout=30000)
             try:
                 page.wait_for_load_state("networkidle", timeout=10000)

@@ -437,7 +437,7 @@ def structured_extraction(state: ProcessState) -> dict:
             if isinstance(extraction, dict):
                 extractions.append(_normalize_target_codes(extraction, codes))
         except Exception as e:
-            print(f"  ⚠️ structured_extraction 第 {index}/{len(chunks)} 段失敗"
+            print(f"  [WARN] structured_extraction 第 {index}/{len(chunks)} 段失敗"
                   f"（{page['url']}）：{e}")
 
     extraction = _promote_grounded_evidence(_merge_extractions(extractions))
@@ -867,7 +867,7 @@ def semantic_repair(state: ProcessState) -> dict:
             if isinstance(result, dict):
                 repairs.append(_normalize_target_codes(result, codes))
         except Exception as exc:
-            print(f"  ⚠️ semantic_repair 第 {index}/{len(parts)} 段失敗"
+            print(f"  [WARN] semantic_repair 第 {index}/{len(parts)} 段失敗"
                   f"（{page['url']}）：{exc}")
 
     # 先移除已知無效值，讓有原文證據的修正值可以補回；既有有效值維持優先。

@@ -85,13 +85,13 @@ def main():
             final_state = app.invoke(graph_input, config)
     else:
         if args.resume:
-            print("⚠️ --resume 需要 PostgresSaver（DATABASE_URL 且非 --dry-run），改為重新執行")
+            print("[WARN] --resume 需要 PostgresSaver（DATABASE_URL 且非 --dry-run），改為重新執行")
         from langgraph.checkpoint.memory import MemorySaver
         app = build_school_graph(MemorySaver())
         final_state = app.invoke(initial_state, config)
 
     summary = final_state.get("summary", {})
-    print(f"\n✅ 完成：{summary}")
+    print(f"\n[OK] 完成：{summary}")
     return 0
 
 

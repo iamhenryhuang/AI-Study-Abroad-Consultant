@@ -402,7 +402,7 @@ def scrape_page(state: ScrapeState) -> dict:
     url = state["url"]
     extracted = scrape_url(url)
     record = {"url": url, "requested_url": url, **extracted}
-    status = f"⚠️ {extracted['error'][:60]}" if extracted["error"] else f"{len(extracted['full_text'])} chars"
+    status = f"[WARN] {extracted['error'][:60]}" if extracted["error"] else f"{len(extracted['full_text'])} chars"
     print(f"  [scraped] {url} → {status}")
     emit_event(state["school_id"], "scrape_page",
                "failed" if extracted["error"] else "completed",
@@ -447,12 +447,12 @@ def collect_scraped(state: SchoolState) -> dict:
         if h:
             first_url = first_url_by_hash.get(h)
             if first_url and first_url != effective_url:
-                print(f"  ⚠️ same content hash retained: {effective_url[:70]} "
+                print(f"  [WARN] same content hash retained: {effective_url[:70]} "
                       f"(same as {first_url[:70]})")
             else:
                 first_url_by_hash[h] = effective_url
         else:
-            print(f"  ⚠️ missing content hash retained: {effective_url[:80]}")
+            print(f"  [WARN] missing content hash retained: {effective_url[:80]}")
         unique.append(rec)
 
     print(f"[COLLECT] {len(unique)} 頁待分類（URL 去重/去錯誤後）")
@@ -748,7 +748,7 @@ def db_writer(state: SchoolState) -> dict:
     university_id = dbm.get_or_create_university(conn, school_id)
     stale_id = state.get("university_id")
     if stale_id is not None and stale_id != university_id:
-        print(f"  ⚠️ stale university_id corrected: state={stale_id} db={university_id} ({school_id})")
+        print(f"  [WARN] stale university_id corrected: state={stale_id} db={university_id} ({school_id})")
     stats = {"pages": 0, "programs": 0, "global_extractions": 0,
              "deadlines": 0, "scholarships": 0,
              "materials": 0, "evidence": 0, "review": 0, "chunks": 0}
