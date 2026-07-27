@@ -1,0 +1,63 @@
+{
+  "school_id": "gatech",
+  "generated_at": "2026-07-26T01:11:33.917251",
+  "decision": "keep",
+  "count": 5,
+  "urls": [
+    {
+      "url": "https://www.cc.gatech.edu/funding-sources",
+      "source_url": "https://www.cc.gatech.edu/ms-computer-science-admission-requirements",
+      "anchor_text": "Funding Sources",
+      "depth": 1,
+      "root_index": 0,
+      "decision": "keep",
+      "reason": "This page is likely to provide information about scholarships, fellowships, or other funding options relevant to master's CS applicants.",
+      "confidence": 0.9,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.gatech.edu/admissions/application-fee-waivers",
+      "source_url": "https://grad.gatech.edu/admissions",
+      "anchor_text": "Application Fee Waivers",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "keep",
+      "reason": "This page likely details application fee waiver policies relevant to master's CS applicants.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.gatech.edu/admissions/domestic",
+      "source_url": "https://grad.gatech.edu/admissions",
+      "anchor_text": "Admissions Checklist for Domestic Applicants",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "keep",
+      "reason": "This page likely provides an admissions checklist for domestic master's applicants, including required documents and procedures.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "https://grad.gatech.edu/admissions/international",
+      "source_url": "https://grad.gatech.edu/admissions",
+      "anchor_text": "Admissions Checklist for International Applicants",
+      "depth": 1,
+      "root_index": 2,
+      "decision": "keep",
+      "reason": "This page likely provides an admissions checklist for international master's applicants, including language and credential requirements.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    },
+    {
+      "url": "http://www.cc.gatech.edu/academics/degree-programs/masters/computer-science/admissionreqs",
+      "source_url": "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+      "anchor_text": "L",
+      "depth": 1,
+      "root_index": 1,
+      "decision": "keep",
+      "reason": "This page is likely to contain admission requirements for the master's in computer science program.",
+      "confidence": 0.95,
+      "decision_source": "llm"
+    }
+  ]
+}

@@ -79,9 +79,10 @@ class ProcessState(TypedDict, total=False):
 
     # Node 6
     program_codes: list[dict]  # [{"program_code","degree_type","program_name","department"}]
+    target_assessment: dict    # 國際 CS 碩士是否存在／適用範圍
 
     # Node 7
-    extraction: dict           # {"programs":[...], "deadlines":[...], "scholarships":[...], "app_materials":[...]}
+    extraction: dict           # programs/deadlines/scholarships/app_materials/evidence_paragraphs
     extraction_retries: int
 
     # Node 8

@@ -1,10 +1,10 @@
-"""DB 存取層。
+"""data_crawler 的 DB 存取層。
 
-- 連線方式沿用 backend/scripts/db/connection.py 的慣例（.env 的 DATABASE_URL + psycopg3）
-- migration（冪等）：新增 review_queue 表；替 program_deadlines /
-  program_scholarships / program_app_materials 補 updated_at 欄位
-- 寫入策略（v4 第三節 3-1）：三張子表用「查詢後決定 INSERT/UPDATE」，
-  不改 UNIQUE 約束、不用 ON CONFLICT
+- 連線方式沿用 backend/scripts/db/connection.py（.env 的 DATABASE_URL + psycopg3）。
+- db/schema_programs.sql 是建表的唯一權威來源；MIGRATION_SQL 只做加法式升級。
+- 結構化欄位無法安全正規化時，改寫入 program_evidence 保留原文上下文。
+- deadlines / scholarships / app materials 使用查詢後 INSERT/UPDATE，
+  不依賴額外 UNIQUE 約束。
 """
 import json
 import os
@@ -37,6 +37,9 @@ ALTER TABLE programs ALTER COLUMN program_code TYPE TEXT;
 ALTER TABLE global_extractions ALTER COLUMN program_code TYPE TEXT;
 ALTER TABLE review_queue ALTER COLUMN program_code TYPE TEXT;
 ALTER TABLE program_app_materials ALTER COLUMN material_type TYPE TEXT;
+ALTER TABLE program_evidence ALTER COLUMN field_name SET DEFAULT 'general';
+UPDATE program_evidence SET field_name = 'general' WHERE field_name IS NULL;
+ALTER TABLE program_evidence ALTER COLUMN field_name SET NOT NULL;
 ALTER TABLE programs ALTER COLUMN transcript_format TYPE TEXT;
 ALTER TABLE program_deadlines ADD COLUMN IF NOT EXISTS application_open_date DATE;
 ALTER TABLE program_deadlines ADD COLUMN IF NOT EXISTS application_close_date DATE;
@@ -302,6 +305,26 @@ def upsert_app_material(conn, program_id: int, item: dict) -> None:
                 (program_id, item.get("material_type"), item.get("requirement"),
                  item.get("word_limit"), item.get("note")),
             )
+    conn.commit()
+
+
+def upsert_program_evidence(conn, program_id: int, item: dict, source_url: str) -> None:
+    """保存無法安全正規化的招生證據段落，供後續 RAG 使用。"""
+    with conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO program_evidence
+               (program_id, category, field_name, evidence_kind,
+                evidence_text, source_excerpt, source_url, updated_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+               ON CONFLICT (program_id, category, field_name, source_url)
+               DO UPDATE SET evidence_kind = EXCLUDED.evidence_kind,
+                             evidence_text = EXCLUDED.evidence_text,
+                             source_excerpt = EXCLUDED.source_excerpt,
+                             updated_at = CURRENT_TIMESTAMP""",
+            (program_id, item.get("category") or "other", item.get("field_name") or "general",
+             item.get("evidence_kind") or "context_note", item.get("evidence_text"),
+             item.get("source_excerpt"), source_url),
+        )
     conn.commit()
 
 

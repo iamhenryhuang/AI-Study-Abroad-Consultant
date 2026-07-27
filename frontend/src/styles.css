@@ -94,9 +94,34 @@ footer { padding: 24px; border-top: 1px solid #dce0d6; color: #8a928b; text-alig
 .msg { display: flex; flex-direction: column; }
 .msg.user { align-items: flex-end; }
 .msg.assistant { align-items: flex-start; }
-.msg .bubble { max-width: 78%; padding: 12px 16px; border-radius: 16px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-.msg.user .bubble { background: #2563eb; color: #fff; border-bottom-right-radius: 4px; }
-.msg.assistant .bubble { background: #f3f4f6; color: #111827; border-bottom-left-radius: 4px; }
+.msg .bubble { max-width: 78%; padding: 12px 16px; border-radius: 16px; line-height: 1.6; word-break: break-word; }
+.msg.user .bubble { background: #2563eb; color: #fff; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+.msg.assistant .bubble { background: #f3f4f6; color: #111827; border-bottom-left-radius: 4px; max-width: 100%; }
+
+/* markdown 內容排版 */
+.bubble.markdown { font-size: 0.95rem; }
+.bubble.markdown > *:first-child { margin-top: 0; }
+.bubble.markdown > *:last-child { margin-bottom: 0; }
+.bubble.markdown p { margin: 0 0 10px; }
+.bubble.markdown h1, .bubble.markdown h2, .bubble.markdown h3, .bubble.markdown h4 {
+  margin: 18px 0 8px; line-height: 1.35; font-weight: 700;
+}
+.bubble.markdown h1 { font-size: 1.25rem; }
+.bubble.markdown h2 { font-size: 1.15rem; }
+.bubble.markdown h3 { font-size: 1.05rem; }
+.bubble.markdown h4 { font-size: 1rem; }
+.bubble.markdown ul, .bubble.markdown ol { margin: 0 0 10px; padding-left: 22px; }
+.bubble.markdown li { margin: 4px 0; }
+.bubble.markdown li > p { margin: 0; }
+.bubble.markdown strong { font-weight: 700; }
+.bubble.markdown a { color: #2563eb; text-decoration: underline; }
+.bubble.markdown code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 0.88em; }
+.bubble.markdown pre { background: #1f2937; color: #f3f4f6; padding: 12px 14px; border-radius: 10px; overflow-x: auto; margin: 0 0 10px; }
+.bubble.markdown pre code { background: none; padding: 0; color: inherit; }
+.bubble.markdown blockquote { margin: 0 0 10px; padding: 4px 12px; border-left: 3px solid #d1d5db; color: #4b5563; }
+.bubble.markdown table { border-collapse: collapse; margin: 0 0 10px; width: 100%; }
+.bubble.markdown th, .bubble.markdown td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align: left; }
+.bubble.markdown hr { border: none; border-top: 1px solid #e5e7eb; margin: 14px 0; }
 .steps { margin-bottom: 6px; max-width: 78%; }
 .steps-toggle { display: inline-flex; align-items: center; gap: 6px; background: none; border: none; color: #6b7280; font-size: 0.82rem; cursor: pointer; padding: 2px 0; }
 .steps-caret { transition: transform 0.15s; }

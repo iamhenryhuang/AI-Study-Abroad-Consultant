@@ -30,7 +30,7 @@ def classification_prompt(url: str, title: str, url_path_bonuses: dict, text_exc
     hint_lines = ", ".join(f"{k}={v:+.1f}" for k, v in url_path_bonuses.items() if v)
     hint_part = (f"URL-path heuristic scores (reference only; page content is authoritative): "
                  f"{hint_lines}\n") if hint_lines else ""
-    return f"""You are a page classifier for a graduate-admissions crawler. Determine whether the page contains North American Computer Science or Computer Science and Engineering graduate-admission information, and assign all applicable labels.
+    return f"""You are a page classifier for an international Computer Science master's admissions crawler. Determine whether the page contains information applicable to an international applicant seeking an MS, MSc, MEng, MCS, or equivalent master's degree in Computer Science/CSE, and assign all applicable labels.
 
 Target scope:
 - Only official Computer Science / Computer Science and Engineering programs.
@@ -132,27 +132,28 @@ Return valid JSON only:
 }}"""
 
 
-# 中文原意／維護說明：判斷頁面對應哪些正式研究所 program；無法確認就回傳空陣列。
-# 已限縮為官方 CS/CSE。program_name 必須由 title/H1/H2/H3 證明，不能從下拉選單、
-# Programs A-Z、導覽列或正文順帶提及建立空殼。校級或系級共用頁均回傳
-# school_wide=true、programs=[]，程式再依網域判斷 SCHOOL_WIDE 或 CS_DEPARTMENT_WIDE。
+# 舊版相容 helper；現行 Node 6 使用 deterministic 單一目標判斷。
+# 若外部仍呼叫此 prompt，也只允許 INTERNATIONAL_CS_MASTERS。
 def identify_programs_prompt(url: str, title: str, text_excerpt: str,
                              known_programs: list[str]) -> str:
     known = json.dumps(known_programs, ensure_ascii=False) if known_programs else "[]"
     return f"""Identify the official graduate degree program or programs directly represented by this page.
 
 Rules:
-- Recognize only official Computer Science / Computer Science and Engineering programs. Exclude standalone DS, AI, ML, Statistics, Information Science, and ECE programs.
-- Use CS-based program codes such as "CS MS", "CS MCS", "CS MEng", and "CS PhD".
-- List master's programs first. PhD is secondary.
-- Do not create a program from a PhD-only research, qualifying-exam, or training page that has no admission fields.
-- Known program codes for this school: {known}. Reuse an existing code when the page clearly refers to it; do not create synonyms.
-- If the page contains university-wide or department-wide application rules rather than a specific program, set school_wide=true and return an empty programs array.
+- Recognize only admission information applicable to an international CS/CSE master's applicant.
+- The only allowed program_code is "INTERNATIONAL_CS_MASTERS"; do not create synonyms.
+- Exclude standalone DS, AI, ML, Statistics, Information Science, ECE, PhD-only,
+  undergraduate, BS/MS, current-student, and TA-employment pages.
+- Known program codes for this school: {known}.
+- University-wide and CS/CSE department-wide graduate requirements may map to the
+  same target when they apply to master's applicants.
 - program_name must be an official name explicitly shown in the page title, H1, H2, or H3. A form dropdown, Programs A-Z list, navigation item, or incidental body-text mention is not evidence.
 - Never turn a research area such as Data Science, AI, or Machine Learning into an independent degree name unless the official heading explicitly presents it as a CS degree.
-- If evidence is insufficient, return programs=[] and school_wide=false.
+- If the official CS page explicitly states that no terminal master's is offered,
+  return programs=[] and school_wide=false.
 - A department name plus a degree mentioned only in body text is insufficient. The official program itself must be the subject of a title or heading.
-- A general admissions FAQ/checklist shared by multiple CS degrees is department-wide, not a specific CS MS page.
+- A general admissions FAQ/checklist may support the single target without
+  creating a separate program.
 - Use semantic identity, not keyword overlap: determine what official degree the page is actually about from the complete title/heading meaning and institutional context.
 - Similar words do not imply the same program. For example, a research area, course track, form option, or specialization is not an independent degree unless the official heading presents it as one.
 
@@ -168,7 +169,7 @@ Return JSON only:
   "school_wide": false,
   "programs": [
     {{
-      "program_code": "CS MS",
+    "program_code": "INTERNATIONAL_CS_MASTERS",
       "degree_type": "MS",
       "program_name": "Master of Science in Computer Science",
       "department": "Computer Science"
@@ -183,7 +184,7 @@ _EXTRACTION_SCHEMA = """
 {
   "programs": [
     {
-      "program_code": "CS MS",
+      "program_code": "INTERNATIONAL_CS_MASTERS",
       "fields": {
         "toefl_min": {"value": <int|null>, "source_excerpt": "<use only when the page says TOEFL but the format/scale is unclear>"},
         "toefl_ibt_min": {"value": <int|null>, "source_excerpt": "<legacy TOEFL iBT overall requirement on the 0-120 scale>"},
@@ -219,7 +220,7 @@ _EXTRACTION_SCHEMA = """
   ],
   "deadlines": [
     {
-      "program_code": "CS MS",
+      "program_code": "INTERNATIONAL_CS_MASTERS",
       "deadline_type": "<early|regular|international|rolling>",
       "application_open_date": "YYYY-MM-DD or null",
       "application_close_date": "YYYY-MM-DD or null",
@@ -231,17 +232,27 @@ _EXTRACTION_SCHEMA = """
   ],
   "scholarships": [
     {
-      "program_code": "CS MS", "name": "", "amount_usd": <int|null>,
+      "program_code": "INTERNATIONAL_CS_MASTERS", "name": "", "amount_usd": <int|null>,
       "coverage": "<full_tuition|partial|stipend_only|null>", "eligibility": "",
       "auto_consider": <bool|null>, "source_excerpt": "<verbatim source text>"
     }
   ],
   "app_materials": [
     {
-      "program_code": "CS MS",
+      "program_code": "INTERNATIONAL_CS_MASTERS",
       "material_type": "<additional_essay|portfolio|video|writing_sample|other>",
       "requirement": "", "word_limit": <int|null>, "note": "",
       "source_excerpt": "<verbatim source text>"
+    }
+  ],
+  "evidence_paragraphs": [
+    {
+      "program_code": "INTERNATIONAL_CS_MASTERS",
+      "category": "<deadline|english|gpa|gre|fee|materials|other>",
+      "field_name": "<related structured field or null>",
+      "evidence_kind": "<ambiguous|conditional|context_note>",
+      "evidence_text": "<one readable paragraph preserving the requirement, applicant scope, conditions, and timing>",
+      "source_excerpt": "<verbatim or faithfully compressed supporting source text>"
     }
   ]
 }
@@ -261,21 +272,22 @@ def extraction_prompt(url: str, program_codes: list[str], markdown: str,
 The previous extraction had the following validation issues. Correct them. If no explicit source evidence exists, set the field to null:
 {feedback}
 """
-    return f"""Extract structured Computer Science graduate-admission data from the page content below.
+    return f"""Extract structured admission data for an international applicant seeking a Computer Science/CSE master's degree from the page content below.
 
 Strict rules:
 1. Extract only information explicitly stated in the source. Never infer, convert, or add outside knowledge.
 2. Every non-null field must include a short source_excerpt grounded in the source. Prefer a verbatim excerpt, but minor normalization or faithful compression is acceptable when the meaning, numbers, applicant scope, and conditions remain unchanged.
 3. Numbers, dates, and monetary amounts must exactly match the source. If a field is not stated, use null and an empty source_excerpt.
-4. Populate only these program codes: {json.dumps(program_codes, ensure_ascii=False)}. If a deadline, scholarship, or material applies to every listed program, emit one item per applicable code.
+4. Populate only this target record code: {json.dumps(program_codes, ensure_ascii=False)}. The code represents one school's international CS master's admissions record; it is not an official degree name.
 5. Populate *_usd only when the source explicitly states USD. Do not annualize per-unit, quarterly, or semester tuition; preserve it in tuition_note.
 6. Keep TOEFL scales separate: put a 0-120 overall requirement only in toefl_ibt_min, and a 1-6 overall requirement only in toefl_ibt_new_scale_min. Never convert between scales and never use section/speaking scores as overall scores.
-7. Fully process MS/MSc/MEng/MCS master's programs before PhD. Never apply a PhD-only rule to MS.
-8. University-wide rules may apply to all listed programs, but a rule explicitly limited to master's or doctoral applicants applies only to that degree.
-9. Scope placeholders are intentional program codes: SCHOOL_WIDE means a university Graduate Division rule; CS_DEPARTMENT_WIDE means a CS/CSE department rule shared by its CS degrees. Return the exact placeholder supplied in program_codes.
+7. Extract only rules applicable to MS/MSc/MEng/MCS or equivalent CS/CSE master's applicants. Never apply a PhD-only, undergraduate, BS/MS pathway, current-student, TA-employment, graduation, or degree-progress rule.
+8. University-wide and CS/CSE department-wide graduate rules may be used when they apply to master's applicants. Prefer an explicit CS master's rule over a department-wide rule, and a department-wide rule over a university minimum.
+9. For applicant-specific rules, extract the international-applicant rule. Do not use a domestic-only value. English-test requirements and waivers must preserve their exact international-applicant conditions.
 10. Do not combine values from separate requirements in one field. A number must be associated with the same test, applicant group, degree, and event named in its source_excerpt.
-11. When the page states multiple standards, extract only the standard matching the current scope. Do not use BS/MS pathways, TA eligibility, fellowships, or continuing-student rules as ordinary CS MS admission requirements.
+11. When the page states multiple standards, extract only the standard matching the current scope. Do not use BS/MS pathways, TA eligibility, fellowships, or continuing-student rules as ordinary international CS master's admission requirements.
 12. Interpret each statement semantically before mapping it to a field. A keyword match alone is insufficient: identify the subject, requirement type, applicant population, degree, time period, and whether the number is an overall score, section score, fee, date, course load, or other quantity.
+13. Important ambiguous or conditional admission information must not be discarded. If a GPA, English score, GRE rule, fee, material rule, or deadline cannot safely fit a structured field, also return it in evidence_paragraphs as one readable contextual paragraph.
 {feedback_part}
 URL: {url}
 Page content:
@@ -309,6 +321,7 @@ Field guidance:
   - deadline, due, or closes -> application_close_date;
   - decisions released, notification by, or results announced -> decision_release_date.
   - Do not confuse priority, financial-aid, document-supplement, fellowship, or TA dates with the regular application deadline. If the year is unknown, leave the date null and preserve the wording in note.
+  - When a date has no explicit year, do not return an empty deadline record. Put the complete deadline wording and its surrounding admission-cycle context in evidence_paragraphs with category="deadline".
 - scholarships cover named scholarships, fellowships, assistantships, and admission funding with amount, coverage, and eligibility.
 - app_materials contains additional materials not represented by dedicated fields, such as portfolios, videos, additional essays, and writing samples.
 
@@ -331,7 +344,7 @@ Return JSON only. Omit empty arrays when appropriate, and include only non-null 
 def validation_repair_prompt(url: str, program_codes: list[str], current: dict,
                              issues: list[dict], source_part: str,
                              part_index: int, part_count: int) -> str:
-    return f"""Audit and repair structured Computer Science graduate-admission data using the original page text.
+    return f"""Audit and repair structured admission data for an international Computer Science/CSE master's applicant using the original page text.
 
 This is part {part_index}/{part_count} of the same page. Inspect this entire part semantically.
 
@@ -340,11 +353,12 @@ Tasks:
 2. Find important fields omitted from the current extraction. In particular, promote dedicated facts to their dedicated fields: a stated number of recommendation letters belongs in rec_letter_count even if it also appears in app_materials; test scores belong in their test fields; explicit dates belong in deadline fields.
 3. DET means Duolingo English Test. "Internet-based test" in a TOEFL context may support TOEFL iBT. Number words such as one, two, and three may support numeric values.
 4. Do not invent a year. A month and day without an explicit year must not become YYYY-MM-DD.
-5. Preserve scope and use only these program codes: {json.dumps(program_codes, ensure_ascii=False)}.
+5. Use only this target record code: {json.dumps(program_codes, ensure_ascii=False)}.
 6. Every returned value needs a concise source_excerpt grounded in this source part. Minor formatting normalization is allowed, but meaning, numbers, scope, and conditions must remain unchanged.
 7. Return only new or corrected items supported by this part. Do not repeat unsupported values from the current extraction.
 8. Admission fields must describe requirements for prospective applicants. Do not map rules for current/enrolled students, maintaining GPA after enrollment, qualifying or writing exams taken after admission, graduation, degree completion, or good standing into admission fields.
-9. A statement explicitly limited to PhD applicants must not be returned for an MS program or a general department-wide placeholder.
+9. A statement explicitly limited to PhD, undergraduate, current/enrolled students, TA employment, graduation, or degree progress must not be returned. Domestic-only rules must not replace international-applicant rules.
+10. When a disputed or omitted GPA, English score, GRE rule, or deadline is important but cannot be safely normalized, preserve it in evidence_paragraphs. Include enough surrounding conditions for a later RAG model to interpret it; do not guess a normalized value.
 
 URL: {url}
 Current extraction:

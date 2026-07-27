@@ -40,6 +40,45 @@ def is_same_root(url: str, root_info: dict) -> bool:
         return False
 
 
+def is_same_host(url: str, root_info: dict) -> bool:
+    """是否仍在同一官方 host；供 root path 外的高價值 sibling 頁使用。"""
+    try:
+        return urlparse(url).netloc.lower() == root_info["netloc"]
+    except Exception:
+        return False
+
+
+def is_high_value_sibling_url(url: str, anchor_text: str = "") -> bool:
+    """保守放行同 host、root path 外的明確申請資料頁。
+
+    全站放行容易把新聞、課程與人員頁灌滿 MAX_PAGES；只靠嚴格 root path 又會
+    漏掉常放在 /financial-support、/tuition 或 /international 的全校規則。
+    URL path 或 anchor 任一具有強申請訊號即可交給後續 LLM URL filter 再判斷。
+    """
+    try:
+        path = urlparse(url).path.lower()
+    except Exception:
+        return False
+    evidence = f"{path} {(anchor_text or '').lower()}"
+    non_applicant_hints = (
+        "admitted-student", "admitted_student", "respond-offer",
+        "current-student", "current_student", "undergraduate",
+        "alumni", "graduation", "commencement",
+    )
+    if any(hint in evidence for hint in non_applicant_hints):
+        return False
+    strong_hints = (
+        "admission", "apply", "application", "requirement", "deadline",
+        "prospective", "international applicant", "international student",
+        "english proficiency", "language proficiency", "toefl", "ielts",
+        "duolingo", "transcript", "academic record", "recommendation",
+        "statement of purpose", "application fee", "fee waiver",
+        "tuition", "cost of attendance", "financial support", "financial aid",
+        "funding", "scholarship", "fellowship",
+    )
+    return any(hint in evidence for hint in strong_hints)
+
+
 def has_ignored_extension(url: str) -> bool:
     path = urlparse(url).path.lower().split("?")[0]
     return any(path.endswith(ext) for ext in IGNORED_EXTENSIONS)
@@ -87,7 +126,9 @@ def application_scope_exclusion(url: str, anchor_text: str = "") -> str | None:
         "/events", "/event/", "/news", "newsletter", "newsroom", "/announcements",
         "faculty-award", "faculty-recruit", "faculty-member", "/faculty", "/people",
         "research-area", "research-lab", "graduate-research", "research-center",
-        "undergraduate", "student-life", "alumni", "timesheet", "job-opening",
+        "undergraduate", "student-life", "alumni", "current-fellowship",
+        "current-student-funding", "timesheet", "job-opening",
+        "financial_support/english-proficiency",
         "staff-position", "academic-and-staff-positions",
     )
     if any(token in evidence for token in strict_drop_tokens):

@@ -212,6 +212,13 @@ def verify():
                 JOIN universities u ON u.id = p.university_id
                 ORDER BY u.school_id, p.program_code, m.material_type
             """)
+            show("PROGRAM EVIDENCE", """
+                SELECT u.school_id, p.program_code, e.*
+                FROM program_evidence e
+                JOIN programs p ON p.id = e.program_id
+                JOIN universities u ON u.id = p.university_id
+                ORDER BY u.school_id, p.program_code, e.category, e.field_name
+            """)
             show("WEB PAGES - AUDIT", """
                 SELECT u.school_id, w.id, w.program_id, w.url, w.passed_types,
                        w.char_count, left(w.raw_text, 300) AS raw_text_preview,

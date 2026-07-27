@@ -165,8 +165,8 @@ def call_llm_json(prompt: str, model_name: str = DEFAULT_MODEL, system: str | No
             msg = str(e)
             if "rate_limit" in msg or "429" in msg:
                 wait = _rate_limit_wait_seconds(msg, attempt)
-                print(f"  ⏳ LLM 限流，等待 {wait:.1f}s 後重試（{attempt + 1}/{MAX_LLM_RETRY + 1}）")
+                print(f"  [WAIT] LLM 限流，等待 {wait:.1f}s 後重試（{attempt + 1}/{MAX_LLM_RETRY + 1}）")
                 time.sleep(wait)
             else:
-                print(f"  ⚠️ LLM JSON 呼叫失敗（{attempt + 1}/{MAX_LLM_RETRY + 1}）：{msg[:200]}")
+                print(f"  [WARN] LLM JSON 呼叫失敗（{attempt + 1}/{MAX_LLM_RETRY + 1}）：{msg[:200]}")
     raise last_err

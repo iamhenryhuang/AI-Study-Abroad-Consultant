@@ -12,7 +12,7 @@ SCHOOLS = [
     {
         "school_id": "ucsd",
         "roots": [
-            "https://cse.ucsd.edu/graduate",
+            "https://cse.ucsd.edu/graduate/admissions",
             "https://grad.ucsd.edu/admissions/",
         ],
     },
@@ -25,25 +25,25 @@ SCHOOLS = [
     {
         "school_id": "stanford",
         "roots": [
-            "https://www.cs.stanford.edu/admissions",
-            "https://gradadmissions.stanford.edu/apply"
+            "https://www.cs.stanford.edu/admissions/masters-admissions",
+            "https://gradadmissions.stanford.edu/apply",
+            "https://gradadmissions.stanford.edu/apply/test-scores"
         ],
     },
     {
         "school_id": "cmu",
         "roots": [
-            "https://www.cs.cmu.edu/academics/graduate-admissions",
-            "https://www.cs.cmu.edu/academics/masters/programs",
+            "https://csd.cs.cmu.edu/academics/masters/admissions",
+            "https://www.cs.cmu.edu/education/graduate-admissions",
         ],
     },
     {
         "school_id": "gatech",
         "roots": [
-         "https://grad.gatech.edu/admissions",
-         "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
-         "https://grad.gatech.edu/faq/knowledgebase.php?category=5",
-         "https://grad.gatech.edu/english-proficiency",
-         ""
+            "https://www.cc.gatech.edu/ms-computer-science-admission-requirements",
+            "https://www.cc.gatech.edu/ms-computer-science-admissions-faq",
+            "https://grad.gatech.edu/admissions",
+            "https://grad.gatech.edu/english-proficiency",
         ],
     },
     {
@@ -57,21 +57,22 @@ SCHOOLS = [
     {
         "school_id": "caltech",
         "roots": [
-            "https://www.cms.caltech.edu/academics",
+            "https://www.cms.caltech.edu/academics/grad",
             "https://gradoffice.caltech.edu/admissions"
         ],
     },
     {
         "school_id": "utoronto",
         "roots": [
-         "https://www.sgs.utoronto.ca/future-students/",
-         "https://web.cs.toronto.edu/graduate"
+            "https://mscac.utoronto.ca/apply/",
+            "https://web.cs.toronto.edu/graduate",
+            "https://www.sgs.utoronto.ca/future-students/admission-application-requirements/"
         ],
     },
     {
         "school_id": "uci",
         "roots": [
-            "https://mcs.ics.uci.edu/",
+            "https://mcs.ics.uci.edu/how-to-apply/",
             "https://grad.uci.edu/admissions/"
         ],
     },
@@ -79,6 +80,8 @@ SCHOOLS = [
         "school_id": "purdue",
         "roots": [
             "https://www.cs.purdue.edu/graduate/admission/",
+            "https://www.cs.purdue.edu/graduate/admission/steps.html",
+            "https://www.cs.purdue.edu/graduate/admission/faq-application.html",
         ],
     },
     {
@@ -106,8 +109,9 @@ SCHOOLS = [
     {
         "school_id": "columbia",
         "roots": [
-            "https://www.cs.columbia.edu/education/ms/",
-            "https://gradengineering.columbia.edu/admissions/how-apply",
+            "https://www.cs.columbia.edu/education/ms/appfaq/",
+            "https://www.engineering.columbia.edu/admissions-aid/graduate-admissions/how-apply",
+            "https://www.engineering.columbia.edu/admissions-aid/graduate-admissions/how-apply/application-requirements",
         ],
     },
     {
@@ -121,10 +125,9 @@ SCHOOLS = [
     {
         "school_id": "bu",
         "roots": [
-            "https://www.bu.edu/cs/phd-ms/ms-in-computer-science/",
-            "https://www.bu.edu/cs/admissions/graduate-admissions/",
-            "https://www.bu.edu/cs/masters/",
-            "https://www.bu.edu/admissions"
+            "https://www.bu.edu/cs/masters/ms-admissions/",
+            "https://www.bu.edu/cs/masters/ms-admissions/on-campus-admissions/",
+            "https://www.bu.edu/cas/admissions/ma-ms/apply/",
         ],
     },
     {

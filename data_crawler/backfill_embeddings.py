@@ -61,7 +61,7 @@ def main():
             print(f"  進度 {min(i + args.batch_size, len(rows))}/{len(rows)}")
     finally:
         conn.close()
-    print("✅ backfill 完成")
+    print("[OK] backfill 完成")
 
 
 if __name__ == "__main__":
