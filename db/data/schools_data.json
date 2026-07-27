@@ -3,8 +3,8 @@
     "university": { "school_id": "purdue", "name": "Purdue University", "domain": "purdue.edu" },
     "programs": [
       {
-        "program_code": "CS MS", "degree_type": "MS",
-        "program_name": "Master of Science in Computer Science", "department": "Computer Science",
+        "program_code": "INTERNATIONAL_CS_MASTERS", "degree_type": "MS",
+        "program_name": "International Computer Science Master's", "department": "Computer Science",
         "toefl_min": 100, "toefl_ibt_min": 100, "ielts_min": 7.5, "duolingo_min": 135,
         "language_waiver": "might consider a waiver of the TOEFL or IELTS requirements",
         "gre_required": "not_accepted", "gre_quant_min": null, "gre_verbal_min": null, "gre_awa_min": null,
@@ -58,8 +58,8 @@
     "university": { "school_id": "cmu", "name": "Carnegie Mellon University", "domain": "cmu.edu" },
     "programs": [
       {
-        "program_code": "CS MS", "degree_type": "MS",
-        "program_name": "Master of Science in Computer Science", "department": "Computer Science",
+        "program_code": "INTERNATIONAL_CS_MASTERS", "degree_type": "MS",
+        "program_name": "International Computer Science Master's", "department": "Computer Science",
         "toefl_min": 100, "toefl_ibt_min": 100, "ielts_min": 7.0, "duolingo_min": null,
         "language_waiver": null,
         "gre_required": "not_accepted", "gre_quant_min": null, "gre_verbal_min": null, "gre_awa_min": null,
@@ -87,8 +87,8 @@
     "university": { "school_id": "stanford", "name": "Stanford University", "domain": "stanford.edu" },
     "programs": [
       {
-        "program_code": "CS MS", "degree_type": "MS",
-        "program_name": "Master of Science in Computer Science", "department": "Computer Science",
+        "program_code": "INTERNATIONAL_CS_MASTERS", "degree_type": "MS",
+        "program_name": "International Computer Science Master's", "department": "Computer Science",
         "toefl_min": 100, "toefl_ibt_min": 100, "ielts_min": 7.0, "duolingo_min": 120,
         "language_waiver": "Waived for applicants with a degree from an English-taught institution",
         "gre_required": "not_accepted", "gre_quant_min": null, "gre_verbal_min": null, "gre_awa_min": null,
@@ -114,8 +114,8 @@
     "university": { "school_id": "gatech", "name": "Georgia Institute of Technology", "domain": "gatech.edu" },
     "programs": [
       {
-        "program_code": "CS MS", "degree_type": "MS",
-        "program_name": "Master of Science in Computer Science", "department": "Computer Science",
+        "program_code": "INTERNATIONAL_CS_MASTERS", "degree_type": "MS",
+        "program_name": "International Computer Science Master's", "department": "Computer Science",
         "toefl_min": 90, "toefl_ibt_min": 90, "ielts_min": 6.5, "duolingo_min": null,
         "language_waiver": null,
         "gre_required": "optional", "gre_quant_min": null, "gre_verbal_min": null, "gre_awa_min": null,
@@ -142,8 +142,8 @@
     "university": { "school_id": "ucla", "name": "University of California, Los Angeles", "domain": "ucla.edu" },
     "programs": [
       {
-        "program_code": "CS MS", "degree_type": "MS",
-        "program_name": "Master of Science in Computer Science", "department": "Computer Science",
+        "program_code": "INTERNATIONAL_CS_MASTERS", "degree_type": "MS",
+        "program_name": "International Computer Science Master's", "department": "Computer Science",
         "toefl_min": 87, "toefl_ibt_min": 87, "ielts_min": 7.0, "duolingo_min": null,
         "language_waiver": null,
         "gre_required": "not_accepted", "gre_quant_min": null, "gre_verbal_min": null, "gre_awa_min": null,
