@@ -70,5 +70,52 @@ class TestRecommend(unittest.TestCase):
             self.assertLessEqual(len(tier), 2)
 
 
+class _FakeCursor:
+    def __init__(self, rows, capture):
+        self._rows = rows
+        self._capture = capture
+        self.description = [("gpa",), ("decision",), ("notes",)]
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def execute(self, sql, params=None): self._capture.append((sql, params))
+    def fetchall(self): return self._rows
+
+
+class _FakeConn:
+    def __init__(self, rows):
+        self.rows = rows
+        self.captured = []
+        self.read_only = False
+        self.closed = False
+    def cursor(self): return _FakeCursor(self.rows, self.captured)
+    def close(self): self.closed = True
+
+
+class TestFetchNearbyCases(unittest.TestCase):
+    def test_returns_rows_and_sets_readonly(self):
+        conn = _FakeConn([(3.7, "accepted", "note")])
+        with patch.object(rec, "get_connection", return_value=conn):
+            out = rec.fetch_nearby_cases("cmu", 3.6)
+        self.assertEqual(out, [{"gpa": 3.7, "decision": "accepted", "notes": "note"}])
+        self.assertTrue(conn.read_only)
+        self.assertTrue(conn.closed)
+        sql, params = conn.captured[0]
+        self.assertIn("ABS(gpa", sql)          # 有 gpa → 相近分數分支
+        self.assertEqual(params[0], "cmu")
+
+    def test_no_gpa_uses_fallback_branch(self):
+        conn = _FakeConn([])
+        with patch.object(rec, "get_connection", return_value=conn):
+            out = rec.fetch_nearby_cases("cmu", None)
+        self.assertEqual(out, [])
+        sql, _ = conn.captured[0]
+        self.assertNotIn("ABS(gpa", sql)       # 無 gpa → fallback 分支
+        self.assertTrue(conn.closed)
+
+    def test_no_connection_returns_empty(self):
+        with patch.object(rec, "get_connection", return_value=None):
+            self.assertEqual(rec.fetch_nearby_cases("cmu", 3.6), [])
+
+
 if __name__ == "__main__":
     unittest.main()
