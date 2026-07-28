@@ -35,6 +35,7 @@ def decomposer_node(state: AgentState) -> dict:
         school_ids             = _detect_school_ids(query)
         mentioned_school_names = []
         professor_query         = None
+        professor_list_query    = None
         needs_sql_search        = True
         needs_experience        = False
         wants_recommendation    = False
@@ -66,6 +67,8 @@ def decomposer_node(state: AgentState) -> dict:
               f"[{professor_query.get('school_id', '?')}]")
     else:
         print("[Decomposer] professor_query = None（無教授查詢意圖）")
+    if professor_list_query:
+        print(f"[Decomposer] professor_list_query = {professor_list_query['school_id']}")
     print(f"[Decomposer] needs_sql_search = {needs_sql_search}  needs_experience = {needs_experience}")
 
     return {
@@ -77,6 +80,7 @@ def decomposer_node(state: AgentState) -> dict:
         "experience_docs":        [],
         "final_answer":           "",
         "professor_query":        professor_query,
+        "professor_list_query":   professor_list_query,
         "needs_sql_search":       needs_sql_search,
         "needs_experience":       needs_experience,
         "wants_recommendation":   wants_recommendation,
@@ -100,7 +104,7 @@ def route_to_retrieval(state: AgentState):
     targets = []
     if state.get("needs_sql_search", True):
         targets.append(Send("search", state))
-    if state.get("professor_query") is not None:
+    if state.get("professor_query") is not None or state.get("professor_list_query") is not None:
         targets.append(Send("extension_function", state))
     if state.get("needs_experience", False):
         targets.append(Send("experience_search", state))

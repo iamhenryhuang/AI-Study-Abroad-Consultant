@@ -44,13 +44,25 @@ Agent 的檢索分三層 fallback，觸發條件是「Verifier 判定資料不�
 
 對應 [api.py](api.py) 與 [scripts/retriever/agent/runtime.py](scripts/retriever/agent/runtime.py)、[scripts/retriever/agent/nodes/](scripts/retriever/agent/nodes/) 中發送的事件。
 
+**實作細節（`contextvars` 而非 `threading.local`）**：`_emit` 透過 `state.py` 的 `_on_event_var`（`contextvars.ContextVar`）取得目前請求的 `on_event` callback。LangGraph 用 `ThreadPoolExecutor` 執行並行節點時（例如 `search` 與 `experience_search` 同時跑），會在提交任務前用 `contextvars.copy_context()` 複製當前 context 給子執行緒，`ContextVar` 因此能正確跨執行緒傳遞；改用 `threading.local()` 會導致子執行緒讀不到主執行緒設定的值，`thinking`/`tool_call`/`tool_result` 事件被靜默吞掉（但最終答案不受影響，因為檢索邏輯本身在子執行緒內仍正常執行）。**日後若要新增執行狀態（如 `on_event`、`cancel_event`）務必用 `ContextVar`，不要用 `threading.local`。**
+
 ## 教授查詢實作
 
-`extension_function_node` 在 Decomposer 偵測到教授意圖時，即時呼叫 SerpAPI 的 `google_scholar_author` API（以 `author_id` 查詢，確保結果只屬於該教授本人）。即時查詢每次重新抓取、不寫檔快取；只有下方 CLI 手動抓取會把結果存到 `crawler/data/{school_id}_professors.json`。
+`extension_function_node`（`retriever/agent/nodes/retrieval.py`）處理兩種互斥的教授查詢意圖，Decomposer 在同一次意圖判斷中決定要走哪一種：
 
-手動預先抓取：
+1. **指名查詢（`professor_query`）**：問題中有明確教授姓名時觸發，即時呼叫 SerpAPI 的 `google_scholar_author` API（以 `author_id` 查詢，確保結果只屬於該教授本人），抓取研究領域與最新論文。每次重新抓取、不寫檔快取；只有下方 CLI 手動抓取會把結果存到 `crawler/data/{school_id}_professors.json`。
+2. **名單查詢（`professor_list_query`）**：問題只給學校、沒有指名教授（如「某校有哪些教授」「某校有沒有做 XX 的教授」）時觸發，查 `professors` 表（`retriever/professor_list_search.py`），回傳姓名、職稱（若有）、研究領域、官方頁面連結。這是種子資料，不會即時抓取，收錄範圍見 [`db/README.md`](../db/README.md)。
+
+兩者互斥：Decomposer 判斷到明確教授姓名時，`professor_list_query` 一律為 `null`，避免同一題重複觸發兩條路徑。使用者可以先問名單、再針對其中一位接續問研究細節，自然銜接到指名查詢路徑。
+
+手動預先抓取（指名查詢用）：
 ```bash
 python backend/scripts/professor_fetcher/run_fetch.py --name "Andrew Ng" --school "Stanford"
+```
+
+新增/更新教授名單種子資料：
+```bash
+python db/load_professors.py   # 讀 db/data/professors.json，upsert 進 professors 表
 ```
 
 ## 目錄結構
@@ -59,7 +71,8 @@ python backend/scripts/professor_fetcher/run_fetch.py --name "Andrew Ng" --schoo
 backend/scripts/
 ├── db/                  # DB 連線與 setup/init-schema/verify-db 操作
 ├── retriever/           # sql_search（text-to-SQL）+ hybrid_search（向量+FTS 混合，降級純 FTS）
-│                        #  + applicant_search（申請經驗）+ LangGraph agent
+│                        #  + applicant_search（申請經驗）+ professor_list_search（教授名單）
+│                        #  + LangGraph agent
 ├── generator/           # OpenAI 答案生成（分級模型）
-└── professor_fetcher/   # SerpAPI 教授資料抓取
+└── professor_fetcher/   # SerpAPI 教授研究細節即時抓取（指名查詢）
 ```

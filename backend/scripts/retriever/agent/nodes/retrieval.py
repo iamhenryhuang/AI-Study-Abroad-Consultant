@@ -5,6 +5,7 @@ from __future__ import annotations
 from professor_fetcher.fetch_for_agent import run_professor_fetch
 from retriever.applicant_search import applicant_search
 from retriever.hybrid_search import hybrid_search_with_fallback
+from retriever.professor_list_search import professor_list_search
 from retriever.sql_search import sql_search
 from retriever.experience_crawl import SPARSE_THRESHOLD, maybe_enqueue_crawl
 from retriever.recommend import recommend, fetch_nearby_cases
@@ -12,7 +13,12 @@ from retriever.recommend import recommend, fetch_nearby_cases
 from ..state import AgentState, _check_cancel, _detect_school_ids, _emit
 
 def extension_function_node(state: AgentState) -> dict:
-    """擴充功能節點（與 search 並行）：抓取教授資料，寫入 extension_docs。"""
+    """擴充功能節點（與 search 並行）：抓取教授資料，寫入 extension_docs。
+
+    處理兩種互斥的教授查詢：
+    - professor_query：指名教授，走 SerpAPI/Google Scholar 抓研究細節
+    - professor_list_query：只給學校，查 professors 表列出該校教授名單
+    """
     _emit({"type": "thinking", "step": "extension_function"})
 
     extension_docs: list[dict] = []
@@ -30,6 +36,26 @@ def extension_function_node(state: AgentState) -> dict:
             extension_docs.extend(docs)
         else:
             print("[Extension] 未抓到教授資料")
+
+    professor_list_query = state.get("professor_list_query")
+    if professor_list_query is not None:
+        school_id = professor_list_query.get("school_id")
+        print(f"[Extension] 查詢教授名單：{school_id}")
+        _emit({
+            "type": "tool_call",
+            "tool": "professor_list_search",
+            "args": {"school_id": school_id},
+        })
+        docs = professor_list_search(school_id)
+        _emit({
+            "type": "tool_result",
+            "tool": "professor_list_search",
+            "preview": f"找到 {len(docs)} 位教授",
+        })
+        if docs:
+            extension_docs.extend(docs)
+        else:
+            print(f"[Extension] {school_id} 無教授名單資料")
 
     print(f"[Extension] 共取得 {len(extension_docs)} 筆擴充資料")
     return {

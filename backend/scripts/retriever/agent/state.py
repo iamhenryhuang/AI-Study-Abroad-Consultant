@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+from contextvars import ContextVar
 from typing import Callable, Optional, TypedDict
 
 class AgentCancelledError(Exception):
@@ -44,13 +45,17 @@ _SCHOOL_ALIASES: dict[str, list[str]] = {
     "rutgers":      ["rutgers", "羅格斯"],
 }
 
-# Thread-local execution context prevents concurrent API requests from sharing callbacks.
-_agent_context = threading.local()
+# ContextVar（而非 threading.local）：LangGraph 用 ThreadPoolExecutor 執行並行節點
+# （如 search + experience_search 同時跑），並在提交任務前用 contextvars.copy_context()
+# 複製當前 context 給子執行緒；threading.local 跨不過這層 executor，
+# 子執行緒讀到的會是空值，導致 _emit 靜默吞掉 thinking/tool_call 等事件。
+_on_event_var: ContextVar[Optional[Callable[[dict], None]]] = ContextVar("on_event", default=None)
+_cancel_event_var: ContextVar[Optional[threading.Event]] = ContextVar("cancel_event", default=None)
 
 
 def _check_cancel() -> None:
     """若取消事件已設定，立即拋出 AgentCancelledError。"""
-    cancel_event = getattr(_agent_context, "cancel_event", None)
+    cancel_event = _cancel_event_var.get()
     if cancel_event is not None and cancel_event.is_set():
         raise AgentCancelledError("Agent 已被取消")
 
@@ -66,6 +71,7 @@ class AgentState(TypedDict):
     experience_docs:   list[dict]    # 申請經驗回報（needs_experience 時由 experience_search_node 整份覆寫）
     final_answer:      str
     professor_query:   dict | None   # Decomposer 偵測到的教授查詢 {name, school, school_id}
+    professor_list_query: dict | None # Decomposer 偵測到的教授名單查詢 {school_id}（查 professors 表）
     needs_sql_search:  bool         # Decomposer 判斷是否需要查 programs 申請要求資料
     needs_experience:  bool         # Decomposer 判斷是否問「錄取背景/機會/案例」，需查 applicant_reports
     mentioned_school_ids: list[str]   # Decomposer 從已知清單中偵測到的 school_id（不代表資料庫已收錄）
@@ -85,7 +91,7 @@ class AgentState(TypedDict):
 
 def _emit(event: dict) -> None:
     """安全地呼叫目前的 on_event callback（若有設定）。"""
-    on_event = getattr(_agent_context, "on_event", None)
+    on_event = _on_event_var.get()
     if on_event is not None:
         try:
             on_event(event)
@@ -115,6 +121,7 @@ def create_initial_state(query: str) -> AgentState:
         "experience_docs": [],
         "final_answer": "",
         "professor_query": None,
+        "professor_list_query": None,
         "needs_sql_search": True,
         "needs_experience": False,
         "mentioned_school_ids": [],
@@ -135,10 +142,10 @@ def set_execution_context(
     on_event: Optional[Callable[[dict], None]],
     cancel_event: Optional[threading.Event],
 ) -> None:
-    _agent_context.on_event = on_event
-    _agent_context.cancel_event = cancel_event
+    _on_event_var.set(on_event)
+    _cancel_event_var.set(cancel_event)
 
 
 def clear_execution_context() -> None:
-    _agent_context.on_event = None
-    _agent_context.cancel_event = None
+    _on_event_var.set(None)
+    _cancel_event_var.set(None)

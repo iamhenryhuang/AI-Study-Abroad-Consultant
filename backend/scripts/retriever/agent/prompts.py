@@ -27,6 +27,18 @@ def _build_intent_prompt(query: str) -> str:
 - 否則 professor_query 為 null
 
 ====================
+【任務二點五：教授名單查詢偵測（professor_list_query）】
+====================
+判斷問題是否在詢問「某校有哪些教授」這類名單型問題（沒有指名特定教授姓名，
+而是要列出多位教授，例如「Stanford CS 系有哪些教授」「Purdue 有做電腦視覺的教授嗎」）。
+
+- 若問題在問某校教授名單/推薦，且該校在已知學校清單內，professor_list_query 設為
+  {{"school_id": "學校ID"}}
+- 若問題已經有明確教授姓名（professor_query 不為 null），professor_list_query 一律為 null
+  （兩者互斥：指名查詳情 vs 列名單，不會同時成立）
+- 若學校不在已知清單內或未提及學校，professor_list_query 為 null
+
+====================
 【任務三：是否需要查詢結構化申請要求資料庫（needs_sql_search）】
 ====================
 資料庫（programs 及其子表）只有 GPA、TOEFL/IELTS/GRE、申請截止日期、學費、獎助等「申請要求」欄位，
@@ -36,6 +48,8 @@ def _build_intent_prompt(query: str) -> str:
   needs_sql_search 設為 false
 - 若使用者問題除了教授資訊外，還有詢問任何申請要求（GPA/TOEFL/IELTS/GRE/截止日期等），
   needs_sql_search 設為 true
+- 若問題只在詢問教授名單（professor_list_query 不為 null）且完全沒有申請要求問題，
+  needs_sql_search 設為 false
 - 若問題完全沒有教授查詢意圖，needs_sql_search 一律為 true
 
 ====================
@@ -73,6 +87,7 @@ wants_recommendation 設為 true，並把分數提取到 profile（數字，沒�
   "school_ids": ["school_id_1", ...],
   "mentioned_school_names": ["School Name 1", ...],
   "professor_query": {{"name": "教授全名（英文）", "school": "學校名稱（英文）", "school_id": "學校ID"}} or null,
+  "professor_list_query": {{"school_id": "學校ID"}} or null,
   "needs_sql_search": true or false,
   "needs_experience": true or false,
   "wants_recommendation": true or false,
