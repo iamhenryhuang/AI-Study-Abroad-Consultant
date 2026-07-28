@@ -1,85 +1,80 @@
-# `db/` — 資料庫 schema 與載入腳本
+# `db/`：Schema 與資料載入
 
-本目錄放**建表 SQL、灌資料腳本、種子/來源 JSON**。
+`db/` 保存 PostgreSQL schema、migration、來源 JSON 與批次載入腳本。後端 runtime 的連線與操作程式則在 `backend/scripts/db/`。
 
-> `db/` = 資料庫的藍圖與種子（手動跑或給後端讀 schema）。
-> `backend/scripts/db/` = 後端 runtime 存取 DB 的程式，兩者不同、不可混。
+## 核心資料表
 
-## Schema 總覽
+| 類型 | 資料表 | 用途 |
+|---|---|---|
+| 學校與申請條件 | `universities`、`programs` | 學校、學程及 TOEFL、IELTS、GRE、GPA、費用、推薦信、SOP 等欄位 |
+| 一對多申請資料 | `program_deadlines`、`program_scholarships`、`program_app_materials` | 截止日、獎助與特殊材料 |
+| 官方原文 | `web_pages`、`document_chunks` | 清洗後頁面與 RAG chunks；`fts_vector` 自動建立，`embedding` 可後補 |
+| 補充證據 | `program_evidence`、`global_extractions` | 不適合強制正規化，但仍有來源依據的內容 |
+| 品質控管 | `review_queue` | 驗證未通過、等待人工檢查的欄位 |
+| 教授 | `professors` | 姓名、職稱、研究領域與官方連結 |
+| 社群經驗 | `applicant_reports`、`user_experiences` | GradCafe／一畝三分地及使用者分享 |
 
-`schema_programs.sql` 定義 10 張核心表（分「結構化」「內文」「品質控管」「教授名單」四類），另有 `migrations/` 加法式補上的 `applicant_reports`、以及 `init_experience.sql` 的 `user_experiences`。
+`schema_programs.sql` 是 crawler 相關資料表的唯一 schema 來源。`init_db.sql` 負責 DROP，`data_crawler/db.py` 的 migration 只做加法式升級。
 
-**結構化資料（供 text-to-SQL 查詢）** —— 以 `programs` 為核心的主表-子表結構：
-- `universities`：學校基本資料（school_id、name、domain）
-- `programs`：每個學位項目一列（一校可有多個 program，如 CS MS / CS PhD），含 GPA、TOEFL/IELTS/Duolingo、GRE、學費、申請費、推薦信數、CV 等單值申請要求欄位
-- `program_deadlines` / `program_scholarships` / `program_app_materials`：截止日 / 獎助 / 特殊申請材料（各為「一 program 可多筆」的子表，靠 `program_id` 關聯）
-- `global_extractions`：尚未對應到正式 program 的全校／系級抽取結果
+## 寫入來源
 
-**內文資料（供全文檢索）**：
-- `web_pages`：每個爬取頁面的清洗後全文
-- `document_chunks`：全文切段後的 chunk，`fts_vector` 供全文檢索（trigger 自動生成）、`embedding` 為預留向量欄位
+| 資料來源 | 寫入方式 | 主要資料表 |
+|---|---|---|
+| 三校官方網站 | `python -m data_crawler.main ...` | `universities`、`programs` 家族、`web_pages`、`document_chunks` |
+| 教授種子 | `python backend/scripts/run.py load-professors` | `professors` |
+| GradCafe／一畝三分地 | `python db/load_applicant_reports.py --migrate` | `applicant_reports` |
+| 使用者表單 | FastAPI experiences endpoint | `user_experiences` |
 
-**教授名單（供 professor_list_query 查詢）**：
-- `professors`：教授姓名、職稱（title，可為 NULL）、研究領域（research_areas，陣列）、官方頁面連結，靠 `university_id` 關聯 `universities`。手動整理的種子資料，非 data_crawler 產出（data_crawler 目前不處理 faculty 頁）。
+教授資料以 `universities.school_id` 關聯，因此必須先爬完學校再執行 `load-professors`。同校同名教授以 `UNIQUE (university_id, name)` upsert。
 
-**品質控管**：
-- `review_queue`：爬蟲抽取時驗證失敗（如幻覺）的欄位，進佇列等人工複查
+`applicant_reports.school_id` 不設 FK，因為社群案例涵蓋的學校比正式 `universities` 多；查詢時直接使用它的 `school_id`，不要強制 JOIN `universities`。
 
-## 四個資料源（四批表，刻意分開）
+## 初始化順序
 
-| 資料源 | 建表檔 | 資料來源 | 寫入方式 | 性質 |
-|--------|--------|---------|---------|------|
-| `programs` 家族（上述 9 表，不含 `professors`） | `schema_programs.sql` | schools_data.json／爬蟲 | `load_schools.py`／data_crawler | 官方申請要求，權威 |
-| `professors` | `schema_programs.sql` | 手動整理（WebFetch 官網逐一驗證） | `load_professors.py` | 教授名單種子資料，非爬蟲產出 |
-| `applicant_reports` | `migrations/001_applicant_reports.sql` | GradCafe／一畝三分地 JSON | `load_applicant_reports.py`（批次） | 社群錄取回報，非官方、有樣本偏誤 |
-| `user_experiences` | `init_experience.sql` | 前端表單 | `backend/.../experiences.py`（即時） | 使用者主動分享的第一手經驗 |
+```bash
+# 只在最前面執行一次
+python backend/scripts/run.py init-full
 
-四者目標、欄位、寫入路徑都不同。
+python -m data_crawler.main --school-id gatech   --max-depth 1 --max-pages 10
+python -m data_crawler.main --school-id purdue   --max-depth 1 --max-pages 10
+python -m data_crawler.main --school-id stanford --max-depth 1 --max-pages 10
 
-- **`professors`**：目前收錄 Georgia Tech / Purdue / Stanford，每校約 30 位。`title` 欄位若原始資料未查證到職稱則為 NULL，寫入與生成答案時皆不得自行推測填入，避免幻覺。`UNIQUE (university_id, name)` 保證同校同名教授不重複，重跑 `load_professors.py` 是 upsert（更新既有列，不會產生孤兒資料）。
-- **`applicant_reports`**：GradCafe / 一畝三分地的個別錄取/被拒案例（含 GPA、結果、背景），只用來回答「錄取者背景 / 某分數有無機會」這類問題。`fts_vector` 供全文檢索。生成答案時會標註「非官方經驗談」並禁止當成錄取門檻。
-- **`user_experiences`**：查詢/寫入 SQL 直接寫在 `backend/scripts/db/experiences.py`（不另放 .sql）。
+python backend/scripts/run.py load-professors
+python backend/scripts/run.py verify-db
+```
 
-> 載入後實際筆數：gradcafe 995、1point3 591。1point3 的來源 JSON 有 596 筆，
-> 其中 5 筆是重複貼文（同一 thread URL），已由 `UNIQUE (source, source_url)` 去重——
-> 差額是正常的，不是資料遺失。
+重要行為：
 
-## 建表：改欄位只改 `schema_programs.sql`
+- `init-full`：重建 crawler schema，並載入社群申請回報。
+- `init-schema`：DROP 並重建 crawler 資料表。
+- `load-schools`／`init-all`：載入舊測試種子，會先重建 crawler schema；正式三校流程不使用。
+- `init-experience`：冪等建立 `user_experiences`，不清除既有資料。
+- `clear-crawler-data --yes`：清除 crawler DB 資料與 checkpoints。
 
-`programs` 家族的表定義**只有一份**，在 `schema_programs.sql`（只建表、不刪表、全冪等）。
-兩條路徑都引用它，因此不會漂移：
+三校爬完後不要再執行 `init-full`、`init-schema`、`load-schools` 或 `init-all`，否則學校、頁面、chunks 與教授關聯會消失。
 
-| 路徑 | 做什麼 |
-|------|--------|
-| `run.py init-schema` | 先跑 `init_db.sql`（只剩 DROP）再跑 `schema_programs.sql` → 重建、清空 |
-| 爬蟲 `ensure_migrations()` | 先跑 `schema_programs.sql` 再跑 `MIGRATION_SQL`（只剩 ALTER 升級） → 加法式、不動資料 |
+## Crawler 寫入內容
 
-另兩張表各自獨立：`init_experience.sql`（冪等）、`migrations/001_...sql`（加法式，
-**不會被 init-schema 清掉**）。
+`data_crawler` 最後的 `db_writer` 會：
 
-## `updated_at` 由 DB 維護
+1. 依 `school_id` 建立或取得 `universities`。
+2. Upsert `INTERNATIONAL_CS_MASTERS` 及可驗證的結構化欄位。
+3. 寫入 deadlines、scholarships、materials 與 evidence。
+4. 保存官方頁面全文到 `web_pages`。
+5. 以頁面為單位更新 `document_chunks`。
+6. 將驗證失敗的值寫入 `review_queue`，不當成可信結構化欄位。
 
-四張子表（`program_deadlines` / `program_scholarships` / `program_app_materials` /
-`global_extractions`）的 `updated_at` 由 `set_updated_at()` trigger 自動補值。
-**寫入端不需要、也不應該自己帶這個欄位**——過去靠寫入端自行帶值，`load_schools.py`
-的 INSERT 漏帶，導致資料全是 NULL。
+未加 `--dry-run` 且 `DATABASE_URL` 存在時會自動寫 DB；不需要再從 `data_crawler/output` 匯入。Output 只供稽核，已由 Git 忽略。
 
-## 檔案
+## 主要檔案
 
-- `schema_programs.sql` — **programs 家族的表定義（唯一權威來源）**，與 data_crawler 共用
-- `init_db.sql` — 只有 DROP 區塊（init-schema 重建時先清空，再跑上面那支）
-- `init_experience.sql` — 建 `user_experiences`
-- `migrations/001_applicant_reports.sql` — 建 `applicant_reports` + 全文檢索 trigger
-- `load_schools.py` / `load_professors.py` / `load_applicant_reports.py` — 灌資料腳本
-- `data/` — schools_data.json（測試種子，目前 5 校）、professors.json（教授名單種子，目前 3 校）、gradcafe_results.json、1point3.json
+- `schema_programs.sql`：crawler schema 唯一來源。
+- `init_db.sql`：重建前的 DROP。
+- `init_experience.sql`：使用者經驗表。
+- `migrations/001_applicant_reports.sql`：社群申請回報表與 FTS。
+- `load_applicant_reports.py`：清洗並 upsert 社群資料。
+- `load_professors.py`：upsert 三校教授名單。
+- `data/professors.json`：教授種子。
+- `data/schools_data.json`：舊測試資料，正式 crawler 流程不使用。
 
-> 兩個社群 JSON 格式差很多（結構、欄位名都不同），`load_applicant_reports.py` 負責清洗成統一欄位。
-
-## 注意
-
-- 新增學校時記得同步更新 `backend/scripts/retriever/agent/state.py` 的 `_SCHOOL_ALIASES` 對照表，Decomposer 才能正確辨識學校縮寫/別名。
-- 初始化與載入指令見專案根目錄 [README](../README.md)（推薦 `init-full` 一鍵建好三張表）。
-- `applicant_reports.school_id` **刻意沒有 FK** 指向 `universities`：社群資料涵蓋的學校
-  遠多於 `universities` 現有的 5 校（目前有 21 個 school_id 對不到，如 nyu 135 筆、
-  uiuc 128 筆），設 FK 會讓這些資料無法載入。代價是查詢時**不能用 `JOIN universities`**
-  撈這張表，否則會漏掉一千多筆；請直接以 `applicant_reports.school_id` 比對。
+新增學校時，除了 crawler root URL，也要更新 `backend/scripts/retriever/agent/state.py` 的學校別名。
