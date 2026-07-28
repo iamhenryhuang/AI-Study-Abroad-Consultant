@@ -23,6 +23,11 @@ class DeterministicIntentFallbackTest(unittest.TestCase):
         self.assertTrue(parsed["needs_experience"])
         self.assertFalse(parsed["needs_sql_search"])
 
+    def test_user_shared_experience_intent(self):
+        parsed = _fallback_intent("Stanford 有哪些使用者分享經驗？")
+        self.assertTrue(parsed["needs_experience"])
+        self.assertFalse(parsed["needs_sql_search"])
+
     def test_recommendation_profile(self):
         parsed = _fallback_intent("GPA 3.8 TOEFL 105 GRE 325，請推薦學校")
         self.assertTrue(parsed["wants_recommendation"])

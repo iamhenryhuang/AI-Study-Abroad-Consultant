@@ -73,7 +73,7 @@ class AgentState(TypedDict):
     professor_query:   dict | None   # Decomposer 偵測到的教授查詢 {name, school, school_id}
     professor_list_query: dict | None # Decomposer 偵測到的教授名單查詢 {school_id}（查 professors 表）
     needs_sql_search:  bool         # Decomposer 判斷是否需要查 programs 申請要求資料
-    needs_experience:  bool         # Decomposer 判斷是否問「錄取背景/機會/案例」，需查 applicant_reports
+    needs_experience:  bool         # Decomposer 判斷是否問經驗，需查 applicant_reports + user_experiences
     mentioned_school_ids: list[str]   # Decomposer 從已知清單中偵測到的 school_id（不代表資料庫已收錄）
     mentioned_school_names: list[str] # Decomposer 偵測到的學校名稱原文（不限於已知清單）
     verified_docs:     list[dict]    # Verifier 去重後的資料（search + extension 合併）

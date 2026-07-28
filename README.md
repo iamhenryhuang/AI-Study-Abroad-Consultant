@@ -127,6 +127,7 @@ python backend/scripts/run.py agent "Stanford CS MS 被拒絕的申請者通常�
 python backend/scripts/run.py agent "我的 GPA 3.8、TOEFL 105、GRE 325，請推薦衝刺、主申和保底學校。"
 python backend/scripts/run.py agent "Stanford 有哪些做 AI 或機器學習教授？"
 python backend/scripts/run.py agent "Stanford 的 Fei-Fei Li 研究方向是什麼？"
+python backend/scripts/run.py agent "Stanford 有哪些使用者分享經驗？"
 ```
 
 完整測試：

@@ -26,7 +26,7 @@ Agent 依問題組合下列資料來源：
 | 結構化申請要求 | `retriever/sql_search.py` | `programs` 與子表 |
 | 官方頁面全文 | `retriever/fulltext_search.py` | `document_chunks.fts_vector` |
 | 向量混合檢索 | `retriever/hybrid_search.py` | embedding + FTS + RRF |
-| 錄取經驗 | `retriever/applicant_search.py` | `applicant_reports` |
+| 錄取經驗 | `retriever/applicant_search.py` | `applicant_reports` + `user_experiences` |
 | 選校推薦 | `retriever/recommend.py` | 社群案例與使用者成績 |
 | 教授名單 | `retriever/professor_list_search.py` | `professors` |
 | 指名教授 | `professor_fetcher/` | SerpAPI |
