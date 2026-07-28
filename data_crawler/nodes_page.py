@@ -8,7 +8,7 @@ import re
 
 from .state import ProcessState, KEEP_TYPES
 from .url_tools import score_url_path
-from .llm import call_llm_json
+from .llm import call_llm_json, llm_is_unavailable
 from .prompts import classification_prompt, extraction_prompt, validation_repair_prompt
 from .demo_events import emit_event, preview
 
@@ -65,6 +65,21 @@ def _common_requirements_override(url: str, text: str) -> tuple[str, str] | None
     for page_type, path_hints, content_hints, reason in rules:
         if any(hint in path for hint in path_hints) and any(hint in low for hint in content_hints):
             return page_type, reason
+
+    # Preserve curated graduate-application pages for FTS when LLM quota is gone.
+    strong_path = any(hint in path for hint in (
+        '/admission', '/application', '/requirements', '/english',
+        '/statement-of-purpose', '/sop', '/recommendation',
+    ))
+    application_signal = any(hint in low for hint in (
+        'graduate application', 'application requirement', 'application process',
+        'statement of purpose', 'letter of recommendation', 'international applicant',
+        'toefl', 'ielts', 'admission requirement',
+    ))
+    if strong_path and application_signal:
+        if 'faq' in path:
+            return 'faq', 'Graduate application FAQ preserved for full-text retrieval'
+        return 'admissions', 'Graduate application page preserved for full-text retrieval'
     return None
 
 
@@ -426,6 +441,8 @@ def structured_extraction(state: ProcessState) -> dict:
 
     extractions = []
     for index, chunk in enumerate(chunks, start=1):
+        if llm_is_unavailable():
+            break
         # 每個片段完整輸入。關鍵詞不再裁掉未命中的文字，讓 LLM 依上下文語意判斷。
         focused_chunk = chunk
         try:
@@ -437,8 +454,9 @@ def structured_extraction(state: ProcessState) -> dict:
             if isinstance(extraction, dict):
                 extractions.append(_normalize_target_codes(extraction, codes))
         except Exception as e:
-            print(f"  [WARN] structured_extraction 第 {index}/{len(chunks)} 段失敗"
-                  f"（{page['url']}）：{e}")
+            if not llm_is_unavailable():
+                print(f"  [WARN] structured_extraction 第 {index}/{len(chunks)} 段失敗"
+                      f"（{page['url']}）：{e}")
 
     extraction = _promote_grounded_evidence(_merge_extractions(extractions))
     if len(chunks) > 1:
@@ -836,6 +854,8 @@ def hallucination_validation(state: ProcessState) -> dict:
 
 
 def extraction_quality_check(state: ProcessState) -> str:
+    if llm_is_unavailable():
+        return 'finalize_page'
     """至少進行一次原文語意修正；仍有問題時最多再修正一次。"""
     validation = state.get("validation") or {}
     repairs = state.get("validation_repair_retries", 0)
@@ -860,6 +880,8 @@ def semantic_repair(state: ProcessState) -> dict:
 
     repairs = []
     for index, part in enumerate(parts, 1):
+        if llm_is_unavailable():
+            break
         try:
             result = call_llm_json(validation_repair_prompt(
                 page["url"], codes, current, issues, part, index, len(parts),
@@ -867,8 +889,9 @@ def semantic_repair(state: ProcessState) -> dict:
             if isinstance(result, dict):
                 repairs.append(_normalize_target_codes(result, codes))
         except Exception as exc:
-            print(f"  [WARN] semantic_repair 第 {index}/{len(parts)} 段失敗"
-                  f"（{page['url']}）：{exc}")
+            if not llm_is_unavailable():
+                print(f"  [WARN] semantic_repair 第 {index}/{len(parts)} 段失敗"
+                      f"（{page['url']}）：{exc}")
 
     # 先移除已知無效值，讓有原文證據的修正值可以補回；既有有效值維持優先。
     valid_current = _strip_invalid_fields(current, issues)

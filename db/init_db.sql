@@ -7,13 +7,18 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- 先清除舊表（注意刪除順序：被引用的最後刪）
+-- professors 必須明列：它以 university_id 外鍵掛在 universities 上，
+-- 漏掉會讓舊資料在 universities 重建後變成指向不存在 id 的孤兒，
+-- 導致教授名單查詢 JOIN 不到任何結果。
 DROP TABLE IF EXISTS review_queue            CASCADE;
 DROP TABLE IF EXISTS document_chunks         CASCADE;
 DROP TABLE IF EXISTS web_pages               CASCADE;
 DROP TABLE IF EXISTS global_extractions       CASCADE;
+DROP TABLE IF EXISTS program_evidence        CASCADE;
 DROP TABLE IF EXISTS program_app_materials   CASCADE;
 DROP TABLE IF EXISTS program_scholarships    CASCADE;
 DROP TABLE IF EXISTS program_deadlines       CASCADE;
+DROP TABLE IF EXISTS professors              CASCADE;
 DROP TABLE IF EXISTS programs                CASCADE;
 DROP TABLE IF EXISTS universities            CASCADE;
 

@@ -436,7 +436,7 @@ def collect_scraped(state: SchoolState) -> dict:
         if effective_url in processed_urls:
             continue  # sufficiency 迴圈時不重複處理
         if effective_url in seen_urls:
-            print(f"  ⏭ redirect alias skipped: {requested_url[:70]} → {effective_url[:70]}")
+            print(f"  [SKIP] redirect alias: {requested_url[:70]} -> {effective_url[:70]}")
             continue
         seen_urls.add(effective_url)
         rec["requested_url"] = requested_url

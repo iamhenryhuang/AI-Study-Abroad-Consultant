@@ -672,7 +672,7 @@ def scrape_url(url: str) -> dict:
             extracted = None
             for attempt in range(1, MAX_RETRY + 2):
                 if attempt > 1:
-                    print(f"   ↺ retry {attempt-1}/{MAX_RETRY} {url}")
+                    print(f"   [RETRY] {attempt-1}/{MAX_RETRY} {url}")
                     page.wait_for_timeout(RETRY_WAIT_MS)
                 extracted = extract_page_content_with_js(page, url)
                 if not extracted["error"]:
