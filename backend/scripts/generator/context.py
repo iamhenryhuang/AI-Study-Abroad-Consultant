@@ -38,6 +38,9 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
             )
             if url:
                 sources_list.append({"school": sid, "type": "applicant_experience", "url": url})
+        elif doc.get("type") == "recommendation":
+            # 選校推薦（衝刺/適中/保底 分級）——標頭明確，避免被誤當教授資料
+            formatted_docs.append(f"【選校推薦】\n{doc['chunk_text'].strip()}")
         elif doc.get("chunk_text"):
             # 教授資料（沿用純文字格式）
             univ = doc.get("university_name", sid.upper() if sid else "未知學校")

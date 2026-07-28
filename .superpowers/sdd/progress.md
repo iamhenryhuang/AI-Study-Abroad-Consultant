@@ -1,17 +1,14 @@
-﻿# Multi-turn Chat — SDD Progress
+﻿# School Recommendation - SDD Progress
 
-BASE: a5599d2e02f543c52fdcd836c6fe6803de7806b5
-Branch: feat-chat-page
+BASE: cbd5bce8bc481d507fceee195c68976b3d19ab93
+Branch: feat-school-recommendation
 
-- Task 1: complete (commits a5599d2..6e7ab59, review clean; Minor: print vs logging, matches brief)
-- Task 2: complete (commits 6e7ab59..b1ab86f, review clean; Minor: role not enum-validated, matches brief)
-- Task 3: complete (commits b1ab86f..7410468, review clean after fixing Important: TextDecoder flush)
-- Task 4: complete (commits 7410468..347598c, review clean after fixing Important: unmount-abort)
-Minors deferred to final review: index-as-key (append-only, safe); error text enters next-turn history; scroll effect fires per chunk (visual); .chat-page calc(100vh-140px) not adjusted in mobile breakpoint (visual)
+- Task 1: complete (cbd5bce..262dce9, review clean after fixing Important: fetch_nearby_cases test coverage; Minor deferred: duplicates db_query.readonly_connection)
+- Task 2: complete (262dce9..61a0034, review clean after fixing Important: recommend_node exception scope; Minor deferred: add_node placement inert, no wiring-level test)
+- Task 3: complete (61a0034..7eaaf3a, review clean)
 
 
 
 
 
-
-Final whole-branch review: complete. Fixed Important (history cap: 0f6544c). 4 Minors triaged ship-as-is.
+Final whole-branch review: complete. Fixed Important (context.py recommendation label: b929bd9). 3 Minors triaged ship-as-is. Soft spec gap (empty recommend_docs 無 bespoke 訊息) noted, non-blocking.

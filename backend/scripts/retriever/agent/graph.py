@@ -11,6 +11,7 @@ from .nodes import (
     extension_function_node,
     finalizer_node,
     fulltext_search_node,
+    recommend_node,
     refiner_node,
     route_to_retrieval,
     searcher_node,
@@ -28,6 +29,7 @@ def _build_graph():
     builder.add_node("experience_search", experience_search_node)
     builder.add_node("search", searcher_node)
     builder.add_node("fulltext", fulltext_search_node)
+    builder.add_node("recommend", recommend_node)
     builder.add_node("verify", verifier_node)
     builder.add_node("refine", refiner_node)
     builder.add_node("finalize", finalizer_node)
@@ -39,6 +41,7 @@ def _build_graph():
 
     builder.add_edge("extension_function", "verify")
     builder.add_edge("experience_search", "verify")
+    builder.add_edge("recommend", "verify")
     builder.add_edge("search", "verify")
     builder.add_edge("fulltext", "verify")
     builder.add_conditional_edges("verify", after_verify)

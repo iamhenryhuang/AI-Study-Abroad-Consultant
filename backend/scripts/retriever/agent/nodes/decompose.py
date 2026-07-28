@@ -28,13 +28,8 @@ def decomposer_node(state: AgentState) -> dict:
         professor_query  = _parse_professor_query(parsed.get("professor_query"))
         needs_sql_search = bool(parsed.get("needs_sql_search", True))
         needs_experience = bool(parsed.get("needs_experience", False))
-
-        plq_raw = parsed.get("professor_list_query")
-        plq_sid = (plq_raw.get("school_id") or "").strip() if isinstance(plq_raw, dict) else ""
-        # 與 professor_query 互斥：已指名教授姓名時不應同時觸發名單查詢
-        professor_list_query = (
-            {"school_id": plq_sid} if plq_sid in _SCHOOL_ALIASES and professor_query is None else None
-        )
+        wants_recommendation = bool(parsed.get("wants_recommendation", False))
+        profile = parsed.get("profile") or {}
     except Exception as e:
         print(f"[Decomposer] 意圖判斷失敗（{e}），使用原始問題作為 fallback")
         school_ids             = _detect_school_ids(query)
@@ -43,6 +38,8 @@ def decomposer_node(state: AgentState) -> dict:
         professor_list_query    = None
         needs_sql_search        = True
         needs_experience        = False
+        wants_recommendation    = False
+        profile                 = {}
 
     # 任務四：只在需要查 SQL 時才拆解子問題（純教授查詢可省下這次 LLM 呼叫）
     if needs_sql_search:
@@ -86,6 +83,9 @@ def decomposer_node(state: AgentState) -> dict:
         "professor_list_query":   professor_list_query,
         "needs_sql_search":       needs_sql_search,
         "needs_experience":       needs_experience,
+        "wants_recommendation":   wants_recommendation,
+        "profile":                profile,
+        "recommend_docs":         [],
         "mentioned_school_ids":   school_ids,
         "mentioned_school_names": mentioned_school_names,
     }
@@ -95,10 +95,10 @@ def route_to_retrieval(state: AgentState):
     """
     決定要跑哪些檢索節點（decompose 完成後、以及 refine 重新產生查詢後皆共用此路由）：
     各檢索支線互相獨立，依旗標並行觸發：
-    - needs_sql_search      → search（text-to-SQL 官方申請要求）
-    - professor_query       → extension_function（SerpAPI 教授研究細節）
-    - professor_list_query  → extension_function（教授名單，查 professors 表）
-    - needs_experience      → experience_search（applicant_reports 錄取經驗）
+    - needs_sql_search → search（text-to-SQL 官方申請要求）
+    - professor_query   → extension_function（SerpAPI 教授資料）
+    - needs_experience  → experience_search（applicant_reports 錄取經驗）
+    - wants_recommendation → recommend（依成績分級推薦學校）
     至少會走一個節點；若皆無（理論上不會），退回只走 search 保底。
     """
     targets = []
@@ -108,6 +108,8 @@ def route_to_retrieval(state: AgentState):
         targets.append(Send("extension_function", state))
     if state.get("needs_experience", False):
         targets.append(Send("experience_search", state))
+    if state.get("wants_recommendation", False):
+        targets.append(Send("recommend", state))
 
     return targets or [Send("search", state)]
 

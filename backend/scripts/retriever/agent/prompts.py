@@ -66,6 +66,12 @@ def _build_intent_prompt(query: str) -> str:
 - 純教授查詢時 needs_experience 一律為 false
 
 ====================
+【任務五：是否為「上傳成績求推薦學校」（wants_recommendation）】
+====================
+若使用者提供了自己的成績（GPA / IELTS / TOEFL / GRE 任一）並希望「推薦學校 / 我適合哪些學校 / 幫我選校」，
+wants_recommendation 設為 true，並把分數提取到 profile（數字，沒有的填 null）。否則 wants_recommendation 為 false、profile 全 null。
+
+====================
 【使用者問題】
 {query}
 
@@ -83,7 +89,9 @@ def _build_intent_prompt(query: str) -> str:
   "professor_query": {{"name": "教授全名（英文）", "school": "學校名稱（英文）", "school_id": "學校ID"}} or null,
   "professor_list_query": {{"school_id": "學校ID"}} or null,
   "needs_sql_search": true or false,
-  "needs_experience": true or false
+  "needs_experience": true or false,
+  "wants_recommendation": true or false,
+  "profile": {{"gpa": number or null, "ielts": number or null, "toefl": number or null, "gre": number or null}}
 }}
 """
 
