@@ -26,7 +26,7 @@ def _extractive_fallback_answer(query: str, docs: list[dict], sparse: bool = Fal
         title = '教授名單（直接取自資料庫）'
         limit = 30
     elif experience_mode:
-        title = '網路申請經驗回報（非官方、僅供參考）'
+        title = '申請經驗回報（本站分享與外部案例；非官方、僅供參考）'
         limit = 12
     elif recommendation_mode:
         title = '選校分級結果（直接取自資料庫統計）'

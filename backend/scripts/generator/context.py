@@ -32,9 +32,9 @@ def format_context_for_prompt(context_docs: list[dict]) -> str:
         url = doc.get("source_url", "")
 
         if doc.get("type") == "applicant_experience":
-            # 申請經驗回報（非官方，個別案例）——標頭明確標示，避免被當官方資料
+            # 申請經驗回報（非官方，個別案例）——含本站分享與外部來源
             formatted_docs.append(
-                f"【網路申請經驗回報（非官方，個別案例）】\n{doc['chunk_text'].strip()}"
+                f"【申請經驗回報（非官方，個別案例）】\n{doc['chunk_text'].strip()}"
             )
             if url:
                 sources_list.append({"school": sid, "type": "applicant_experience", "url": url})

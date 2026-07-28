@@ -35,7 +35,8 @@ def _fallback_intent(query: str) -> dict:
         '推薦學校', '選校', '衝刺', '保底', 'recommend school', 'school recommendation',
     ))
     needs_experience = any(term in low for term in (
-        '錄取者', '錄取背景', '錄取機會', '申請案例', '經驗回報', '有沒有機會',
+        '錄取者', '錄取背景', '錄取機會', '申請案例', '申請經驗', '分享經驗',
+        '使用者分享', '經驗回報', '有沒有機會',
         'admitted profile', 'admission chance', 'acceptance chance', 'application experience',
     ))
     professor_intent = any(term in low for term in (

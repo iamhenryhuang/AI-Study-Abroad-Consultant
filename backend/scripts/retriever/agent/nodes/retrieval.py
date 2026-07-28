@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from professor_fetcher.fetch_for_agent import run_professor_fetch
-from retriever.applicant_search import applicant_search
+from retriever.applicant_search import applicant_search, user_submissions_only
 from retriever.hybrid_search import hybrid_search_with_fallback
 from retriever.professor_list_search import professor_list_search
 from retriever.sql_search import sql_search
@@ -66,7 +66,7 @@ def extension_function_node(state: AgentState) -> dict:
 # ─── Node 1.6：Experience Search（申請經驗回報） ──────────────────────────────
 
 def experience_search_node(state: AgentState) -> dict:
-    """查 applicant_reports（GradCafe / 一畝三分地錄取回報），寫入 experience_docs。
+    """查 applicant_reports + user_experiences，寫入 experience_docs。
 
     與 search / extension_function 並行；資料為非官方經驗談，generator 會加註警語。
     """
@@ -92,7 +92,8 @@ def experience_search_node(state: AgentState) -> dict:
             "args": {"query": q, **({"school_id": school_id} if school_id else {})},
         })
         docs = applicant_search(q, school_id=school_id)
-        if school_id is not None and len(docs) < SPARSE_THRESHOLD:
+        if (school_id is not None and len(docs) < SPARSE_THRESHOLD
+                and not user_submissions_only(q)):
             sparse_school_ids.add(school_id)
         for doc in docs:
             key = doc.get("source_url") or doc.get("chunk_text", "")[:80]
