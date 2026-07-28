@@ -94,7 +94,8 @@ def route_to_retrieval(state: AgentState):
     - needs_sql_search → search（text-to-SQL 官方申請要求）
     - professor_query   → extension_function（SerpAPI 教授資料）
     - needs_experience  → experience_search（applicant_reports 錄取經驗）
-    至少會走一個節點；若三者皆無（理論上不會），退回只走 search 保底。
+    - wants_recommendation → recommend（依成績分級推薦學校）
+    至少會走一個節點；若皆無（理論上不會），退回只走 search 保底。
     """
     targets = []
     if state.get("needs_sql_search", True):
