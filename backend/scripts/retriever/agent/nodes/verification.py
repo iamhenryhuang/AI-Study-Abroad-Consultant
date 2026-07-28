@@ -24,10 +24,10 @@ def verifier_node(state: AgentState) -> dict:
     fulltext_docs   = state.get("fulltext_docs", [])
     extension_docs  = state.get("extension_docs", [])
     experience_docs = state.get("experience_docs", [])
+    recommend_docs  = state.get("recommend_docs", [])
 
-    # 順序：教授 → 官方 SQL → 經驗回報 → 全文檢索補充。經驗資料排官方之後，避免喧賓奪主。
     all_docs = _deduplicate_docs(
-        extension_docs + search_docs + experience_docs + fulltext_docs
+        extension_docs + search_docs + experience_docs + recommend_docs + fulltext_docs
     )
 
     if not all_docs:
@@ -38,6 +38,10 @@ def verifier_node(state: AgentState) -> dict:
     # 不適用（案例本身就是答案），送審只會被誤判不足。護欄由 generator 的非官方警語負責。
     if state.get("needs_experience", False) and experience_docs:
         print(f"[Verifier] needs_experience 且有 {len(experience_docs)} 筆經驗回報，直接放行")
+        return {"verified_docs": all_docs, "is_sufficient": True, "insufficiency_reason": ""}
+
+    if state.get("wants_recommendation", False) and recommend_docs:
+        print(f"[Verifier] wants_recommendation 且有 {len(recommend_docs)} 筆推薦，直接放行")
         return {"verified_docs": all_docs, "is_sufficient": True, "insufficiency_reason": ""}
 
     _check_cancel()

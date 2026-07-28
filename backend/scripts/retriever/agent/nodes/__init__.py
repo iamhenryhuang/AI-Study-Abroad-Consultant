@@ -6,6 +6,7 @@ from .retrieval import (
     experience_search_node,
     extension_function_node,
     fulltext_search_node,
+    recommend_node,
     searcher_node,
 )
 from .verification import after_verify, refiner_node, verifier_node
@@ -19,6 +20,7 @@ __all__ = [
     "extension_function_node",
     "finalizer_node",
     "fulltext_search_node",
+    "recommend_node",
     "refiner_node",
     "route_to_retrieval",
     "searcher_node",

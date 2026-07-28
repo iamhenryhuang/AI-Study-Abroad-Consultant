@@ -28,6 +28,8 @@ def decomposer_node(state: AgentState) -> dict:
         professor_query  = _parse_professor_query(parsed.get("professor_query"))
         needs_sql_search = bool(parsed.get("needs_sql_search", True))
         needs_experience = bool(parsed.get("needs_experience", False))
+        wants_recommendation = bool(parsed.get("wants_recommendation", False))
+        profile = parsed.get("profile") or {}
     except Exception as e:
         print(f"[Decomposer] 意圖判斷失敗（{e}），使用原始問題作為 fallback")
         school_ids             = _detect_school_ids(query)
@@ -35,6 +37,8 @@ def decomposer_node(state: AgentState) -> dict:
         professor_query         = None
         needs_sql_search        = True
         needs_experience        = False
+        wants_recommendation    = False
+        profile                 = {}
 
     # 任務四：只在需要查 SQL 時才拆解子問題（純教授查詢可省下這次 LLM 呼叫）
     if needs_sql_search:
@@ -75,6 +79,9 @@ def decomposer_node(state: AgentState) -> dict:
         "professor_query":        professor_query,
         "needs_sql_search":       needs_sql_search,
         "needs_experience":       needs_experience,
+        "wants_recommendation":   wants_recommendation,
+        "profile":                profile,
+        "recommend_docs":         [],
         "mentioned_school_ids":   school_ids,
         "mentioned_school_names": mentioned_school_names,
     }
@@ -96,6 +103,8 @@ def route_to_retrieval(state: AgentState):
         targets.append(Send("extension_function", state))
     if state.get("needs_experience", False):
         targets.append(Send("experience_search", state))
+    if state.get("wants_recommendation", False):
+        targets.append(Send("recommend", state))
 
     return targets or [Send("search", state)]
 

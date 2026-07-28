@@ -7,6 +7,7 @@ from retriever.applicant_search import applicant_search
 from retriever.hybrid_search import hybrid_search_with_fallback
 from retriever.sql_search import sql_search
 from retriever.experience_crawl import SPARSE_THRESHOLD, maybe_enqueue_crawl
+from retriever.recommend import recommend, fetch_nearby_cases
 
 from ..state import AgentState, _check_cancel, _detect_school_ids, _emit
 
@@ -182,3 +183,34 @@ def fulltext_search_node(state: AgentState) -> dict:
     print(f"\n[Fulltext] 共取得 {len(ft_docs)} 筆全文檢索資料")
 
     return {"fulltext_docs": ft_docs, "fulltext_done": True}
+
+
+def recommend_node(state: AgentState) -> dict:
+    """依 profile 分級推薦學校（衝刺/適中/保底）+ 真實案例佐證，寫入 recommend_docs。"""
+    _emit({"type": "thinking", "step": "recommend"})
+    profile = state.get("profile") or {}
+    try:
+        tiers = recommend(profile)
+    except Exception as e:
+        print(f"[Recommend] 推薦失敗：{e}")
+        return {"recommend_docs": []}
+
+    docs: list[dict] = []
+    for tier, schools in tiers.items():
+        for s in schools:
+            cases = fetch_nearby_cases(s["school_id"], profile.get("gpa"))
+            case_txt = "；".join(
+                f"GPA {c.get('gpa')} {c.get('decision')}" for c in cases
+            ) or "（無相近案例）"
+            docs.append({
+                "type":       "recommendation",
+                "school_id":  s["school_id"],
+                "chunk_text": (f"[{tier}] {s['name']}\n"
+                               f"分數對比：{'；'.join(s['comparison'])}\n"
+                               f"相近錄取案例：{case_txt}"),
+                "source_url": "",
+            })
+    _emit({"type": "tool_result", "tool": "recommend",
+           "preview": f"分級推薦 {len(docs)} 所學校"})
+    print(f"[Recommend] 產出 {len(docs)} 筆推薦")
+    return {"recommend_docs": docs}
