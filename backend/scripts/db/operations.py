@@ -151,6 +151,19 @@ def load_schools():
     return load()
 
 
+def load_professors():
+    """灌入 db/data/professors.json 的教授名單。
+
+    需先有 universities 記錄（由 data_crawler 或 load_schools 建立），
+    本步驟不會建立新學校。"""
+    import sys
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+
+    from db.load_professors import load
+    return load()
+
+
 # ── verify ───────────────────────────────────────────────────
 
 def verify():

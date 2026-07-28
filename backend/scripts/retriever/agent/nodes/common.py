@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 
-from generator.client import call_llm
+from generator.client import call_llm, llm_is_unavailable
 
 from ..state import _SCHOOL_ALIASES, _check_cancel, _detect_school_ids
 
@@ -34,6 +34,10 @@ def _call_llm(prompt: str) -> str:
     """呼叫 OpenAI，回傳純文字。每次呼叫前先檢查是否已取消。"""
     _check_cancel()
     return call_llm(prompt)
+
+
+def _llm_is_unavailable() -> bool:
+    return llm_is_unavailable()
 
 
 def _parse_json_object(raw: str) -> dict:

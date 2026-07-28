@@ -1,3 +1,4 @@
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -105,6 +106,13 @@ class TestHybridSearch(unittest.TestCase):
 
 
 class TestHybridSearchWithFallback(unittest.TestCase):
+    def setUp(self):
+        self._env = patch.dict(os.environ, {"ENABLE_HYBRID_SEARCH": "true"})
+        self._env.start()
+
+    def tearDown(self):
+        self._env.stop()
+
     def test_returns_hybrid_results_when_available(self):
         docs = [{"chunk_text": "hybrid doc"}]
         with patch.object(hs, "hybrid_search", return_value=docs), \

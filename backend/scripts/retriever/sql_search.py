@@ -14,7 +14,7 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from generator.client import call_llm
+from generator.client import call_llm, llm_is_unavailable
 from retriever.db_query import fetch_dicts, readonly_connection
 
 # ─── Schema 描述（給 LLM 看的） ────────────────────────────────────────────────
@@ -259,7 +259,16 @@ def sql_search(query: str) -> tuple[list[dict], str | None]:
     Returns:
         (results, sql) — results 為結構化 dict 列表，sql 為實際執行的查詢語句（失敗時為 None）
     """
-    raw = call_llm(_build_sql_prompt(query))
+    if llm_is_unavailable():
+        return [], None
+
+    try:
+        raw = call_llm(_build_sql_prompt(query))
+    except Exception as exc:
+        # Text-to-SQL is only the first retrieval layer. Provider outages or
+        # exhausted quota must not abort the agent before its FTS fallback.
+        print(f'[SQLSearch] LLM unavailable, falling back to full-text search: {exc}')
+        return [], None
     sql = _parse_sql_response(raw)
 
     if not sql or not _is_sql_safe(sql):
