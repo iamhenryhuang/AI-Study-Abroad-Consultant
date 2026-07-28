@@ -71,5 +71,12 @@ dist-ssr/
 # 教授資料快取（執行期產生，非版本控管內容）
 crawler/data/*_professors.json
 
+# 爬蟲執行輸出（結果、事件紀錄、URL 過濾稽核）
+data_crawler/output/
+data_crawler/url/
+
 # claude setting
 .claude/
+
+# 本機 agent / Superpowers 工作狀態
+.superpowers/
