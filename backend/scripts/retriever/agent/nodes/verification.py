@@ -9,6 +9,7 @@ from ..state import AgentState, _check_cancel, _emit
 from .common import (
     _call_llm,
     _deduplicate_docs,
+    _llm_is_unavailable,
     _parse_json_object,
     _parse_professor_query,
 )
@@ -46,6 +47,14 @@ def verifier_node(state: AgentState) -> dict:
 
     _check_cancel()
     context_text = format_context_for_prompt(all_docs)
+
+    if _llm_is_unavailable():
+        print("[Verifier] LLM 額度不可用，直接採用已檢索到的資料")
+        return {
+            "verified_docs": all_docs,
+            "is_sufficient": True,
+            "insufficiency_reason": "",
+        }
 
     try:
         parsed = _parse_json_object(_call_llm(_build_verify_prompt(query, context_text)))

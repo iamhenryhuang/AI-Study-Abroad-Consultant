@@ -5,6 +5,7 @@ GradCafe 申請結果爬蟲
 
 import requests
 import json
+import os
 import time
 import sys
 from bs4 import BeautifulSoup
@@ -31,6 +32,73 @@ QUERIES = [
 ]
 
 OUTPUT_PATH = Path(__file__).parent / "data" / "gradcafe_results.json"
+
+
+def should_run_gradcafe_for_school(
+    school: str,
+    conn=None,
+    min_records: int = 3,
+) -> tuple[bool, str]:
+    """Return whether a school still needs GradCafe backfill.
+
+    Existing official-school aliases are resolved through universities, then
+    applicant_reports and user_experiences are counted together.  A caller may
+    inject a connection for tests; otherwise the configured backend DB is used.
+    """
+    school = (school or "").strip()
+    if not school:
+        return False, "未提供學校名稱"
+
+    owns_connection = conn is None
+    if conn is None:
+        import psycopg
+        from dotenv import load_dotenv
+
+        project_root = Path(__file__).resolve().parent.parent
+        load_dotenv(project_root / "backend" / ".env")
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            return True, "資料不足：未設定 DATABASE_URL"
+        conn = psycopg.connect(database_url)
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, school_id
+                FROM universities
+                WHERE lower(school_id) = lower(%s)
+                   OR lower(name) = lower(%s)
+                   OR name ILIKE %s
+                """,
+                (school, school, f"%{school}%"),
+            )
+            matches = cur.fetchall()
+            if not matches:
+                return True, f"資料不足：找不到 {school} 的既有學校資料"
+
+            school_ids = [str(row[1]) for row in matches if len(row) > 1 and row[1]]
+            cur.execute(
+                "SELECT COUNT(*) FROM applicant_reports WHERE school_id = ANY(%s)",
+                (school_ids,),
+            )
+            report_row = cur.fetchone()
+            report_count = int(report_row[0]) if report_row else 0
+
+            cur.execute(
+                "SELECT COUNT(*) FROM user_experiences WHERE apply_school ILIKE %s",
+                (f"%{school}%",),
+            )
+            experience_row = cur.fetchone()
+            experience_count = int(experience_row[0]) if experience_row else 0
+
+            total = report_count + experience_count
+            if total >= min_records:
+                return False, f"既有申請經驗共 {total} 筆，資料足夠"
+            return True, f"既有申請經驗僅 {total} 筆，資料不足"
+    finally:
+        if owns_connection and conn is not None:
+            conn.close()
 
 
 def fetch_page(query: str, page: int, version: str) -> dict | None:

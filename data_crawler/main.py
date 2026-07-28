@@ -78,7 +78,7 @@ def main():
             # 避免累加型 state（page_results 等）跨執行重複累積
             if not args.resume and checkpointer.get(config) is not None:
                 thread_id = f"{args.school_id}-{datetime.now():%Y%m%d%H%M%S}"
-                print(f"ℹ️ thread「{args.school_id}」已有舊執行紀錄，本次改用 thread_id={thread_id}"
+                print(f"[INFO] thread「{args.school_id}」已有舊執行紀錄，本次改用 thread_id={thread_id}"
                       f"（續跑舊紀錄請加 --resume）")
                 config = {"configurable": {"thread_id": thread_id},
                           "recursion_limit": RECURSION_LIMIT}

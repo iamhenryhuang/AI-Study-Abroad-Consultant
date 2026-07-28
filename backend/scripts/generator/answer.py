@@ -23,10 +23,9 @@ def generate_answer_stream(query: str, context_docs: list[dict], model_name: str
 
 def generate_answer(query: str, context_docs: list[dict], model_name: str = ANSWER_MODEL, recommendation: bool = False) -> str | None:
     """根據檢索到的結構化資料生成回答。"""
-    client = get_openai_client()
-    prompt = _build_prompt(query, context_docs, recommendation=recommendation)
-
     try:
+        client = get_openai_client()
+        prompt = _build_prompt(query, context_docs, recommendation=recommendation)
         response = client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": prompt}],

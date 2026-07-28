@@ -9,8 +9,12 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from retriever.sql_search import sql_search
+from retriever.fulltext_search import fulltext_search
 from retriever.agent import run_agent
+from retriever.agent.nodes.answer import _extractive_fallback_answer
+from retriever.agent.state import _detect_school_ids
 from generator.answer import generate_answer
+from generator.client import llm_is_unavailable
 
 
 def run_rag_pipeline(query: str) -> bool:
@@ -21,15 +25,28 @@ def run_rag_pipeline(query: str) -> bool:
     print(f"  [RAG] 正在查詢資料庫...")
     results, sql = sql_search(query)
 
+    retrieval_method = "SQL"
     if not results:
-        print("未能查詢到相關資訊。")
-        return False
+        print("  [RAG] SQL search unavailable or empty; trying full-text search...")
+        school_ids = _detect_school_ids(query)
+        results = fulltext_search(
+            query,
+            school_id=school_ids[0] if school_ids else None,
+            limit=5,
+        )
+        retrieval_method = "full-text"
+        if not results:
+            print("  [RAG] No matching database content was found.")
+            return False
 
-    print(f"  [RAG] SQL: {sql}")
+    print(f"  [RAG] retrieval: {retrieval_method}" + (f"; SQL: {sql}" if sql else ""))
     print(f"  [RAG] 查詢到 {len(results)} 筆資料")
 
     print(f"  [RAG] 正在使用 OpenAI 生成回答...")
-    answer = generate_answer(query, results)
+    answer = None if llm_is_unavailable() else generate_answer(query, results)
+    if not answer:
+        print("  [RAG] LLM unavailable; returning grounded database excerpts.")
+        answer = _extractive_fallback_answer(query, results)
 
     if answer:
         print("\n" + "=" * 30 + " OpenAI 回答 " + "=" * 30)

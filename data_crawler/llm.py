@@ -28,6 +28,8 @@ load_dotenv(_PROJECT_ROOT / "backend" / ".env")
 
 _client = None
 _client_lock = threading.Lock()
+_unavailable_reason: str | None = None
+_unavailable_lock = threading.Lock()
 
 # 免費層 TPM 限流保護：限制同時進行的 LLM 呼叫數（fan-out 時避免瞬間打爆額度）
 _LLM_SEMAPHORE = threading.Semaphore(int(os.getenv("LLM_MAX_CONCURRENCY", "2")))
@@ -73,6 +75,40 @@ DEFAULT_MODEL = _PROVIDERS[PROVIDER]["model"]()
 MAX_LLM_RETRY = 4
 
 
+class LLMUnavailableError(RuntimeError):
+    # The provider cannot serve requests for the remainder of this run.
+    pass
+
+
+_QUOTA_FALLBACK_MESSAGE = "LLM quota exhausted; deterministic crawler fallback is active"
+
+
+def _is_permanent_quota_error(error_message: str) -> bool:
+    low = error_message.lower()
+    return any(marker in low for marker in (
+        'insufficient_quota',
+        'exceeded your current quota',
+        'check your plan and billing',
+    ))
+
+
+def _mark_unavailable(reason: str) -> None:
+    global _unavailable_reason
+    with _unavailable_lock:
+        if _unavailable_reason is None:
+            _unavailable_reason = reason
+            print('  [LLM FALLBACK] API quota exhausted (429); using deterministic crawler fallback.')
+
+
+def _raise_if_unavailable() -> None:
+    if _unavailable_reason is not None:
+        raise LLMUnavailableError(_QUOTA_FALLBACK_MESSAGE)
+
+
+def llm_is_unavailable() -> bool:
+    return _unavailable_reason is not None
+
+
 def _rate_limit_wait_seconds(error_message: str, attempt: int) -> float:
     """429 錯誤：優先用 API 建議的等待秒數（'try again in 7.095s'），否則指數退避。"""
     m = re.search(r"try again in ([\d.]+)s", error_message)
@@ -100,7 +136,12 @@ def get_openai_client() -> OpenAI:
             kwargs = {"api_key": os.getenv(spec["key_env"])}
             if spec["base_url"]:
                 kwargs["base_url"] = spec["base_url"]
-            _client = OpenAI(**kwargs)
+            _client = OpenAI(
+                **kwargs,
+                # This wrapper owns retries; avoid hidden SDK retries on hard quota errors.
+                max_retries=int(os.getenv('LLM_SDK_MAX_RETRIES', '0')),
+                timeout=float(os.getenv('LLM_REQUEST_TIMEOUT_SECONDS', '45')),
+            )
             print(f"[LLM] provider={PROVIDER} model={DEFAULT_MODEL}")
     return _client
 
@@ -141,6 +182,7 @@ def _extract_json(text: str):
 
 def call_llm_json(prompt: str, model_name: str = DEFAULT_MODEL, system: str | None = None):
     """JSON mode 呼叫（response_format=json_object），失敗時重試並容錯解析。"""
+    _raise_if_unavailable()
     client = get_openai_client()
     messages = []
     if system:
@@ -153,6 +195,8 @@ def call_llm_json(prompt: str, model_name: str = DEFAULT_MODEL, system: str | No
     for attempt in range(MAX_LLM_RETRY + 1):
         try:
             with _LLM_SEMAPHORE:
+                # A worker may trip the breaker while this one waits for the semaphore.
+                _raise_if_unavailable()
                 response = client.chat.completions.create(
                     model=model_name,
                     messages=messages,
@@ -163,6 +207,11 @@ def call_llm_json(prompt: str, model_name: str = DEFAULT_MODEL, system: str | No
         except Exception as e:
             last_err = e
             msg = str(e)
+            if isinstance(e, LLMUnavailableError):
+                raise
+            if _is_permanent_quota_error(msg):
+                _mark_unavailable(msg)
+                raise LLMUnavailableError(_QUOTA_FALLBACK_MESSAGE) from None
             if "rate_limit" in msg or "429" in msg:
                 wait = _rate_limit_wait_seconds(msg, attempt)
                 print(f"  [WAIT] LLM 限流，等待 {wait:.1f}s 後重試（{attempt + 1}/{MAX_LLM_RETRY + 1}）")
