@@ -1,3 +1,110 @@
+# Task 1 Brief — recommend.py 推薦核心模組
+
+「上傳成績→推薦學校」功能的第一個 task：一個新模組 + 測試，自成一體。以下是你的需求規格，程式碼請照抄。
+
+## Global Constraints
+- 資料源 `crawler/data/1point3_distribution.json`：只有 GPA/GRE/TOEFL 中位數，無 IELTS。
+- 分級邏輯為純函式（distribution 可注入），不碰 DB；DB 案例查詢獨立成 `fetch_nearby_cases`。
+- 測試：unittest，`python -m unittest discover tests -p "test_recommend.py" -v`。測試檔開頭需 `sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend" / "scripts"))`。
+- 環境：Windows。Bash 的 git 不可用時改用 PowerShell。只新增這兩個檔案，不動別的。
+
+## Files
+- Create: `backend/scripts/retriever/recommend.py`
+- Test: `tests/test_recommend.py`
+
+## Interface（後續 task 依賴）
+- `_ielts_to_toefl(ielts) -> int | None`
+- `_normalize_profile(profile: dict) -> dict`（回 {gpa,toefl,gre}；無 toefl 有 ielts 時換算補上）
+- `classify_tier(profile: dict, medians: dict) -> str | None`（"衝刺"/"適中"/"保底"/None）
+- `recommend(profile, distribution=None, per_tier=3) -> dict`（回 {"衝刺":[...],"適中":[...],"保底":[...]}）
+- `fetch_nearby_cases(school_id, gpa, limit=3) -> list[dict]`
+
+## Step 1: 寫失敗測試 `tests/test_recommend.py`
+
+```python
+import sys
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend" / "scripts"))
+
+from retriever import recommend as rec
+
+
+class TestIeltsToToefl(unittest.TestCase):
+    def test_known_scores(self):
+        self.assertEqual(rec._ielts_to_toefl(7.0), 98)
+        self.assertEqual(rec._ielts_to_toefl(8.0), 112)
+
+    def test_out_of_range(self):
+        self.assertIsNone(rec._ielts_to_toefl(3.0))
+        self.assertIsNone(rec._ielts_to_toefl(None))
+
+
+class TestNormalizeProfile(unittest.TestCase):
+    def test_ielts_fills_toefl_when_missing(self):
+        out = rec._normalize_profile({"gpa": 3.5, "ielts": 7.0})
+        self.assertEqual(out["toefl"], 98)
+        self.assertEqual(out["gpa"], 3.5)
+
+    def test_explicit_toefl_wins_over_ielts(self):
+        out = rec._normalize_profile({"toefl": 105, "ielts": 7.0})
+        self.assertEqual(out["toefl"], 105)
+
+
+class TestClassifyTier(unittest.TestCase):
+    _MED = {"median_gpa": 3.8, "median_toefl": 105, "median_gre": 328}
+
+    def test_all_above_is_safety(self):
+        p = {"gpa": 3.9, "toefl": 110, "gre": 330}
+        self.assertEqual(rec.classify_tier(p, self._MED), "保底")
+
+    def test_all_below_is_reach(self):
+        p = {"gpa": 3.0, "toefl": 90, "gre": 300}
+        self.assertEqual(rec.classify_tier(p, self._MED), "衝刺")
+
+    def test_mixed_is_moderate(self):
+        p = {"gpa": 3.9, "toefl": 110, "gre": 300}  # 2/3 達標 → 0.67 落在適中
+        self.assertEqual(rec.classify_tier(p, self._MED), "適中")
+
+    def test_no_comparable_dim_returns_none(self):
+        self.assertIsNone(rec.classify_tier({"gpa": None}, {"median_toefl": 105}))
+
+
+class TestRecommend(unittest.TestCase):
+    _DIST = {
+        "cmu": {"school_id": "cmu", "name": "CMU", "median_gpa": 3.85, "median_toefl": 105, "median_gre": 328},
+        "nyu": {"school_id": "nyu", "name": "NYU", "median_gpa": 3.75, "median_toefl": 105, "median_gre": 325},
+        "ucsd": {"school_id": "ucsd", "name": "UCSD", "median_gpa": 3.93, "median_toefl": 106, "median_gre": 327},
+    }
+
+    def test_buckets_by_tier(self):
+        result = rec.recommend({"gpa": 3.5, "toefl": 100, "gre": 315}, distribution=self._DIST)
+        self.assertIn("衝刺", result)
+        self.assertIn("適中", result)
+        self.assertIn("保底", result)
+        all_ids = [s["school_id"] for tier in result.values() for s in tier]
+        self.assertTrue(set(all_ids) <= {"cmu", "nyu", "ucsd"})
+
+    def test_each_tier_capped(self):
+        result = rec.recommend({"gpa": 4.0, "toefl": 120, "gre": 340},
+                               distribution=self._DIST, per_tier=2)
+        for tier in result.values():
+            self.assertLessEqual(len(tier), 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+## Step 2: 確認測試失敗
+Run: `python -m unittest discover tests -p "test_recommend.py" -v`
+Expected: FAIL/ERROR `ModuleNotFoundError: No module named 'retriever.recommend'`
+
+## Step 3: 寫實作 `backend/scripts/retriever/recommend.py`
+
+```python
 """上傳成績 → 推薦學校：依 1point3 錄取中位數把各校分成衝刺/適中/保底，
 並從 applicant_reports 撈相近分數的真實錄取案例佐證。
 
@@ -132,12 +239,21 @@ def fetch_nearby_cases(school_id: str, gpa, limit: int = 3) -> list[dict]:
                 )
             cols = [d[0] for d in cur.description]
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
-
     except Exception as e:
         print(f"[Recommend] 案例查詢失敗（{school_id}）：{e}")
         return []
-    
     finally:
         conn.close()
-        
     return rows
+```
+
+## Step 4: 確認測試通過
+Run: `python -m unittest discover tests -p "test_recommend.py" -v`
+Expected: PASS（10 tests OK）
+
+## Step 5: Commit
+```bash
+git add backend/scripts/retriever/recommend.py tests/test_recommend.py
+git commit -m "feat: add school recommendation tiering module"
+```
+（Bash git 不可用時改用 PowerShell。）
