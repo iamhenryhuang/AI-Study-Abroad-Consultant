@@ -60,16 +60,17 @@ def finalizer_node(state: AgentState) -> dict:
                        "系統已在背景補充更多，稍後再問可能更完整。）\n\n")
         _emit({"type": "answer_chunk", "text": sparse_note})
 
+    recommendation = state.get("wants_recommendation", False)
     full_text = sparse_note
     try:
-        for chunk in generate_answer_stream(query, all_docs):
+        for chunk in generate_answer_stream(query, all_docs, recommendation=recommendation):
             _check_cancel()
             full_text += chunk
             if chunk:
                 _emit({"type": "answer_chunk", "text": chunk})
     except Exception as e:
         print(f"[Finalizer] 串流失敗，回退到非串流: {e}")
-        full_text = generate_answer(query, all_docs) or ""
+        full_text = generate_answer(query, all_docs, recommendation=recommendation) or ""
 
     if full_text:
         clean = clean_answer_text(full_text)

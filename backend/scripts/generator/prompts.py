@@ -72,11 +72,21 @@ _SYSTEM_PROMPT = """你是一位北美 CS 研究所申請諮詢助理。你只�
 - 邏輯清晰：按「核心問題回答」→「詳細資訊解析」→「補充建議與來源」的結構組織。
 """
 
+_RECOMMENDATION_INSTRUCTION = """
+【選校推薦格式（本題為成績推薦）】
+參考資料中標為 [衝刺]/[適中]/[保底] 的是依你的分數對照各校錄取中位數分出的三檔。請：
+- 用三個 Markdown 標題分段：`### 衝刺`、`### 適中`、`### 保底`。
+- 每檔下用 `-` 列出學校，附「你的分數 vs 該校中位數」對比，以及相近的真實錄取案例（標明為非官方個別案例）。
+- 結尾加一句免責：本推薦基於歷史數據與個別回報，僅供參考，非錄取保證。
+- 不得推薦參考資料以外的學校，也不得編造中位數或案例。
+"""
 
-def _build_prompt(query: str, context_docs: list[dict]) -> str:
+
+def _build_prompt(query: str, context_docs: list[dict], recommendation: bool = False) -> str:
     context_text = format_context_for_prompt(context_docs)
+    extra = _RECOMMENDATION_INSTRUCTION if recommendation else ""
     return f"""{_SYSTEM_PROMPT}
-
+{extra}
 --- 參考資料（共 {len(context_docs)} 筆） ---
 {context_text}
 
