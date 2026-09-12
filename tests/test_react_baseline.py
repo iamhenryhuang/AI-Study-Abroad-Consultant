@@ -170,6 +170,83 @@ class TestReactLoop(unittest.TestCase):
         self.assertIsInstance(result["answer"], str)
 
 
+class TestReactWithCritic(unittest.TestCase):
+    """第三組 ReAct + Critic：enable_critic 旗標。"""
+
+    def test_default_no_critic_unchanged(self):
+        """enable_critic 預設 False → 純 ReAct 行為不變，且標記 critic 未作動。"""
+        script = _llm_script(json.dumps({"final_answer": "TOEFL 90"}))
+        with patch.object(react_agent, "call_llm", side_effect=script):
+            result = react_agent.run_react("MIT TOEFL?")
+        self.assertEqual(result["answer"], "TOEFL 90")
+        self.assertFalse(result["critic_applied"])
+        self.assertFalse(result["critic_flagged"])
+
+    def test_collected_docs_accumulates_full_results(self):
+        """迴圈要另存每步工具的『完整 docs』（非截斷），供 Critic 使用。"""
+        full_docs = [{"chunk_text": "x" * 800, "source_url": "u", "school_id": "mit"}]
+        script = _llm_script(
+            json.dumps({"tool": "sql_search", "args": {"query": "q"}}),
+            json.dumps({"final_answer": "ans"}),
+        )
+        with patch.object(react_agent, "call_llm", side_effect=script), \
+             patch.dict(react_tools.TOOLS,
+                        {"sql_search": {"fn": lambda query: full_docs, "description": "d"}},
+                        clear=False):
+            docs = react_agent._collect_docs_for_critic("MIT?", max_steps=6)
+        # 完整 docs 應保留（不像 trace preview 被截斷到 500）
+        self.assertEqual(docs, full_docs)
+
+    def test_critic_flags_hallucination_appends_warning(self):
+        """enable_critic=True 且 Critic 判 has_issue → 答案尾巴附上 ⚠️ 警告。
+
+        ReAct 先查一次工具（有 docs，Critic 才會作動，與 agent critic_node 語意一致），
+        再收尾；接著 Critic 判斷。
+        """
+        script = _llm_script(
+            json.dumps({"tool": "applicant_search", "args": {"query": "MIT", "school_id": "mit"}}),
+            json.dumps({"final_answer": "MIT TOEFL 是 102"}),
+            json.dumps({"has_issue": True, "issue_summary": "102 這個數字在參考資料中找不到根據"}),
+        )
+        fake_tool = lambda query, school_id=None: [{"chunk_text": "某人 GPA 3.9 上 MIT"}]
+        with patch.object(react_agent, "call_llm", side_effect=script), \
+             patch.dict(react_tools.TOOLS,
+                        {"applicant_search": {"fn": fake_tool, "description": "d"}},
+                        clear=False):
+            result = react_agent.run_react("MIT TOEFL?", enable_critic=True)
+        self.assertTrue(result["critic_applied"])
+        self.assertTrue(result["critic_flagged"])
+        self.assertIn("⚠️", result["answer"])
+        self.assertIn("MIT TOEFL 是 102", result["answer"])   # 原答案保留
+
+    def test_critic_clean_answer_untouched(self):
+        """Critic 判乾淨（has_issue=False）→ 答案不變、僅標記已檢查未觸發。"""
+        script = _llm_script(
+            json.dumps({"tool": "sql_search", "args": {"query": "MIT"}}),
+            json.dumps({"final_answer": "系統未收錄 MIT 資料"}),
+            json.dumps({"has_issue": False, "issue_summary": ""}),
+        )
+        fake_tool = lambda query: [{"chunk_text": "some doc"}]
+        with patch.object(react_agent, "call_llm", side_effect=script), \
+             patch.dict(react_tools.TOOLS,
+                        {"sql_search": {"fn": fake_tool, "description": "d"}},
+                        clear=False):
+            result = react_agent.run_react("MIT TOEFL?", enable_critic=True)
+        self.assertEqual(result["answer"], "系統未收錄 MIT 資料")
+        self.assertTrue(result["critic_applied"])
+        self.assertFalse(result["critic_flagged"])
+
+    def test_critic_skipped_when_no_docs(self):
+        """ReAct 沒查任何資料就作答 → 無 docs，Critic 跳過（與 agent critic_node 一致）。
+        這也是一個要寫進論文的侷限：憑空作答時事後 Critic 無從檢查。"""
+        script = _llm_script(json.dumps({"final_answer": "MIT TOEFL 大約 100"}))
+        with patch.object(react_agent, "call_llm", side_effect=script):
+            result = react_agent.run_react("MIT TOEFL?", enable_critic=True)
+        self.assertTrue(result["critic_applied"])
+        self.assertFalse(result["critic_flagged"])   # 無 docs → 沒觸發
+        self.assertEqual(result["answer"], "MIT TOEFL 大約 100")
+
+
 class TestCleanAnswer(unittest.TestCase):
     def test_plain_text_untouched(self):
         self.assertEqual(react_agent._clean_answer("MIT 需要 TOEFL 90"), "MIT 需要 TOEFL 90")

@@ -162,7 +162,19 @@ def run_react_case(query: str, max_steps: int = 10) -> dict:
             "latency_s": round(latency, 3)}
 
 
-_RUNNERS = {"agent": run_agent_case, "react": run_react_case}
+def run_react_critic_case(query: str, max_steps: int = 10) -> dict:
+    """跑第三組 ReAct + Critic（ablation：純 ReAct 加回事後 Critic 幻覺複查）。"""
+    from retriever.react_baseline.react_agent import run_react
+
+    t0 = time.perf_counter()
+    result = run_react(query, max_steps=max_steps, verbose=False, enable_critic=True)
+    latency = time.perf_counter() - t0
+    return {"answer": result["answer"], "tool_calls": len(result["trace"]),
+            "latency_s": round(latency, 3)}
+
+
+_RUNNERS = {"agent": run_agent_case, "react": run_react_case,
+            "react_critic": run_react_critic_case}
 
 
 # ─── 主流程 ────────────────────────────────────────────────────────────────────
@@ -227,14 +239,22 @@ def main() -> int:
     parser.add_argument("--questions", default=str(_QUESTIONS_DEFAULT))
     parser.add_argument("--out", default=str(_RESULTS_DEFAULT))
     parser.add_argument("--limit", type=int, default=None, help="只跑前 N 題（先小跑用）")
-    parser.add_argument("--system", choices=["agent", "react", "both"], default="both")
+    parser.add_argument("--system",
+                        choices=["agent", "react", "react_critic", "both", "all"],
+                        default="both",
+                        help="both=agent+react；all=三組全跑；或指定單一系統")
     parser.add_argument("--max-steps", type=int, default=10)
     args = parser.parse_args()
 
     questions = json.loads(Path(args.questions).read_text(encoding="utf-8"))
     if args.limit:
         questions = questions[:args.limit]
-    systems = ["agent", "react"] if args.system == "both" else [args.system]
+    if args.system == "both":
+        systems = ["agent", "react"]
+    elif args.system == "all":
+        systems = ["agent", "react", "react_critic"]
+    else:
+        systems = [args.system]
 
     print(f"題數：{len(questions)}｜系統：{', '.join(systems)}")
     result = run_eval(questions, systems, max_steps=args.max_steps)

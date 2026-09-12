@@ -26,6 +26,8 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from generator.client import call_llm
+from generator.context import format_context_for_prompt
+from retriever.agent.prompts import _build_critic_prompt
 
 from .tools import TOOLS
 
@@ -81,35 +83,38 @@ def _preview(obj) -> str:
     return text if len(text) <= _PREVIEW_LEN else text[:_PREVIEW_LEN] + "…（截斷）"
 
 
-def _run_tool(name: str, args: dict) -> str:
-    """派工到 TOOLS[name]，回傳 observation 字串。工具不存在或報錯都轉成 error observation
-    餵回 LLM（不讓整個迴圈當機）——ReAct 本來就要能從錯誤中自我修正。"""
+def _run_tool(name: str, args: dict) -> tuple[str, list]:
+    """派工到 TOOLS[name]，回傳 (observation 字串, 完整結果 docs)。
+
+    observation 是給 LLM 看的截斷字串；完整 docs 另外回傳供 Critic 使用（enable_critic
+    時彙整成參考資料）。工具不存在或報錯都轉成 error observation 餵回 LLM（不讓迴圈當機），
+    此時 docs 為空 list。"""
     spec = TOOLS.get(name)
     if spec is None:
-        return f"[error] 沒有名為 '{name}' 的工具。可用工具：{', '.join(TOOLS)}"
+        return f"[error] 沒有名為 '{name}' 的工具。可用工具：{', '.join(TOOLS)}", []
     try:
         result = spec["fn"](**(args or {}))
     except Exception as e:                       # noqa: BLE001 — 任何工具錯誤都回饋給 LLM
-        return f"[error] 工具 '{name}' 執行失敗：{type(e).__name__}: {e}"
-    return _preview(result)
+        return f"[error] 工具 '{name}' 執行失敗：{type(e).__name__}: {e}", []
+    docs = result if isinstance(result, list) else []
+    return _preview(result), docs
 
 
-def run_react(query: str, profile: dict | None = None,
-              max_steps: int = 10, verbose: bool = False) -> dict:
-    """跑一次 ReAct 迴圈。
+def _run_loop(query: str, profile: dict | None, max_steps: int,
+              verbose: bool) -> tuple[str, list, list]:
+    """跑 ReAct 主迴圈，回傳 (answer, trace, collected_docs)。
 
-    Returns:
-        {"answer": str, "trace": [{"tool", "args", "result_preview"}, ...]}
-        trace 是論文數據：工具呼叫次數與分布、是否撞步數上限，都由它算得出。
+    collected_docs 累積每步工具回傳的『完整 docs』（非截斷）——LLM 看的仍是截斷版
+    observation，這份完整資料只供 enable_critic 時當 Critic 的參考資料。
     """
     system = _build_system_prompt()
     user_ctx = f"使用者問題：{query}"
     if profile:
         user_ctx += f"\n使用者成績檔案：{json.dumps(profile, ensure_ascii=False)}"
 
-    # 手動維護對話稿：system + 逐步累積的 action / observation
     transcript = f"{system}\n\n{user_ctx}\n"
     trace: list[dict] = []
+    collected_docs: list = []
 
     for step in range(max_steps):
         raw = call_llm(transcript + "\n請輸出下一步的 JSON：")
@@ -118,22 +123,18 @@ def run_react(query: str, profile: dict | None = None,
 
         action = _extract_json(raw)
         if action is None:
-            # 解析不出 JSON：把提示回饋給 LLM，讓它重來（消耗一步）
             transcript += f"\n[assistant] {raw}\n[system] 你的輸出不是合法 JSON，請只輸出一個 JSON 物件。\n"
             continue
 
         if "final_answer" in action:
-            return {"answer": str(action["final_answer"]), "trace": trace}
+            return str(action["final_answer"]), trace, collected_docs
 
         tool_name = action.get("tool")
         args = action.get("args") or {}
-        observation = _run_tool(tool_name, args)
+        observation, docs = _run_tool(tool_name, args)
+        collected_docs.extend(docs)
 
-        trace.append({
-            "tool": tool_name,
-            "args": args,
-            "result_preview": observation,
-        })
+        trace.append({"tool": tool_name, "args": args, "result_preview": observation})
         if verbose:
             print(f"[ReAct step {step + 1}] tool={tool_name} args={args}")
             print(f"[ReAct step {step + 1}] observation → {observation[:200]}")
@@ -149,8 +150,66 @@ def run_react(query: str, profile: dict | None = None,
         + f"\n[system] 已達步數上限（{max_steps} 步）。請根據目前已查到的資料，"
           "直接輸出給使用者的最終回答（純文字，不要再呼叫工具、不要 JSON）："
     )
-    return {"answer": _clean_answer(forced) or "（已達步數上限，無法在限制內完成回答）",
-            "trace": trace}
+    answer = _clean_answer(forced) or "（已達步數上限，無法在限制內完成回答）"
+    return answer, trace, collected_docs
+
+
+def _collect_docs_for_critic(query: str, profile: dict | None = None,
+                             max_steps: int = 10) -> list:
+    """跑一次迴圈只取 collected_docs（測試/除錯用）。"""
+    _, _, docs = _run_loop(query, profile, max_steps, verbose=False)
+    return docs
+
+
+def _apply_critic(answer: str, docs: list) -> tuple[str, bool]:
+    """對 ReAct 的最終答案套用現有 Critic 幻覺複查（第三組專用）。
+
+    重用 agent 的 _build_critic_prompt + generator 的 format_context_for_prompt，
+    邏輯對齊 agent/nodes/answer.py 的 critic_node：判 has_issue 就把 ⚠️ 提醒附在答案後，
+    不重新生成。回傳 (最終答案, 是否觸發警告)。
+
+    公平性侷限：Critic 檢查的是「答案 vs. ReAct 自己撈到的 docs 有無根據」，不檢查那些
+    docs 是否為官方來源。ReAct 若把非官方經驗談當根據，Critic 可能放行——這正是要觀測的。
+    """
+    if not answer or not docs:
+        return answer, False
+    context_text = format_context_for_prompt(docs)
+    try:
+        raw = call_llm(_build_critic_prompt(answer, context_text))
+        parsed = _extract_json(raw) or {}
+        has_issue = bool(parsed.get("has_issue", False))
+        issue = str(parsed.get("issue_summary", "")).strip()
+    except Exception as e:                       # noqa: BLE001
+        print(f"[ReAct+Critic] Critic 判斷失敗（{e}），略過")
+        return answer, False
+    if has_issue:
+        return answer + f"\n\n⚠️ 提醒：{issue or '部分內容可能未完全對應參考資料，建議自行確認。'}", True
+    return answer, False
+
+
+def run_react(query: str, profile: dict | None = None,
+              max_steps: int = 10, verbose: bool = False,
+              enable_critic: bool = False) -> dict:
+    """跑一次 ReAct 迴圈。
+
+    enable_critic=False（預設）為純 ReAct（無護欄）；True 為第三組「ReAct + Critic」：
+    迴圈跑完後，用累積的完整 docs 對最終答案做一次幻覺複查。
+
+    Returns:
+        {"answer": str, "trace": [...], "critic_applied": bool, "critic_flagged": bool}
+        trace / critic_* 皆為論文數據。
+    """
+    answer, trace, collected_docs = _run_loop(query, profile, max_steps, verbose)
+
+    if not enable_critic:
+        return {"answer": answer, "trace": trace,
+                "critic_applied": False, "critic_flagged": False}
+
+    final, flagged = _apply_critic(answer, collected_docs)
+    if verbose:
+        print(f"[ReAct+Critic] critic_flagged={flagged}")
+    return {"answer": final, "trace": trace,
+            "critic_applied": True, "critic_flagged": flagged}
 
 
 def _clean_answer(text: str) -> str:
