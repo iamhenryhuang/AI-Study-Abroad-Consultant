@@ -26,6 +26,11 @@ def decomposer_node(state: AgentState) -> dict:
             str(s).strip() for s in parsed.get("mentioned_school_names", []) if str(s).strip()
         ]
         professor_query  = _parse_professor_query(parsed.get("professor_query"))
+        # professor_list_query：指名教授查詢優先，兩者互斥（見 prompts.py 任務二點五）。
+        # 此行原本只在下方 except fallback 分支賦值，成功分支漏設，導致第 70 行讀取時
+        # UnboundLocalError——意圖判斷成功（正常情況）時 agent 必崩。
+        _plq = parsed.get("professor_list_query")
+        professor_list_query = _plq if (isinstance(_plq, dict) and not professor_query) else None
         needs_sql_search = bool(parsed.get("needs_sql_search", True))
         needs_experience = bool(parsed.get("needs_experience", False))
         wants_recommendation = bool(parsed.get("wants_recommendation", False))
