@@ -1,0 +1,848 @@
+[
+  {
+    "id": "A-cmu-gpa_min",
+    "type": "A_structured",
+    "question": "What is the minimum GPA requirement for Carnegie Mellon University's CS master's program?",
+    "school_id": "cmu",
+    "field": "gpa_min",
+    "expected": 3.5,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-cmu-toefl_ibt_min",
+    "type": "A_structured",
+    "question": "What is the minimum TOEFL iBT score for Carnegie Mellon University's CS master's program?",
+    "school_id": "cmu",
+    "field": "toefl_ibt_min",
+    "expected": 100,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-cmu-ielts_min",
+    "type": "A_structured",
+    "question": "What is the minimum IELTS score for Carnegie Mellon University's CS master's program?",
+    "school_id": "cmu",
+    "field": "ielts_min",
+    "expected": 7,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-cmu-gre_required",
+    "type": "A_structured",
+    "question": "Is GRE required for Carnegie Mellon University's CS master's program?",
+    "school_id": "cmu",
+    "field": "gre_required",
+    "expected": "not_accepted",
+    "expect_refusal": false
+  },
+  {
+    "id": "A-cmu-rec_letter_count",
+    "type": "A_structured",
+    "question": "How many recommendation letters does Carnegie Mellon University's CS master's program require?",
+    "school_id": "cmu",
+    "field": "rec_letter_count",
+    "expected": 3,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-cmu-tuition_per_year_usd",
+    "type": "A_structured",
+    "question": "What is the annual tuition (USD) for Carnegie Mellon University's CS master's program?",
+    "school_id": "cmu",
+    "field": "tuition_per_year_usd",
+    "expected": 58000,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-cmu-application_fee_usd",
+    "type": "A_structured",
+    "question": "What is the application fee (USD) for Carnegie Mellon University's CS master's program?",
+    "school_id": "cmu",
+    "field": "application_fee_usd",
+    "expected": 100,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-gatech-gpa_min",
+    "type": "A_structured",
+    "question": "What is the minimum GPA requirement for Georgia Institute of Technology's CS master's program?",
+    "school_id": "gatech",
+    "field": "gpa_min",
+    "expected": 3,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-gatech-toefl_ibt_min",
+    "type": "A_structured",
+    "question": "What is the minimum TOEFL iBT score for Georgia Institute of Technology's CS master's program?",
+    "school_id": "gatech",
+    "field": "toefl_ibt_min",
+    "expected": 90,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-gatech-ielts_min",
+    "type": "A_structured",
+    "question": "What is the minimum IELTS score for Georgia Institute of Technology's CS master's program?",
+    "school_id": "gatech",
+    "field": "ielts_min",
+    "expected": 6.5,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-gatech-gre_required",
+    "type": "A_structured",
+    "question": "Is GRE required for Georgia Institute of Technology's CS master's program?",
+    "school_id": "gatech",
+    "field": "gre_required",
+    "expected": "optional",
+    "expect_refusal": false
+  },
+  {
+    "id": "A-gatech-rec_letter_count",
+    "type": "A_structured",
+    "question": "How many recommendation letters does Georgia Institute of Technology's CS master's program require?",
+    "school_id": "gatech",
+    "field": "rec_letter_count",
+    "expected": 3,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-gatech-tuition_per_year_usd",
+    "type": "A_structured",
+    "question": "What is the annual tuition (USD) for Georgia Institute of Technology's CS master's program?",
+    "school_id": "gatech",
+    "field": "tuition_per_year_usd",
+    "expected": 32000,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-gatech-application_fee_usd",
+    "type": "A_structured",
+    "question": "What is the application fee (USD) for Georgia Institute of Technology's CS master's program?",
+    "school_id": "gatech",
+    "field": "application_fee_usd",
+    "expected": 85,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-purdue-gpa_min",
+    "type": "A_structured",
+    "question": "What is the minimum GPA requirement for Purdue University's CS master's program?",
+    "school_id": "purdue",
+    "field": "gpa_min",
+    "expected": 3.5,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-purdue-toefl_ibt_min",
+    "type": "A_structured",
+    "question": "What is the minimum TOEFL iBT score for Purdue University's CS master's program?",
+    "school_id": "purdue",
+    "field": "toefl_ibt_min",
+    "expected": 100,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-purdue-ielts_min",
+    "type": "A_structured",
+    "question": "What is the minimum IELTS score for Purdue University's CS master's program?",
+    "school_id": "purdue",
+    "field": "ielts_min",
+    "expected": 7.5,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-purdue-gre_required",
+    "type": "A_structured",
+    "question": "Is GRE required for Purdue University's CS master's program?",
+    "school_id": "purdue",
+    "field": "gre_required",
+    "expected": "not_accepted",
+    "expect_refusal": false
+  },
+  {
+    "id": "A-purdue-rec_letter_count",
+    "type": "A_structured",
+    "question": "How many recommendation letters does Purdue University's CS master's program require?",
+    "school_id": "purdue",
+    "field": "rec_letter_count",
+    "expected": 3,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-purdue-application_fee_usd",
+    "type": "A_structured",
+    "question": "What is the application fee (USD) for Purdue University's CS master's program?",
+    "school_id": "purdue",
+    "field": "application_fee_usd",
+    "expected": 75,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-stanford-gpa_min",
+    "type": "A_structured",
+    "question": "What is the minimum GPA requirement for Stanford University's CS master's program?",
+    "school_id": "stanford",
+    "field": "gpa_min",
+    "expected": 3.5,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-stanford-toefl_ibt_min",
+    "type": "A_structured",
+    "question": "What is the minimum TOEFL iBT score for Stanford University's CS master's program?",
+    "school_id": "stanford",
+    "field": "toefl_ibt_min",
+    "expected": 100,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-stanford-ielts_min",
+    "type": "A_structured",
+    "question": "What is the minimum IELTS score for Stanford University's CS master's program?",
+    "school_id": "stanford",
+    "field": "ielts_min",
+    "expected": 7,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-stanford-gre_required",
+    "type": "A_structured",
+    "question": "Is GRE required for Stanford University's CS master's program?",
+    "school_id": "stanford",
+    "field": "gre_required",
+    "expected": "not_accepted",
+    "expect_refusal": false
+  },
+  {
+    "id": "A-stanford-rec_letter_count",
+    "type": "A_structured",
+    "question": "How many recommendation letters does Stanford University's CS master's program require?",
+    "school_id": "stanford",
+    "field": "rec_letter_count",
+    "expected": 3,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-stanford-tuition_per_year_usd",
+    "type": "A_structured",
+    "question": "What is the annual tuition (USD) for Stanford University's CS master's program?",
+    "school_id": "stanford",
+    "field": "tuition_per_year_usd",
+    "expected": 58000,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-stanford-application_fee_usd",
+    "type": "A_structured",
+    "question": "What is the application fee (USD) for Stanford University's CS master's program?",
+    "school_id": "stanford",
+    "field": "application_fee_usd",
+    "expected": 125,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-ucla-gpa_min",
+    "type": "A_structured",
+    "question": "What is the minimum GPA requirement for University of California, Los Angeles's CS master's program?",
+    "school_id": "ucla",
+    "field": "gpa_min",
+    "expected": 3.25,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-ucla-toefl_ibt_min",
+    "type": "A_structured",
+    "question": "What is the minimum TOEFL iBT score for University of California, Los Angeles's CS master's program?",
+    "school_id": "ucla",
+    "field": "toefl_ibt_min",
+    "expected": 87,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-ucla-ielts_min",
+    "type": "A_structured",
+    "question": "What is the minimum IELTS score for University of California, Los Angeles's CS master's program?",
+    "school_id": "ucla",
+    "field": "ielts_min",
+    "expected": 7,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-ucla-gre_required",
+    "type": "A_structured",
+    "question": "Is GRE required for University of California, Los Angeles's CS master's program?",
+    "school_id": "ucla",
+    "field": "gre_required",
+    "expected": "not_accepted",
+    "expect_refusal": false
+  },
+  {
+    "id": "A-ucla-rec_letter_count",
+    "type": "A_structured",
+    "question": "How many recommendation letters does University of California, Los Angeles's CS master's program require?",
+    "school_id": "ucla",
+    "field": "rec_letter_count",
+    "expected": 3,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-ucla-tuition_per_year_usd",
+    "type": "A_structured",
+    "question": "What is the annual tuition (USD) for University of California, Los Angeles's CS master's program?",
+    "school_id": "ucla",
+    "field": "tuition_per_year_usd",
+    "expected": 32000,
+    "expect_refusal": false
+  },
+  {
+    "id": "A-ucla-application_fee_usd",
+    "type": "A_structured",
+    "question": "What is the application fee (USD) for University of California, Los Angeles's CS master's program?",
+    "school_id": "ucla",
+    "field": "application_fee_usd",
+    "expected": 140,
+    "expect_refusal": false
+  },
+  {
+    "id": "E-nyu-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for NYU's CS master's program?",
+    "school_id": "nyu",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-nyu-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for NYU's CS master's program?",
+    "school_id": "nyu",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-nyu-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for NYU's CS master's program?",
+    "school_id": "nyu",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-uiuc-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for UIUC's CS master's program?",
+    "school_id": "uiuc",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-uiuc-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for UIUC's CS master's program?",
+    "school_id": "uiuc",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-uiuc-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for UIUC's CS master's program?",
+    "school_id": "uiuc",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucsd-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for UCSD's CS master's program?",
+    "school_id": "ucsd",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucsd-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for UCSD's CS master's program?",
+    "school_id": "ucsd",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucsd-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for UCSD's CS master's program?",
+    "school_id": "ucsd",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-cornell-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for CORNELL's CS master's program?",
+    "school_id": "cornell",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-cornell-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for CORNELL's CS master's program?",
+    "school_id": "cornell",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-cornell-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for CORNELL's CS master's program?",
+    "school_id": "cornell",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-mit-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for MIT's CS master's program?",
+    "school_id": "mit",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-mit-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for MIT's CS master's program?",
+    "school_id": "mit",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-mit-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for MIT's CS master's program?",
+    "school_id": "mit",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-osu-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for OSU's CS master's program?",
+    "school_id": "osu",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-osu-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for OSU's CS master's program?",
+    "school_id": "osu",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-osu-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for OSU's CS master's program?",
+    "school_id": "osu",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-columbia-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for COLUMBIA's CS master's program?",
+    "school_id": "columbia",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-columbia-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for COLUMBIA's CS master's program?",
+    "school_id": "columbia",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-columbia-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for COLUMBIA's CS master's program?",
+    "school_id": "columbia",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucdavis-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for UCDAVIS's CS master's program?",
+    "school_id": "ucdavis",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucdavis-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for UCDAVIS's CS master's program?",
+    "school_id": "ucdavis",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucdavis-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for UCDAVIS's CS master's program?",
+    "school_id": "ucdavis",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-washington-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for WASHINGTON's CS master's program?",
+    "school_id": "washington",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-washington-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for WASHINGTON's CS master's program?",
+    "school_id": "washington",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-washington-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for WASHINGTON's CS master's program?",
+    "school_id": "washington",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-rice-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for RICE's CS master's program?",
+    "school_id": "rice",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-rice-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for RICE's CS master's program?",
+    "school_id": "rice",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-rice-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for RICE's CS master's program?",
+    "school_id": "rice",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-berkeley-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for BERKELEY's CS master's program?",
+    "school_id": "berkeley",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-berkeley-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for BERKELEY's CS master's program?",
+    "school_id": "berkeley",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-berkeley-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for BERKELEY's CS master's program?",
+    "school_id": "berkeley",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-uci-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for UCI's CS master's program?",
+    "school_id": "uci",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-uci-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for UCI's CS master's program?",
+    "school_id": "uci",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-uci-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for UCI's CS master's program?",
+    "school_id": "uci",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-upenn-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for UPENN's CS master's program?",
+    "school_id": "upenn",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-upenn-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for UPENN's CS master's program?",
+    "school_id": "upenn",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-upenn-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for UPENN's CS master's program?",
+    "school_id": "upenn",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-umich-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for UMICH's CS master's program?",
+    "school_id": "umich",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-umich-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for UMICH's CS master's program?",
+    "school_id": "umich",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-umich-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for UMICH's CS master's program?",
+    "school_id": "umich",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-duke-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for DUKE's CS master's program?",
+    "school_id": "duke",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-duke-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for DUKE's CS master's program?",
+    "school_id": "duke",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-duke-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for DUKE's CS master's program?",
+    "school_id": "duke",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucsb-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for UCSB's CS master's program?",
+    "school_id": "ucsb",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucsb-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for UCSB's CS master's program?",
+    "school_id": "ucsb",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucsb-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for UCSB's CS master's program?",
+    "school_id": "ucsb",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-umd-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for UMD's CS master's program?",
+    "school_id": "umd",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-umd-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for UMD's CS master's program?",
+    "school_id": "umd",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-umd-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for UMD's CS master's program?",
+    "school_id": "umd",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-wisc-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for WISC's CS master's program?",
+    "school_id": "wisc",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-wisc-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for WISC's CS master's program?",
+    "school_id": "wisc",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-wisc-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for WISC's CS master's program?",
+    "school_id": "wisc",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-umass-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for UMASS's CS master's program?",
+    "school_id": "umass",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-umass-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for UMASS's CS master's program?",
+    "school_id": "umass",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-umass-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for UMASS's CS master's program?",
+    "school_id": "umass",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucsc-toefl",
+    "type": "E_not_covered",
+    "question": "What is the minimum TOEFL score for UCSC's CS master's program?",
+    "school_id": "ucsc",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucsc-gpa",
+    "type": "E_not_covered",
+    "question": "What is the minimum GPA for UCSC's CS master's program?",
+    "school_id": "ucsc",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  },
+  {
+    "id": "E-ucsc-deadline",
+    "type": "E_not_covered",
+    "question": "What is the application deadline for UCSC's CS master's program?",
+    "school_id": "ucsc",
+    "field": null,
+    "expected": null,
+    "expect_refusal": true
+  }
+]

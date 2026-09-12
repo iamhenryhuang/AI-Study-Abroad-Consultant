@@ -48,6 +48,8 @@ desktop.ini
 # 日誌與暫存
 *.log
 *.tmp
+# 評測執行時的臨時題庫切片（如 _e_only.json），非成品
+eval/_*.json
 .cache/
 .pytest_cache/
 .coverage
